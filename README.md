@@ -10,6 +10,7 @@ Also allows patching of the original executable to play the alternative import s
 Prebuilt Windows binaries provided:
 
 Wizardry8Editor_win32.exe    MD5:b9fe1284980d30b6ef40e3af4f249762
+
 Wizardry8Editor_win64.exe    MD5:912c383e20cbd25d44dcfc236349033e
 
 32 Bit version is compiled with older version of Qt and should work with Operating Systems as old as Windows XP
