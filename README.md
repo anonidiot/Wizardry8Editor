@@ -2,6 +2,7 @@
 QT Based Save Game editor for Wizardry 8
 
 Latest Release 0.1.2
+
 No currently known bugs, but no contextual help or action confirmation prompts either.
 
 Allows for editting characters and parties from SirTech's Wizardry 8 game.
