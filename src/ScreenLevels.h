@@ -45,6 +45,7 @@ public:
 
 public slots:
     void        spinnerChanged(int value);
+    void        poisonStrChanged(int value);
     void        profDetail(bool checked);
     void        info(bool checked);
 

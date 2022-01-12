@@ -1329,6 +1329,11 @@ void character::setConditionActive(condition c, bool on)
     m_conditions_active[ c ] = on;
 }
 
+void character::setPoisonStrength(int str)
+{
+    m_poison_strength = str;
+}
+
 int character::getPoisonStrength() const
 {
     return m_poison_strength;

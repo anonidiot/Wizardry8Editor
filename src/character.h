@@ -282,6 +282,7 @@ public:
     void          setCondition(condition c, int duration);
     void          setConditionActive(condition c, bool on);
     int           getPoisonStrength() const;
+    void          setPoisonStrength(int str);
 
     /**
      * Returns the skill which gets the 25% bonus - based on profession.

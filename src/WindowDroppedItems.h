@@ -72,7 +72,6 @@ private:
 
     int                    m_droppedItems_scrollPos;
 
-// BERNIE upto
 private:
     QPixmap    makeDialogForm();
 };
