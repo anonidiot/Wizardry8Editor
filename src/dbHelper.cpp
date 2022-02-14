@@ -26,7 +26,6 @@
 #include "common.h"
 #include "dbHelper.h"
 
-
 #define  ITEM_START_OFFSET 0x0004
 #define  ITEM_RECORD_SIZE  0x010d
 #define  SPELL_RECORD_SIZE 0x02c0
@@ -44,6 +43,8 @@ dbHelper::dbHelper() :
         m_item_db->open(QIODevice::ReadOnly);
 
         m_numItems = m_item_db->readLEUShort();
+
+        buildItemQuickFilter();
     }
 
     m_itemdesc_db = new SLFFile("DATABASES/ITEMDESC.DBS");
@@ -81,9 +82,50 @@ dbHelper::dbHelper() :
 
 dbHelper::~dbHelper()
 {
+    delete[] m_quick_filter_items;
     delete m_item_db;
     delete m_itemdesc_db;
     delete m_spell_db;
+}
+
+void dbHelper::buildItemQuickFilter()
+{
+    m_item_db->seek( ITEM_START_OFFSET );
+
+    m_quick_filter_items = new quint64[m_numItems];
+
+    for (int k=0; k < m_numItems; k++)
+    {
+        QByteArray   item_record = m_item_db->read(ITEM_RECORD_SIZE);
+        quint8      *data        = (quint8 *)item_record.constData();
+
+        quint64 profs   = FORMAT_LE16(data + 0x76);
+        quint64 races   = FORMAT_LE16(data + 0x78);
+        quint64 genders = FORMAT_8(   data + 0x7c);
+
+        m_quick_filter_items[k] = (profs << 32) | (races << 16) | genders;
+    }
+}
+
+QList<quint16> dbHelper::getFilteredItems(character::profession prof, character::race race, character::gender gender)
+{
+    quint64 p = (quint64) prof;
+    quint64 r = (quint64) race;
+    quint64 g = (quint64) gender;
+
+    quint64 mask = (p << 32) | (r << 16) | g;
+
+    QList<quint16> items;
+
+    for (int k=0; k < m_numItems; k++)
+    {
+        if ((m_quick_filter_items[k] & mask) == mask)
+        {
+            items << (quint16)k;
+        }
+    }
+
+    return items;
 }
 
 QString dbHelper::getItemDesc(quint32 item_id)

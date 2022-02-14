@@ -370,9 +370,12 @@ public:
     int           getSkill(skill sk, atIdx idx) const;
     void          setSkill(skill sk, int value);
 
-    int           getHp(atIdx idx);
-    int           getStamina(atIdx idx);
-    int           getMp(realm r, atIdx idx);
+    int           getHp(atIdx idx) const;
+    int           getStamina(atIdx idx) const;
+    int           getMp(realm r, atIdx idx) const;
+    void          setHp(atIdx idx, int hp);
+    void          setStamina(atIdx idx, int stamina);
+    void          setMp(realm r, atIdx idx, int mp);
     int           getMagicResistance(realm r, atIdx idx);
     quint32       getXp() const;
     quint32       getXpNeeded() const;
@@ -572,9 +575,9 @@ private:
     quint32           m_xp_needed;
     quint32           m_xp_last_needed;
 
-    qint32            m_hp[2];
+    qint32            m_hp[ atIdx::ATIDX_SIZE ];
     qint32            m_hp_drain;
-    qint32            m_stamina[2];
+    qint32            m_stamina[ atIdx::ATIDX_SIZE ];
     qint32            m_stamina_drain;
 
     float             m_healing_rate;
@@ -591,10 +594,10 @@ private:
     quint32           m_deaths;
     quint32           m_initiative;
 
-    quint32           m_mp[REALM_SIZE][2];
+    qint32            m_mp[REALM_SIZE][ atIdx::ATIDX_SIZE ];
     quint32           m_mpStrongestRealm;
     quint32           m_knownSpellsCount[REALM_SIZE];
-    float             m_mp_recovery[REALM_SIZE][2];
+    float             m_mp_recovery[REALM_SIZE][ atIdx::ATIDX_SIZE ];
 
     qint32            m_acmod_base;
     qint32            m_acmod_race;
@@ -616,7 +619,7 @@ private:
 
     qint32            m_damage_absorption;
 
-    quint32           m_magic_resistance[REALM_SIZE][2];
+    qint32            m_magic_resistance[REALM_SIZE][ atIdx::ATIDX_SIZE ];
 
     struct attack     m_attack[2];
 

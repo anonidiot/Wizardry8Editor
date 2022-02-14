@@ -43,8 +43,15 @@ public:
     ScreenLevels(character *c, QWidget *parent = nullptr);
     ~ScreenLevels();
 
+signals:
+    void        changedLevel();
+
 public slots:
     void        spinnerChanged(int value);
+    void        hpChanged(int value);
+    void        staminaChanged(int value);
+    void        spChanged(int value);
+
     void        poisonStrChanged(int value);
     void        profDetail(bool checked);
     void        info(bool checked);
@@ -67,12 +74,17 @@ protected:
 
 private:
     void        resetScreen(void *char_tag, void *party_tag) override;
+    void        resetXP();
+    void        resetHPStaminaSP();
+    void        resetConditions();
+    void        resetLevels();
 
     quint32     xpButton( QPushButton *q, int widget_id );
 
     QPixmap     makeRowPixmap();
     QPixmap     makeRowPixmap2();
     QPixmap     makeProfsBoxPixmap();
+    QPixmap     makeHealthBoxPixmap();
     QPixmap     makeFakeButton();
 
     character  *m_char;

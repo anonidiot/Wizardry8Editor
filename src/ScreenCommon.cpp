@@ -344,6 +344,10 @@ ScreenCommon::ScreenCommon(party *p, int charIdx, QWidget *parent) :
     m_currentScreen->lower();
     m_currentScreen->setVisible(true);
 
+    connect( m_currentScreen, SIGNAL(changedRace()), this, SLOT(changedRace()) );
+    connect( m_currentScreen, SIGNAL(changedProf()), this, SLOT(changedProf()) );
+    connect( m_currentScreen, SIGNAL(changedSex()),  this, SLOT(changedSex())  );
+
     // Set the buttons to reflect selected page
     qobject_cast<QPushButton *>(m_widgets[ PAGE_ATTRIBS ])->setChecked( true );
 
@@ -612,6 +616,40 @@ void ScreenCommon::changedName(QString name)
     if (WLabel *q = qobject_cast<WLabel *>(m_widgets[ VAL_NAME ]))
     {
         q->setText( name );
+    }
+}
+
+void ScreenCommon::changedRace()
+{
+    if (WLabel *q = qobject_cast<WLabel *>(m_widgets[ VAL_RACE ]))
+    {
+        q->setText( m_party->m_chars[m_charIdx]->getGenderString() + " " + m_party->m_chars[m_charIdx]->getRaceString() );
+    }
+}
+
+void ScreenCommon::changedSex()
+{
+    // Race and sex are in the same text box
+    changedRace();
+}
+
+void ScreenCommon::changedProf()
+{
+    if (WLabel *q = qobject_cast<WLabel *>(m_widgets[ VAL_PROF ]))
+    {
+        q->setText( m_party->m_chars[m_charIdx]->getProfessionString() );
+    }
+    // Changing the profession also affects the level string
+    changedLevel();
+}
+
+void ScreenCommon::changedLevel()
+{
+    if (WLabel *q = qobject_cast<WLabel *>(m_widgets[ VAL_LEVEL ]))
+    {
+        q->setText( ::getStringTable()->getString( StringList::Level ) +
+                    " " + QString::number(m_party->m_chars[m_charIdx]->getCurrentLevel()) +
+                    " (" + m_party->m_chars[m_charIdx]->getCurrentLevelString() + ")" );
     }
 }
 
@@ -1031,6 +1069,9 @@ void ScreenCommon::reviewLevels(bool down)
         m_currentScreen = new ScreenLevels( m_party->m_chars[m_charIdx], this );
         m_currentScreen->lower();
         m_currentScreen->setVisible(true);
+
+        connect( m_currentScreen, SIGNAL(changedLevel()), this, SLOT(changedLevel()) );
+
         this->update();
     }
 }
@@ -1046,6 +1087,11 @@ void ScreenCommon::reviewAttribs(bool down)
         m_currentScreen = new ScreenAttribs( m_party->m_chars[m_charIdx], this );
         m_currentScreen->lower();
         m_currentScreen->setVisible(true);
+
+        connect( m_currentScreen, SIGNAL(changedRace()), this, SLOT(changedRace()) );
+        connect( m_currentScreen, SIGNAL(changedProf()), this, SLOT(changedProf()) );
+        connect( m_currentScreen, SIGNAL(changedSex()),  this, SLOT(changedSex())  );
+
         this->update();
     }
 }

@@ -404,7 +404,16 @@ void WItem::dragEnterEvent(QDragEnterEvent *event)
 {
     if (event->mimeData()->hasFormat( kItemMimeType ))
     {
-        event->setDropAction(Qt::MoveAction);
+        QWidget *src = qobject_cast<QWidget *>( event->source() );
+
+        // If the source is a sibling of ourselves, then move, else copy
+        // This prevents messes being made in item info and item list
+        // windows when items are dragged from there into the items view
+        if (src && parentWidget()->isAncestorOf(src))
+            event->setDropAction(Qt::MoveAction);
+        else
+            event->setDropAction(Qt::CopyAction);
+
         event->accept();
     }
     else
@@ -417,7 +426,16 @@ void WItem::dragMoveEvent(QDragMoveEvent *event)
 {
     if (event->mimeData()->hasFormat( kItemMimeType ))
     {
-        event->setDropAction(Qt::MoveAction);
+        QWidget *src = qobject_cast<QWidget *>( event->source() );
+
+        // If the source is a sibling of ourselves, then move, else copy
+        // This prevents messes being made in item info and item list
+        // windows when items are dragged from there into the items view
+        if (src && parentWidget()->isAncestorOf(src))
+            event->setDropAction(Qt::MoveAction);
+        else
+            event->setDropAction(Qt::CopyAction);
+
         event->accept();
     }
     else
@@ -443,7 +461,16 @@ void WItem::dropEvent(QDropEvent *event)
         // an object. It is signalling the completion of an item move.
         emit itemDropped( i );
 
-        event->setDropAction(Qt::MoveAction);
+        QWidget *src = qobject_cast<QWidget *>( event->source() );
+
+        // If the source is a sibling of ourselves, then move, else copy
+        // This prevents messes being made in item info and item list
+        // windows when items are dragged from there into the items view
+        if (src && parentWidget()->isAncestorOf(src))
+            event->setDropAction(Qt::MoveAction);
+        else
+            event->setDropAction(Qt::CopyAction);
+
         event->accept();
     }
 }

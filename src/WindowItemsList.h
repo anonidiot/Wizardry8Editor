@@ -23,41 +23,48 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef SCREENATTRIBS_H__
-#define SCREENATTRIBS_H__
+#ifndef WNDITEMSLST_H
+#define WNDITEMSLST_H
 
 #include <QWidget>
+#include <QList>
+#include <QMap>
 #include <QPixmap>
+#include <QString>
 
 #include "character.h"
-#include "Screen.h"
 
-class QHelpEvent;
+#include "DialogChooseColumns.h"
+#include "Wizardry8Scalable.h"
+
 class QListWidget;
 class QListWidgetItem;
+class QMenu;
 
-class ScreenAttribs : public Screen
+class WindowItemsList : public QWidget, public Wizardry8Scalable
 {
     Q_OBJECT
 
 public:
-    ScreenAttribs(character *c, QWidget *parent = nullptr);
-    ~ScreenAttribs();
+    WindowItemsList(character::profession profession, character::race race, character::gender gender);
+    ~WindowItemsList();
 
     void        setVisible(bool visible) override;
 
+    void        setScale(double scale) override;
+
 signals:
-    void        changedRace();
-    void        changedProf();
-    void        changedSex();
+    void        windowClosing();
+
 
 public slots:
-    void        spinnerChanged(int value);
-    void        attributeDetail(bool checked);
-    void        dropDownList(bool down);
-    void        info(bool checked);
+    void        mouseOverLabel(bool on);
 
-    void        mouseOverLabel(bool on) override;
+    void        dropDownList(bool down);
+
+    void        filterProf(int);
+    void        filterRace(int);
+    void        filterSex(int);
 
     void        professionChanged(QListWidgetItem *);
     void        raceChanged(QListWidgetItem *);
@@ -70,26 +77,45 @@ public slots:
     void        prevGender(bool);
     void        nextGender(bool);
 
-private:
-    void        resetScreen(void *char_tag, void *party_tag) override;
-    int         changeListItem( int widgetId, int delta );
+    void        tableMenu(QPoint pos);
+    void        chooseColumns();
 
-    QPixmap     makeRowPixmap();
+protected:
+    void        closeEvent(QCloseEvent *event) override;
+    void        resizeEvent(QResizeEvent *event) override;
+
+private:
+    int         changeListItem( int widgetId, int delta );
+    QString     lookupItemProperty( item *i, DialogChooseColumns::column col, bool *numeric );
+
+    QList<DialogChooseColumns::column> loadColumnsFromRegistry();
+
+    void        populateColumns();
 
     void        loadDDLPixmaps();
     void        updateLists();
+    void        updateFilter();
 
     void        populateDDLProfessions(QListWidget *ddl);
     void        populateDDLRaces(QListWidget *ddl);
     void        populateDDLGenders(QListWidget *ddl);
 
-    character  *m_char;
-    bool        m_inspectMode;
+    QPixmap     makeDialogForm();
+
+    character::profession  m_prof_filter;
+    character::race        m_race_filter;
+    character::gender      m_gender_filter;
 
     QPixmap     m_ddlInactive;
     QPixmap     m_ddlActive;
     QPixmap     m_ddlTop;
     QPixmap     m_ddlMiddle;
     QPixmap     m_ddlBottom;
+
+    QPixmap     m_bgImg;
+    QMap<int, QWidget *>   m_widgets;
+
+    QMenu      *m_contextMenu;
 };
+
 #endif

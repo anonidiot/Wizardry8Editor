@@ -41,6 +41,7 @@
 #include <QTransform>
 #include "WListWidget.h"
 #include "WSpinBox.h"
+#include "WindowItemsList.h"
 
 #include "SLFFile.h"
 #include "STItoQImage.h"
@@ -257,10 +258,19 @@ void Wizardry8Style::polish(QWidget *widget)
         QObject::connect( q, SIGNAL(valueChanged(int)), delta, SLOT(valueChanged(int)));
     }
 
-    // irrespective of widget FORCE the bloody thing to use our palette
-    // because they're all ignoring it and using their own even when the
-    // app is set to use the style palette!
-    widget->setPalette( m_standardPalette );
+    if (WindowItemsList *q = qobject_cast<WindowItemsList *>(widget))
+    {
+        // This widget wants to setup a tiled background; it can't if the
+        // palette gets reset here.
+    }
+    else
+    {
+        // irrespective of widget FORCE the bloody thing to use our palette
+        // because they're all ignoring it and using their own even when the
+        // app is set to use the style palette!
+        // Shouldn't have to do this!!!!
+        widget->setPalette( m_standardPalette );
+    }
 }
 
 void Wizardry8Style::unpolish(QWidget *widget)

@@ -981,9 +981,11 @@ void character::unpackCharacter(const QByteArray &c, const QByteArray &cx)
     // Health and Stamina Points - calculated attributes
     /* [0x0b0d--0x0b10] */ m_hp[atIdx::Base]         = FORMAT_LE32( cdata+0xb0d ); // HP at full health
     /* [0x0b11--0x0b14] */ m_hp[atIdx::Current]      = FORMAT_LE32( cdata+0xb11 ); // current HP (if character is dead MUST be 0 or they won't be revivable)
+                           m_hp[atIdx::Initial]      = m_hp[atIdx::Current];
     /* [0x0b15--0x0b18] */ m_hp_drain                = FORMAT_LE32( cdata+0xb15 ); // negative value when active - DISEASE _can_ switch it on
     /* [0x0b19--0x0b1c] */ m_stamina[atIdx::Base]    = FORMAT_LE32( cdata+0xb19 ); // Stamina at full health
     /* [0x0b1d--0x0b20] */ m_stamina[atIdx::Current] = FORMAT_LE32( cdata+0xb1d ); // current Stamina
+                           m_stamina[atIdx::Initial] = m_stamina[atIdx::Current];
     /* [0x0b21--0x0b24] */ m_stamina_drain           = FORMAT_LE32( cdata+0xb21 ); // positive value when active - DISEASE _can_ switch it on
 
     // Mana (Magic) Points - calculated attributes
@@ -1000,6 +1002,12 @@ void character::unpackCharacter(const QByteArray &c, const QByteArray &cx)
     /* [0x0b51--0x0b54] */ m_mp[realm::Earth][atIdx::Current]  = FORMAT_LE32( cdata+0x0b51 );
     /* [0x0b55--0x0b58] */ m_mp[realm::Mental][atIdx::Current] = FORMAT_LE32( cdata+0x0b55 );
     /* [0x0b59--0x0b5c] */ m_mp[realm::Divine][atIdx::Current] = FORMAT_LE32( cdata+0x0b59 );
+                           m_mp[realm::Fire][atIdx::Initial]   = m_mp[realm::Fire][atIdx::Current];
+                           m_mp[realm::Water][atIdx::Initial]  = m_mp[realm::Water][atIdx::Current];
+                           m_mp[realm::Air][atIdx::Initial]    = m_mp[realm::Air][atIdx::Current];
+                           m_mp[realm::Earth][atIdx::Initial]  = m_mp[realm::Earth][atIdx::Current];
+                           m_mp[realm::Mental][atIdx::Initial] = m_mp[realm::Mental][atIdx::Current];
+                           m_mp[realm::Divine][atIdx::Initial] = m_mp[realm::Divine][atIdx::Current];
 
     /* [0x0b5d--0x0b68] */ // UNKNOWN
     /* [0x0b69--0x0b6c] */ m_healing_rate                      = FORMAT_FLOAT( cdata+0x0b69 );
@@ -1370,9 +1378,7 @@ void character::recomputeEverything()
         recomputeHp();
         recomputeStamina();
 
-        // What about former spell caster that is now only a Fighter, Rogue, Bard or Gadgeteer?
-        if (isPureCaster() || isHybridCaster())
-            recomputeManaPoints();
+        recomputeManaPoints();
 
         recomputeAcmod();
         recomputeRecoveryRates();
@@ -1734,7 +1740,7 @@ void character::setGender(character::gender g)
 
 int character::getCurrentLevel() const
 {
-    return m_currentLevels[ m_profession ];
+    return m_combinedLevel;
 }
 
 QString character::getCurrentLevelString() const
@@ -1800,12 +1806,13 @@ QString character::getCurrentLevelString() const
     }
 
     // Wizardry 8 has inconsistent behaviour with respect to level strings
-    // When you first change class it shows string based on overall, but then on
-    // first level change reasserts based on current profession.
-    // I've chosen just to use the current profession. Wizardry may alter this at
-    // some point if it doesn't like it, but it's just a text string on screen AFAICT.
+    // When you first change class it shows string in new class based on overall
+    // levl, but then on first level changed after that lowers it back to how
+    // many levels you actually have in that profession.
+    // I've chosen to set it to the number of levels in that profession from the
+    // get go.
 
-    if (m_currentLevels[ m_profession ] == 1)
+    if (m_currentLevels[ m_profession ] <= 1)
         return ::getStringTable()->getString( string_ids[prof_idx + 0] );
     else if (m_currentLevels[ m_profession ] < 4)
         return ::getStringTable()->getString( string_ids[prof_idx + 1] );
@@ -1901,17 +1908,17 @@ void character::setSkill(skill sk, int value)
     resetControllingAttribs();
 }
 
-int character::getHp(atIdx idx)
+int character::getHp(atIdx idx) const
 {
     return m_hp[idx];
 }
 
-int character::getStamina(atIdx idx)
+int character::getStamina(atIdx idx) const
 {
     return m_stamina[idx];
 }
 
-int character::getMp(realm r, atIdx idx)
+int character::getMp(realm r, atIdx idx) const
 {
     if (r == realm::REALM_SIZE)
     {
@@ -1923,6 +1930,115 @@ int character::getMp(realm r, atIdx idx)
                m_mp[ realm::Divine ][idx];
     }
     return m_mp[r][idx];
+}
+
+void character::setHp(atIdx idx, int hp)
+{
+    // Only expect the _current_ value to ever be set
+    if (idx == atIdx::Current)
+    {
+        if (hp > m_hp[atIdx::Base])
+            hp = m_hp[atIdx::Base];
+        else if (hp < 0)
+            hp = 0;
+
+        m_hp[idx] = hp;
+    }
+}
+
+void character::setStamina(atIdx idx, int stamina)
+{
+    // Only expect the _current_ value to ever be set
+    if (idx == atIdx::Current)
+    {
+        if (stamina > m_stamina[atIdx::Base])
+            stamina = m_stamina[atIdx::Base];
+        else if (stamina < 0)
+            stamina = 0;
+
+        m_stamina[idx] = stamina;
+    }
+}
+
+void character::setMp(realm r, atIdx idx, int mp)
+{
+    // Only expect the _current_ value to ever be set
+    if (idx == atIdx::Current)
+    {
+        if (r != realm::REALM_SIZE)
+        {
+            if (mp > m_mp[r][atIdx::Base])
+                mp = m_mp[r][atIdx::Base];
+            else if (mp < 0)
+                mp = 0;
+
+            m_mp[r][idx] = mp;
+        }
+        else
+        {
+            int mp_current = m_mp[ realm::Fire   ][idx] +
+                             m_mp[ realm::Water  ][idx] +
+                             m_mp[ realm::Air    ][idx] +
+                             m_mp[ realm::Earth  ][idx] +
+                             m_mp[ realm::Mental ][idx] +
+                             m_mp[ realm::Divine ][idx];
+
+            // in reality this should fill up all the realms equally but in
+            // practice that's not easy to do here. Despite this function being
+            // written to allow changes to any value of SP, in actuality it gets
+            // called from one place only, which is a spinner callback, and that
+            // means it gets called for an adjustment of one value at a time -
+            // ie. even if it is adding a total of 100 SPs, it'll do it one by one,
+            // and we don't keep a state of previous invocations to evenly disperse
+            // the overall change. So it's a little more limited, but this code here
+            // instead just fills up the first realm before moving to the next.
+            // And on reduction it empties the first realm before moving to the next
+
+            if (mp > mp_current)
+            {
+                for (int k=0; k<realm::REALM_SIZE; k++)
+                {
+                    int room_free = m_mp[k][atIdx::Base] - m_mp[k][atIdx::Current];
+
+                    if (room_free > 0)
+                    {
+                        if (mp - mp_current <= room_free)
+                        {
+                            m_mp[k][atIdx::Current] += mp - mp_current;
+                            break;
+                        }
+                        else
+                        {
+                            m_mp[k][atIdx::Current] += room_free;
+                            mp -= room_free;
+                        }
+                    }
+                }
+            }
+            else if (mp < mp_current)
+            {
+                for (int k=0; k<realm::REALM_SIZE; k++)
+                {
+                    int room_free = m_mp[k][atIdx::Base] - m_mp[k][atIdx::Current];
+
+                    if (room_free > 0)
+                    {
+                        if (mp_current - mp >= room_free)
+                        {
+                            m_mp[k][atIdx::Current] -= mp_current - mp;
+                            break;
+                        }
+                        else
+                        {
+                            m_mp[k][atIdx::Current] -= room_free;
+                            mp += room_free;
+                        }
+                    }
+                }
+            }
+            /* else do nothing because it's equal */
+        }
+    }
 }
 
 int character::getMagicResistance(realm r, atIdx idx)
@@ -2514,6 +2630,15 @@ void character::setProfessionLevel( character::profession prof, int level )
     if (m_currentLevels.contains( prof ) || (level > 0))
     {
         m_currentLevels[ prof ] = level;
+    }
+
+    m_combinedLevel = 0;
+
+    QMapIterator<profession, int>  i(m_currentLevels);
+    while (i.hasNext())
+    {
+        i.next();
+        m_combinedLevel += i.value();
     }
 }
 
@@ -3692,7 +3817,7 @@ int qsort_cmpfunc (const void * a, const void * b)
 
 void character::recomputeManaPoints()
 {
-    quint32        mostExpensiveSpell[6];
+    qint32         mostExpensiveSpell[6];
     quint32        max;
     quint32        school[4];
     quint32        school_weighted_av;
@@ -3713,7 +3838,7 @@ void character::recomputeManaPoints()
         {
             spell s(k);
 
-            quint32 spcost = s.getSPCost();
+            qint32  spcost = s.getSPCost();
             quint32 realm  = s.getRealm();
 
             if ( spcost > mostExpensiveSpell[realm] )
@@ -3740,7 +3865,7 @@ void character::recomputeManaPoints()
 
     for (int k = 0; k < REALM_SIZE; k++)
     {
-        quint32 old_mana = m_mp[ realm::Fire + k ][atIdx::Base];
+        qint32 old_mana = m_mp[ realm::Fire + k ][atIdx::Base];
 
         quint32 m1 = m_skills[ skill::FireMagic + k ].value[ atIdx::Current ] * 3 +
                      m_attribs[ attribute::Piety ].value[ atIdx::Current ]     +
@@ -3936,7 +4061,7 @@ void character::recomputeRecoveryRates()
 
     for (int k = 0; k < REALM_SIZE; k++)
     {
-        if ( m_mp[realm::Fire + k][atIdx::Base] <= 0u )
+        if ( m_mp[realm::Fire + k][atIdx::Base] <= 0 )
         {
             m_mp_recovery[k][0] = 0;
         }

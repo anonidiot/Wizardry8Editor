@@ -1,4 +1,4 @@
-VERSION=0.1.2
+VERSION=0.1.3
 
 # "These comments are in quotes because the apostrophes mix up the"
 # "syntax highlighting otherwise."
@@ -64,6 +64,7 @@ SOURCES += main.cpp \
            DialogAbout.cpp \
            DialogAddItem.cpp \
            DialogBegin.cpp \
+           DialogChooseColumns.cpp \
            DialogDuration.cpp \
            DialogInfo.cpp \
            DialogItemInfo.cpp \
@@ -79,6 +80,9 @@ SOURCES += main.cpp \
            ScreenAttribs.cpp \
            ScreenPersonality.cpp \
            WindowDroppedItems.cpp \
+           WTableWidgetItem.h \
+           WTableWidget.h \
+           WindowItemsList.cpp \
            dbHelper.cpp \
            character.cpp \
            party.cpp \
@@ -108,6 +112,7 @@ HEADERS += Wizardry8Style.h \
            DialogAbout.h \
            DialogAddItem.h \
            DialogBegin.h \
+           DialogChooseColumns.h \
            DialogDuration.h \
            DialogInfo.h \
            DialogItemInfo.h \
@@ -123,6 +128,7 @@ HEADERS += Wizardry8Style.h \
            ScreenAttribs.h \
            ScreenPersonality.h \
            WindowDroppedItems.h \
+           WindowItemsList.h \
            bspatch.h \
            dbHelper.h \
            character.h \
@@ -148,6 +154,8 @@ win32 {
     contains(QT_ARCH, x86_64) {
         RESOURCES += blobs.qrc
 
+        RC_ICONS = Win64.ico
+
         BLOBS =  WizFontOtfReg.bspatch \
                  WizFontOtfBold.bspatch \
                  death.u4 \
@@ -155,6 +163,8 @@ win32 {
     }
     else {
         RESOURCES += win32_blobs.qrc
+
+        RC_ICONS = WinXP.ico
 
         BLOBS =  WizFontTtfReg.bspatch \
                  WizFontTtfBold.bspatch \
@@ -165,7 +175,7 @@ win32 {
 
 QMAKE_EXTRA_TARGETS += $${TARGET}.zip
 
-$${TARGET}.zip.commands = zip $${TARGET}.zip $${SOURCES} $${HEADERS} $${RESOURCES} $${TARGET}.pro $${BLOBS}
+$${TARGET}.zip.commands = zip $${TARGET}.zip $${SOURCES} $${HEADERS} $${RESOURCES} $${TARGET}.pro $${BLOBS} $${RC_ICONS}
 $${TARGET}.zip.depends  = $${SOURCES} $${HEADERS} $${RESOURCES} $${TARGET}.pro $${BLOBS}
 
 $${OBJECTS_DIR}/qrc_blobs.cpp.depends += $${TARGET}.zip

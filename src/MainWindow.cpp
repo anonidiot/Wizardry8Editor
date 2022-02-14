@@ -30,6 +30,7 @@
 #include "DialogPatchExe.h"
 #include "DialogNewFile.h"
 #include "WindowDroppedItems.h"
+#include "WindowItemsList.h"
 #include <QFile>
 #include <QByteArray>
 
@@ -50,6 +51,7 @@ static QSize g_windowPadding;
 
 MainWindow::MainWindow(QString loadFile) :
     m_droppedItems(NULL),
+    m_findItems(NULL),
     m_w7_ending(wiz7_end::Null),
     m_barlone_dead(false),
     m_rodan_dead(false)
@@ -228,6 +230,7 @@ MainWindow::~MainWindow()
     copyAct->deleteLater();
     pasteAct->deleteLater();
     droppedItemsAct->deleteLater();
+    findItemsAct->deleteLater();
     patchAct->deleteLater();
     aboutAct->deleteLater();
     aboutQtAct->deleteLater();
@@ -696,6 +699,37 @@ void MainWindow::droppedItemsClosed()
     m_droppedItems = NULL;
 }
 
+void MainWindow::findItems()
+{
+    if (m_findItems)
+    {
+        m_findItems->show();
+        m_findItems->setWindowState(Qt::WindowState::WindowActive);
+    }
+    else
+    {
+        if (ScreenCommon *s = qobject_cast<ScreenCommon *>(m_contentWidget))
+        {
+            m_findItems = new WindowItemsList( s->currentChar()->getProfession(),
+                                               s->currentChar()->getRace(),
+                                               s->currentChar()->getGender() );
+        }
+        else
+        {
+            m_findItems = new WindowItemsList( (character::profession) 0,
+                                               (character::race) 0,
+                                               (character::gender) 0 );
+        }
+        connect( m_findItems, SIGNAL(windowClosing()), this, SLOT(findItemsClosed()) );
+    }
+}
+
+void MainWindow::findItemsClosed()
+{
+    // The window close should have deleted the widget object itself
+    m_findItems = NULL;
+}
+
 void MainWindow::patchExe()
 {
     statusBar()->showMessage(tr("Save new Wizardry 8 executable with selected patches baked in."));
@@ -781,6 +815,10 @@ void MainWindow::createActions()
     droppedItemsAct->setStatusTip(tr("Show all dropped items to enable recovery"));
     connect(droppedItemsAct, &QAction::triggered, this, &MainWindow::droppedItems);
 
+    findItemsAct = new QAction(tr("Search Items..."), this);
+    findItemsAct->setStatusTip(tr("Filter and Sort all available items"));
+    connect(findItemsAct, &QAction::triggered, this, &MainWindow::findItems);
+
     patchAct = new QAction(tr("Patch Wiz8.exe..."), this);
     patchAct->setStatusTip(tr("Modify Wizardry 8 with selected patches"));
     connect(patchAct, &QAction::triggered, this, &MainWindow::patchExe);
@@ -820,6 +858,7 @@ void MainWindow::createMenus()
 
     specialMenu = menuBar()->addMenu(tr("&Special"));
     specialMenu->addAction(droppedItemsAct);
+    specialMenu->addAction(findItemsAct);
     specialMenu->addSeparator();
     specialMenu->addAction(patchAct);
 

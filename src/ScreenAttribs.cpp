@@ -384,6 +384,8 @@ void ScreenAttribs::professionChanged(QListWidgetItem *now)
 
         m_char->setProfession( static_cast<character::profession>(now->data( Qt::UserRole ).toInt()) );
 
+        emit changedProf();
+
         updateLists();
         resetScreen( m_char, NULL ); // update professional skills and any profession related stats
     }
@@ -400,6 +402,8 @@ void ScreenAttribs::raceChanged(QListWidgetItem *now)
 
         m_char->setRace( static_cast<character::race>(now->data( Qt::UserRole ).toInt()) );
 
+        emit changedRace();
+
         updateLists();
         resetScreen( m_char, NULL ); // Faerie, Dracon, Lizardman and Dwarf add racial abilities
     }
@@ -415,6 +419,8 @@ void ScreenAttribs::genderChanged(QListWidgetItem *now)
         }
 
         m_char->setGender( static_cast<character::gender>(now->data( Qt::UserRole ).toInt()) );
+
+        emit changedSex();
 
         updateLists();
     }
@@ -680,6 +686,31 @@ void ScreenAttribs::spinnerChanged(int value)
         {
             clc->setValue( value, m_char->getAttribute( static_cast<character::attribute>(attrib), character::atIdx::Current ), 100 );
         }
+
+        // Vitality affects HP
+        // Strength, Piety and Vitality all affect Stamina
+        // Piety affects Spell Points
+        // Speed affects AC Mod
+        // Vitality and Strength affect Carry Capacity
+        m_char->recomputeEverything();
+
+        struct { int id; int num; } vals[] =
+        {
+            { VAL_HP,        m_char->getHp(character::atIdx::Base)         },
+            { VAL_STAMINA,   m_char->getStamina(character::atIdx::Base)    },
+            { VAL_SP,        m_char->getMp(character::realm::REALM_SIZE, character::atIdx::Base) },
+            { VAL_AC,        m_char->getAC_Average()                       },
+            { VAL_CC,        (int)m_char->getLoad(character::atIdx::Base)  },
+            { -1, -1 }
+        };
+
+        for (int k=0; vals[k].id != -1; k++)
+        {
+            if (WLabel *q = qobject_cast<WLabel *>(m_widgets[ vals[k].id ]))
+            {
+                q->setNum( vals[k].num );
+            }
+        }
     }
 }
 
@@ -830,6 +861,8 @@ void ScreenAttribs::prevProf(bool)
     int newVal = changeListItem( DDL_PROFS_SCROLLLIST, -1 );
     m_char->setProfession( static_cast<character::profession>( newVal ) );
 
+    emit changedProf();
+
     updateLists();
     resetScreen( m_char, NULL ); // update professional skills and any profession related stats
 }
@@ -838,6 +871,8 @@ void ScreenAttribs::nextProf(bool)
 {
     int newVal = changeListItem( DDL_PROFS_SCROLLLIST, 1 );
     m_char->setProfession( static_cast<character::profession>( newVal ) );
+
+    emit changedProf();
 
     updateLists();
     resetScreen( m_char, NULL ); // update professional skills and any profession related stats
@@ -848,6 +883,8 @@ void ScreenAttribs::prevRace(bool)
     int newVal = changeListItem( DDL_RACES_SCROLLLIST, -1 );
     m_char->setRace( static_cast<character::race>( newVal ) );
 
+    emit changedRace();
+
     updateLists();
     resetScreen( m_char, NULL ); // Faerie, Dracon, Lizardman and Dwarf add racial abilities
 }
@@ -856,6 +893,8 @@ void ScreenAttribs::nextRace(bool)
 {
     int newVal = changeListItem( DDL_RACES_SCROLLLIST, 1 );
     m_char->setRace( static_cast<character::race>( newVal ) );
+
+    emit changedRace();
 
     updateLists();
     resetScreen( m_char, NULL ); // Faerie, Dracon, Lizardman and Dwarf add racial abilities
@@ -866,6 +905,8 @@ void ScreenAttribs::prevGender(bool)
     int newVal = changeListItem( DDL_GENDERS_SCROLLLIST, -1 );
     m_char->setGender( static_cast<character::gender>( newVal ) );
 
+    emit changedSex();
+
     updateLists();
 }
 
@@ -873,6 +914,8 @@ void ScreenAttribs::nextGender(bool)
 {
     int newVal = changeListItem( DDL_GENDERS_SCROLLLIST, 1 );
     m_char->setGender( static_cast<character::gender>( newVal ) );
+
+    emit changedSex();
 
     updateLists();
 }

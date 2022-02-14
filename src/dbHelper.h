@@ -48,6 +48,10 @@ private:
     qint64   m_spelldesc_idx_pos;
     qint64   m_spell_idx_pos;
 
+    quint64 *m_quick_filter_items;
+
+    void buildItemQuickFilter();
+
 protected:
     dbHelper();
     ~dbHelper();
@@ -64,6 +68,8 @@ public:
 
     QString             getSpellDesc(quint32 item_id);
     QByteArray          getSpellRecord(quint32 item_id);
+
+    QList<quint16>      getFilteredItems(character::profession p, character::race r, character::gender g);
 
     static dbHelper *getHelper()
     {

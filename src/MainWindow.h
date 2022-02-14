@@ -37,6 +37,7 @@ class QWidget;
 QT_END_NAMESPACE
 
 class WindowDroppedItems;
+class WindowItemsList;
 class RIFFFile;
 class party;
 class character;
@@ -71,6 +72,7 @@ public:
 
 public slots:
     void droppedItemsClosed();
+    void findItemsClosed();
     void enableSave();
     void disableSave();
 
@@ -96,6 +98,7 @@ private slots:
     void copy();
     void paste();
     void droppedItems();
+    void findItems();
     void patchExe();
     void about();
 
@@ -123,6 +126,7 @@ private:
     QAction *copyAct;
     QAction *pasteAct;
     QAction *droppedItemsAct;
+    QAction *findItemsAct;
     QAction *patchAct;
     QAction *aboutAct;
     QAction *aboutQtAct;
@@ -131,6 +135,7 @@ private:
     QWidget   *m_contentWidget;
 
     WindowDroppedItems *m_droppedItems;
+    WindowItemsList    *m_findItems;
 
     RIFFFile  *m_loadedGame;
     party     *m_party;

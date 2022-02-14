@@ -210,6 +210,22 @@ const QString StringList::getString( int idx ) const
             case PoisonStrength:
                 s = QObject::tr("Poison Strength");
                 break;
+
+            case FilterByProfession:
+                s = QObject::tr("Filter by Profession");
+                break;
+            case FilterByRace:
+                s = QObject::tr("Filter by Race");
+                break;
+            case FilterByGender:
+                s = QObject::tr("Filter by Gender");
+                break;
+            case Special:
+                s = QObject::tr("Special");
+                break;
+            case Stackable:
+                s = QObject::tr("Stackable");
+                break;
         }
     }
 

@@ -48,6 +48,8 @@ public:
     ScreenCommon(party *p, int charIdx, QWidget *parent = nullptr);
     ~ScreenCommon();
 
+    character *      currentChar() const { return m_party->m_chars[m_charIdx]; }
+
     void             updateChars(party *p);
 
     void             setVisible(bool visible) override;
@@ -69,6 +71,10 @@ public slots:
     void changeName(bool down);     // goto Personality and Voice screen
     void changedName(QString name); // name changed by Personality and Voice screen
     void changedPortrait();         // portrait changed by Personality and Voice screen
+    void changedRace();             // race changed by Attribs screen
+    void changedProf();             // profession changed by Attribs screen
+    void changedSex();              // sex changed by Attribs screen
+    void changedLevel();            // sex changed by Levels screen
 
     void reviewAttribs(bool down);   // goto ScreenAttribs
     void reviewItems(bool down);     // goto ScreenItems

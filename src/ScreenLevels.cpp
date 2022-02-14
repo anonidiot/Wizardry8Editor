@@ -101,6 +101,18 @@ typedef enum
     LBL_POISON_STR,
     POISON_STRENGTH,
 
+    LBL_HP,
+    LBL_STAMINA,
+    LBL_SP,
+
+    VAL_HP,
+    VAL_STAMINA,
+    VAL_SP,
+
+    CLC_HP,
+    CLC_STAMINA,
+    CLC_SP,
+
     SIZE_WIDGET_IDS
 } widget_ids;
 
@@ -111,9 +123,10 @@ ScreenLevels::ScreenLevels(character *c, QWidget *parent) :
 {
     m_metaProf        = QMetaEnum::fromType<character::profession>();
 
-    QPixmap profsBox = makeProfsBoxPixmap();
-    QPixmap rowImg   = makeRowPixmap();
-    QPixmap rowImg2  = makeRowPixmap2();
+    QPixmap profsBox  = makeProfsBoxPixmap();
+    QPixmap healthBox = makeHealthBoxPixmap();
+    QPixmap rowImg    = makeRowPixmap();
+    QPixmap rowImg2   = makeRowPixmap2();
 
     QPixmap fakeButton = makeFakeButton();
 
@@ -217,126 +230,145 @@ ScreenLevels::ScreenLevels(character *c, QWidget *parent) :
         // TODO: Make a proper icon for it at the right resolution and use that.
 // This actually sort of works. The drained icon does blot out some of the circle, but the skull is completely hidden
 //        { NO_ID,              QRect( 330, 175,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/DEAD_A.TGA",        0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
-        { CB_COND_START  + character::condition::Drained,   QRect( 330, 177,  16,  14 ),    new WCheckBox( "",                                                            this ),  -1,  SLOT(setCb(int)) },
-        { NO_ID,                                            QRect( 346, 175,  -1,  -1 ),    new WImage(   "ICONS/CONDITIONS/DRAINED.STI",          0,                     this ),  -1,  NULL },
-        { LBL_COND_START + character::condition::Drained,   QRect( 366, 177, 108,  14 ),    new WLabel(   StringList::Drained,          Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
-        { FKB_DUR_START  + character::condition::Drained,   QRect( 440, 175,  -1,  -1 ),    new WImage(   fakeButton,                                                     this ),  -1,  SLOT(fkButton(bool)) },
-        { LBL_DUR_START  + character::condition::Drained,   QRect( 440, 177,  42,  14 ),    new WLabel(   "",                           Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  SLOT(fkButton(bool)) },
+        { CB_COND_START  + character::condition::Drained,   QRect( 330, 170,  16,  14 ),    new WCheckBox( "",                                                            this ),  -1,  SLOT(setCb(int)) },
+        { NO_ID,                                            QRect( 346, 168,  -1,  -1 ),    new WImage(   "ICONS/CONDITIONS/DRAINED.STI",          0,                     this ),  -1,  NULL },
+        { LBL_COND_START + character::condition::Drained,   QRect( 366, 170, 108,  14 ),    new WLabel(   StringList::Drained,          Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
+        { FKB_DUR_START  + character::condition::Drained,   QRect( 440, 168,  -1,  -1 ),    new WImage(   fakeButton,                                                     this ),  -1,  SLOT(fkButton(bool)) },
+        { LBL_DUR_START  + character::condition::Drained,   QRect( 440, 170,  42,  14 ),    new WLabel(   "",                           Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  SLOT(fkButton(bool)) },
 
-        { CB_COND_START  + character::condition::Diseased,  QRect( 330, 197,  16,  14 ),    new WCheckBox( "",                                                            this ),  -1,  SLOT(setCb(int)) },
-        { NO_ID,                                            QRect( 346, 195,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/DISEASED_A.TGA",    0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
-        { LBL_COND_START + character::condition::Diseased,  QRect( 366, 197, 108,  14 ),    new WLabel(   StringList::Diseased,         Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
-        { FKB_DUR_START  + character::condition::Diseased,  QRect( 440, 195,  -1,  -1 ),    new WImage(   fakeButton,                                                     this ),  -1,  SLOT(fkButton(bool)) },
-        { LBL_DUR_START  + character::condition::Diseased,  QRect( 440, 197,  42,  14 ),    new WLabel(   "",                           Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  SLOT(fkButton(bool)) },
+        { CB_COND_START  + character::condition::Diseased,  QRect( 330, 190,  16,  14 ),    new WCheckBox( "",                                                            this ),  -1,  SLOT(setCb(int)) },
+        { NO_ID,                                            QRect( 346, 188,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/DISEASED_A.TGA",    0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
+        { LBL_COND_START + character::condition::Diseased,  QRect( 366, 190, 108,  14 ),    new WLabel(   StringList::Diseased,         Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
+        { FKB_DUR_START  + character::condition::Diseased,  QRect( 440, 188,  -1,  -1 ),    new WImage(   fakeButton,                                                     this ),  -1,  SLOT(fkButton(bool)) },
+        { LBL_DUR_START  + character::condition::Diseased,  QRect( 440, 190,  42,  14 ),    new WLabel(   "",                           Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  SLOT(fkButton(bool)) },
 
-        { CB_COND_START  + character::condition::Irritated, QRect( 330, 217,  16,  14 ),    new WCheckBox( "",                                                            this ),  -1,  SLOT(setCb(int)) },
-        { NO_ID,                                            QRect( 346, 215,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/IRRITATED_A.TGA",   0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
-        { LBL_COND_START + character::condition::Irritated, QRect( 366, 217, 108,  14 ),    new WLabel(   StringList::Irritated,        Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
-        { FKB_DUR_START  + character::condition::Irritated, QRect( 440, 215,  -1,  -1 ),    new WImage(   fakeButton,                                                     this ),  -1,  SLOT(fkButton(bool)) },
-        { LBL_DUR_START  + character::condition::Irritated, QRect( 440, 217,  42,  14 ),    new WLabel(   "",                           Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  SLOT(fkButton(bool)) },
+        { CB_COND_START  + character::condition::Irritated, QRect( 330, 210,  16,  14 ),    new WCheckBox( "",                                                            this ),  -1,  SLOT(setCb(int)) },
+        { NO_ID,                                            QRect( 346, 208,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/IRRITATED_A.TGA",   0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
+        { LBL_COND_START + character::condition::Irritated, QRect( 366, 210, 108,  14 ),    new WLabel(   StringList::Irritated,        Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
+        { FKB_DUR_START  + character::condition::Irritated, QRect( 440, 208,  -1,  -1 ),    new WImage(   fakeButton,                                                     this ),  -1,  SLOT(fkButton(bool)) },
+        { LBL_DUR_START  + character::condition::Irritated, QRect( 440, 210,  42,  14 ),    new WLabel(   "",                           Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  SLOT(fkButton(bool)) },
 
-        { CB_COND_START  + character::condition::Nauseated, QRect( 330, 237,  16,  14 ),    new WCheckBox( "",                                                            this ),  -1,  SLOT(setCb(int)) },
-        { NO_ID,                                            QRect( 346, 235,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/NAUSEATED_A.TGA",   0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
-        { LBL_COND_START + character::condition::Nauseated, QRect( 366, 237, 108,  14 ),    new WLabel(   StringList::Nauseated,        Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
-        { FKB_DUR_START  + character::condition::Nauseated, QRect( 440, 235,  -1,  -1 ),    new WImage(   fakeButton,                                                     this ),  -1,  SLOT(fkButton(bool)) },
-        { LBL_DUR_START  + character::condition::Nauseated, QRect( 440, 237,  42,  14 ),    new WLabel(   "",                           Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  SLOT(fkButton(bool)) },
+        { CB_COND_START  + character::condition::Nauseated, QRect( 330, 230,  16,  14 ),    new WCheckBox( "",                                                            this ),  -1,  SLOT(setCb(int)) },
+        { NO_ID,                                            QRect( 346, 228,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/NAUSEATED_A.TGA",   0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
+        { LBL_COND_START + character::condition::Nauseated, QRect( 366, 230, 108,  14 ),    new WLabel(   StringList::Nauseated,        Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
+        { FKB_DUR_START  + character::condition::Nauseated, QRect( 440, 228,  -1,  -1 ),    new WImage(   fakeButton,                                                     this ),  -1,  SLOT(fkButton(bool)) },
+        { LBL_DUR_START  + character::condition::Nauseated, QRect( 440, 230,  42,  14 ),    new WLabel(   "",                           Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  SLOT(fkButton(bool)) },
 
-        { CB_COND_START  + character::condition::Slowed,    QRect( 330, 257,  16,  14 ),    new WCheckBox( "",                                                            this ),  -1,  SLOT(setCb(int)) },
-        { NO_ID,                                            QRect( 346, 255,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/SLOWED_A.TGA",      0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
-        { LBL_COND_START + character::condition::Slowed,    QRect( 366, 257, 108,  14 ),    new WLabel(   StringList::Slowed,           Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
-        { FKB_DUR_START  + character::condition::Slowed,    QRect( 440, 255,  -1,  -1 ),    new WImage(   fakeButton,                                                     this ),  -1,  SLOT(fkButton(bool)) },
-        { LBL_DUR_START  + character::condition::Slowed,    QRect( 440, 257,  42,  14 ),    new WLabel(   "",                           Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  SLOT(fkButton(bool)) },
+        { CB_COND_START  + character::condition::Slowed,    QRect( 330, 250,  16,  14 ),    new WCheckBox( "",                                                            this ),  -1,  SLOT(setCb(int)) },
+        { NO_ID,                                            QRect( 346, 248,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/SLOWED_A.TGA",      0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
+        { LBL_COND_START + character::condition::Slowed,    QRect( 366, 250, 108,  14 ),    new WLabel(   StringList::Slowed,           Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
+        { FKB_DUR_START  + character::condition::Slowed,    QRect( 440, 248,  -1,  -1 ),    new WImage(   fakeButton,                                                     this ),  -1,  SLOT(fkButton(bool)) },
+        { LBL_DUR_START  + character::condition::Slowed,    QRect( 440, 250,  42,  14 ),    new WLabel(   "",                           Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  SLOT(fkButton(bool)) },
 
-        { CB_COND_START  + character::condition::Afraid,    QRect( 330, 277,  16,  14 ),    new WCheckBox( "",                                                            this ),  -1,  SLOT(setCb(int)) },
-        { NO_ID,                                            QRect( 346, 275,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/AFRAID_A.TGA",      0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
-        { LBL_COND_START + character::condition::Afraid,    QRect( 366, 277, 108,  14 ),    new WLabel(   StringList::Afraid,           Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
-        { FKB_DUR_START  + character::condition::Afraid,    QRect( 440, 275,  -1,  -1 ),    new WImage(   fakeButton,                                                     this ),  -1,  SLOT(fkButton(bool)) },
-        { LBL_DUR_START  + character::condition::Afraid,    QRect( 440, 277,  42,  14 ),    new WLabel(   "",                           Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  SLOT(fkButton(bool)) },
+        { CB_COND_START  + character::condition::Afraid,    QRect( 330, 270,  16,  14 ),    new WCheckBox( "",                                                            this ),  -1,  SLOT(setCb(int)) },
+        { NO_ID,                                            QRect( 346, 268,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/AFRAID_A.TGA",      0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
+        { LBL_COND_START + character::condition::Afraid,    QRect( 366, 270, 108,  14 ),    new WLabel(   StringList::Afraid,           Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
+        { FKB_DUR_START  + character::condition::Afraid,    QRect( 440, 268,  -1,  -1 ),    new WImage(   fakeButton,                                                     this ),  -1,  SLOT(fkButton(bool)) },
+        { LBL_DUR_START  + character::condition::Afraid,    QRect( 440, 270,  42,  14 ),    new WLabel(   "",                           Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  SLOT(fkButton(bool)) },
 
-        { CB_COND_START  + character::condition::Poisoned,  QRect( 330, 297,  16,  14 ),    new WCheckBox( "",                                                            this ),  -1,  SLOT(setPoisoned(int)) },
-        { NO_ID,                                            QRect( 346, 295,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/POISONED_A.TGA",    0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
-        { LBL_COND_START + character::condition::Poisoned,  QRect( 366, 297,  60,  14 ),    new WLabel(   StringList::Poisoned,         Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
-        { FKB_DUR_START  + character::condition::Poisoned,  QRect( 440, 295,  -1,  -1 ),    new WImage(   fakeButton,                                                     this ),  -1,  SLOT(fkButton(bool)) },
-        { LBL_DUR_START  + character::condition::Poisoned,  QRect( 440, 297,  42,  14 ),    new WLabel(   "",                           Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  SLOT(fkButton(bool)) },
+        { CB_COND_START  + character::condition::Poisoned,  QRect( 330, 290,  16,  14 ),    new WCheckBox( "",                                                            this ),  -1,  SLOT(setPoisoned(int)) },
+        { NO_ID,                                            QRect( 346, 288,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/POISONED_A.TGA",    0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
+        { LBL_COND_START + character::condition::Poisoned,  QRect( 366, 290,  60,  14 ),    new WLabel(   StringList::Poisoned,         Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
+        { FKB_DUR_START  + character::condition::Poisoned,  QRect( 440, 288,  -1,  -1 ),    new WImage(   fakeButton,                                                     this ),  -1,  SLOT(fkButton(bool)) },
+        { LBL_DUR_START  + character::condition::Poisoned,  QRect( 440, 290,  42,  14 ),    new WLabel(   "",                           Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  SLOT(fkButton(bool)) },
 
-        { CB_COND_START  + character::condition::Silenced,  QRect( 330, 317,  16,  14 ),    new WCheckBox( "",                                                            this ),  -1,  SLOT(setCb(int)) },
-        { NO_ID,                                            QRect( 346, 315,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/SILENCED_A.TGA",    0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
-        { LBL_COND_START + character::condition::Silenced,  QRect( 366, 317, 108,  14 ),    new WLabel(   StringList::Silenced,         Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
-        { FKB_DUR_START  + character::condition::Silenced,  QRect( 440, 315,  -1,  -1 ),    new WImage(   fakeButton,                                                     this ),  -1,  SLOT(fkButton(bool)) },
-        { LBL_DUR_START  + character::condition::Silenced,  QRect( 440, 317,  42,  14 ),    new WLabel(   "",                           Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  SLOT(fkButton(bool)) },
+        { CB_COND_START  + character::condition::Silenced,  QRect( 330, 310,  16,  14 ),    new WCheckBox( "",                                                            this ),  -1,  SLOT(setCb(int)) },
+        { NO_ID,                                            QRect( 346, 308,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/SILENCED_A.TGA",    0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
+        { LBL_COND_START + character::condition::Silenced,  QRect( 366, 310, 108,  14 ),    new WLabel(   StringList::Silenced,         Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
+        { FKB_DUR_START  + character::condition::Silenced,  QRect( 440, 308,  -1,  -1 ),    new WImage(   fakeButton,                                                     this ),  -1,  SLOT(fkButton(bool)) },
+        { LBL_DUR_START  + character::condition::Silenced,  QRect( 440, 310,  42,  14 ),    new WLabel(   "",                           Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  SLOT(fkButton(bool)) },
 
-        { CB_COND_START  + character::condition::Hexed,     QRect( 330, 337,  16,  14 ),    new WCheckBox( "",                                                            this ),  -1,  SLOT(setCb(int)) },
-        { NO_ID,                                            QRect( 346, 335,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/HEXED_A.TGA",       0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
-        { LBL_COND_START + character::condition::Hexed,     QRect( 366, 337, 108,  14 ),    new WLabel(   StringList::Hexed,            Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
-        { FKB_DUR_START  + character::condition::Hexed,     QRect( 440, 335,  -1,  -1 ),    new WImage(   fakeButton,                                                     this ),  -1,  SLOT(fkButton(bool)) },
-        { LBL_DUR_START  + character::condition::Hexed,     QRect( 440, 337,  42,  14 ),    new WLabel(   "",                           Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  SLOT(fkButton(bool)) },
+        { CB_COND_START  + character::condition::Hexed,     QRect( 330, 330,  16,  14 ),    new WCheckBox( "",                                                            this ),  -1,  SLOT(setCb(int)) },
+        { NO_ID,                                            QRect( 346, 328,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/HEXED_A.TGA",       0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
+        { LBL_COND_START + character::condition::Hexed,     QRect( 366, 330, 108,  14 ),    new WLabel(   StringList::Hexed,            Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
+        { FKB_DUR_START  + character::condition::Hexed,     QRect( 440, 328,  -1,  -1 ),    new WImage(   fakeButton,                                                     this ),  -1,  SLOT(fkButton(bool)) },
+        { LBL_DUR_START  + character::condition::Hexed,     QRect( 440, 330,  42,  14 ),    new WLabel(   "",                           Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  SLOT(fkButton(bool)) },
 
-        { CB_COND_START  + character::condition::Enthralled,QRect( 330, 357,  16,  14 ),    new WCheckBox( "",                                                            this ),  -1,  SLOT(setCb(int)) },
-        { NO_ID,                                            QRect( 346, 355,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/INFATUATED_A.TGA",  0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
-        { LBL_COND_START + character::condition::Enthralled,QRect( 366, 357, 108,  14 ),    new WLabel(   StringList::Enthralled,       Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
-        { FKB_DUR_START  + character::condition::Enthralled,QRect( 440, 355,  -1,  -1 ),    new WImage(   fakeButton,                                                     this ),  -1,  SLOT(fkButton(bool)) },
-        { LBL_DUR_START  + character::condition::Enthralled,QRect( 440, 357,  42,  14 ),    new WLabel(   "",                           Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  SLOT(fkButton(bool)) },
+        { CB_COND_START  + character::condition::Enthralled,QRect( 330, 350,  16,  14 ),    new WCheckBox( "",                                                            this ),  -1,  SLOT(setCb(int)) },
+        { NO_ID,                                            QRect( 346, 348,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/INFATUATED_A.TGA",  0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
+        { LBL_COND_START + character::condition::Enthralled,QRect( 366, 350, 108,  14 ),    new WLabel(   StringList::Enthralled,       Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
+        { FKB_DUR_START  + character::condition::Enthralled,QRect( 440, 348,  -1,  -1 ),    new WImage(   fakeButton,                                                     this ),  -1,  SLOT(fkButton(bool)) },
+        { LBL_DUR_START  + character::condition::Enthralled,QRect( 440, 350,  42,  14 ),    new WLabel(   "",                           Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  SLOT(fkButton(bool)) },
 
-        { CB_COND_START  + character::condition::Insane,    QRect( 490, 177,  16,  14 ),    new WCheckBox( "",                                                            this ),  -1,  SLOT(setCb(int)) },
-        { NO_ID,                                            QRect( 506, 175,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/INSANE_A.TGA",      0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
-        { LBL_COND_START + character::condition::Insane,    QRect( 526, 177, 108,  14 ),    new WLabel(   StringList::Insane,           Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
-        { FKB_DUR_START  + character::condition::Insane,    QRect( 600, 175,  -1,  -1 ),    new WImage(   fakeButton,                                                     this ),  -1,  SLOT(fkButton(bool)) },
-        { LBL_DUR_START  + character::condition::Insane,    QRect( 600, 177,  42,  14 ),    new WLabel(   "",                           Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  SLOT(fkButton(bool)) },
+        { CB_COND_START  + character::condition::Insane,    QRect( 490, 170,  16,  14 ),    new WCheckBox( "",                                                            this ),  -1,  SLOT(setCb(int)) },
+        { NO_ID,                                            QRect( 506, 168,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/INSANE_A.TGA",      0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
+        { LBL_COND_START + character::condition::Insane,    QRect( 526, 170, 108,  14 ),    new WLabel(   StringList::Insane,           Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
+        { FKB_DUR_START  + character::condition::Insane,    QRect( 600, 168,  -1,  -1 ),    new WImage(   fakeButton,                                                     this ),  -1,  SLOT(fkButton(bool)) },
+        { LBL_DUR_START  + character::condition::Insane,    QRect( 600, 170,  42,  14 ),    new WLabel(   "",                           Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  SLOT(fkButton(bool)) },
 
-        { CB_COND_START  + character::condition::Blind,     QRect( 490, 197,  16,  14 ),    new WCheckBox( "",                                                            this ),  -1,  SLOT(setCb(int)) },
-        { NO_ID,                                            QRect( 506, 195,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/BLIND_A.TGA",       0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
-        { LBL_COND_START + character::condition::Blind,     QRect( 526, 197, 108,  14 ),    new WLabel(   StringList::Blinded,          Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
-        { FKB_DUR_START  + character::condition::Blind,     QRect( 600, 195,  -1,  -1 ),    new WImage(   fakeButton,                                                     this ),  -1,  SLOT(fkButton(bool)) },
-        { LBL_DUR_START  + character::condition::Blind,     QRect( 600, 197,  42,  14 ),    new WLabel(   "",                           Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  SLOT(fkButton(bool)) },
+        { CB_COND_START  + character::condition::Blind,     QRect( 490, 190,  16,  14 ),    new WCheckBox( "",                                                            this ),  -1,  SLOT(setCb(int)) },
+        { NO_ID,                                            QRect( 506, 188,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/BLIND_A.TGA",       0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
+        { LBL_COND_START + character::condition::Blind,     QRect( 526, 190, 108,  14 ),    new WLabel(   StringList::Blinded,          Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
+        { FKB_DUR_START  + character::condition::Blind,     QRect( 600, 188,  -1,  -1 ),    new WImage(   fakeButton,                                                     this ),  -1,  SLOT(fkButton(bool)) },
+        { LBL_DUR_START  + character::condition::Blind,     QRect( 600, 190,  42,  14 ),    new WLabel(   "",                           Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  SLOT(fkButton(bool)) },
 
-        { CB_COND_START  + character::condition::Turncoat,  QRect( 490, 217,  16,  14 ),    new WCheckBox( "",                                                            this ),  -1,  SLOT(setCb(int)) },
-        { NO_ID,                                            QRect( 506, 215,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/TURNCOAT_A.TGA",    0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
-        { LBL_COND_START + character::condition::Turncoat,  QRect( 526, 217, 108,  14 ),    new WLabel(   StringList::Turncoat,         Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
-        { FKB_DUR_START  + character::condition::Turncoat,  QRect( 600, 215,  -1,  -1 ),    new WImage(   fakeButton,                                                     this ),  -1,  SLOT(fkButton(bool)) },
-        { LBL_DUR_START  + character::condition::Turncoat,  QRect( 600, 217,  42,  14 ),    new WLabel(   "",                           Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  SLOT(fkButton(bool)) },
+        { CB_COND_START  + character::condition::Turncoat,  QRect( 490, 210,  16,  14 ),    new WCheckBox( "",                                                            this ),  -1,  SLOT(setCb(int)) },
+        { NO_ID,                                            QRect( 506, 208,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/TURNCOAT_A.TGA",    0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
+        { LBL_COND_START + character::condition::Turncoat,  QRect( 526, 210, 108,  14 ),    new WLabel(   StringList::Turncoat,         Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
+        { FKB_DUR_START  + character::condition::Turncoat,  QRect( 600, 208,  -1,  -1 ),    new WImage(   fakeButton,                                                     this ),  -1,  SLOT(fkButton(bool)) },
+        { LBL_DUR_START  + character::condition::Turncoat,  QRect( 600, 210,  42,  14 ),    new WLabel(   "",                           Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  SLOT(fkButton(bool)) },
 
-        { CB_COND_POSSESSED,                                QRect( 490, 237,  16,  14 ),    new WCheckBox( "",                                                            this ),  -1,  SLOT(setCb(int)) },
-        { NO_ID,                                            QRect( 506, 235,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/POSSESSED_A.TGA",   0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
-        { LBL_COND_POSSESSED,                               QRect( 526, 237, 108,  14 ),    new WLabel(   StringList::Possessed,        Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
-        { FKB_DUR_POSSESSED,                                QRect( 600, 235,  -1,  -1 ),    new WImage(   fakeButton,                                                     this ),  -1,  SLOT(fkButton(bool)) },
-        { LBL_DUR_POSSESSED,                                QRect( 600, 237,  42,  14 ),    new WLabel(   "",                           Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  SLOT(fkButton(bool)) },
+        { CB_COND_POSSESSED,                                QRect( 490, 230,  16,  14 ),    new WCheckBox( "",                                                            this ),  -1,  SLOT(setCb(int)) },
+        { NO_ID,                                            QRect( 506, 228,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/POSSESSED_A.TGA",   0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
+        { LBL_COND_POSSESSED,                               QRect( 526, 230, 108,  14 ),    new WLabel(   StringList::Possessed,        Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
+        { FKB_DUR_POSSESSED,                                QRect( 600, 228,  -1,  -1 ),    new WImage(   fakeButton,                                                     this ),  -1,  SLOT(fkButton(bool)) },
+        { LBL_DUR_POSSESSED,                                QRect( 600, 230,  42,  14 ),    new WLabel(   "",                           Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  SLOT(fkButton(bool)) },
 
-        { CB_COND_START  + character::condition::Webbed,    QRect( 490, 257,  16,  14 ),    new WCheckBox( "",                                                            this ),  -1,  SLOT(setCb(int)) },
-        { NO_ID,                                            QRect( 506, 255,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/WEBBED_A.TGA",      0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
-        { LBL_COND_START + character::condition::Webbed,    QRect( 526, 257, 108,  14 ),    new WLabel(   StringList::Webbed,           Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
-        { FKB_DUR_START  + character::condition::Webbed,    QRect( 600, 255,  -1,  -1 ),    new WImage(   fakeButton,                                                     this ),  -1,  SLOT(fkButton(bool)) },
-        { LBL_DUR_START  + character::condition::Webbed,    QRect( 600, 257,  42,  14 ),    new WLabel(   "",                           Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  SLOT(fkButton(bool)) },
+        { CB_COND_START  + character::condition::Webbed,    QRect( 490, 250,  16,  14 ),    new WCheckBox( "",                                                            this ),  -1,  SLOT(setCb(int)) },
+        { NO_ID,                                            QRect( 506, 248,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/WEBBED_A.TGA",      0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
+        { LBL_COND_START + character::condition::Webbed,    QRect( 526, 250, 108,  14 ),    new WLabel(   StringList::Webbed,           Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
+        { FKB_DUR_START  + character::condition::Webbed,    QRect( 600, 248,  -1,  -1 ),    new WImage(   fakeButton,                                                     this ),  -1,  SLOT(fkButton(bool)) },
+        { LBL_DUR_START  + character::condition::Webbed,    QRect( 600, 250,  42,  14 ),    new WLabel(   "",                           Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  SLOT(fkButton(bool)) },
 
-        { CB_COND_START  + character::condition::Asleep,    QRect( 490, 277,  16,  14 ),    new WCheckBox( "",                                                            this ),  -1,  SLOT(setCb(int)) },
-        { NO_ID,                                            QRect( 506, 275,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/ASLEEP_A.TGA",      0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
-        { LBL_COND_START + character::condition::Asleep,    QRect( 526, 277, 108,  14 ),    new WLabel(   StringList::Asleep,           Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
-        { FKB_DUR_START  + character::condition::Asleep,    QRect( 600, 275,  -1,  -1 ),    new WImage(   fakeButton,                                                     this ),  -1,  SLOT(fkButton(bool)) },
-        { LBL_DUR_START  + character::condition::Asleep,    QRect( 600, 277,  42,  14 ),    new WLabel(   "",                           Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  SLOT(fkButton(bool)) },
+        { CB_COND_START  + character::condition::Asleep,    QRect( 490, 270,  16,  14 ),    new WCheckBox( "",                                                            this ),  -1,  SLOT(setCb(int)) },
+        { NO_ID,                                            QRect( 506, 268,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/ASLEEP_A.TGA",      0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
+        { LBL_COND_START + character::condition::Asleep,    QRect( 526, 270, 108,  14 ),    new WLabel(   StringList::Asleep,           Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
+        { FKB_DUR_START  + character::condition::Asleep,    QRect( 600, 268,  -1,  -1 ),    new WImage(   fakeButton,                                                     this ),  -1,  SLOT(fkButton(bool)) },
+        { LBL_DUR_START  + character::condition::Asleep,    QRect( 600, 270,  42,  14 ),    new WLabel(   "",                           Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  SLOT(fkButton(bool)) },
 
-        { CB_COND_START  + character::condition::Paralyzed, QRect( 490, 297,  16,  14 ),    new WCheckBox( "",                                                            this ),  -1,  SLOT(setCb(int)) },
-        { NO_ID,                                            QRect( 506, 295,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/PARALYZED_A.TGA",   0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
-        { LBL_COND_START + character::condition::Paralyzed, QRect( 526, 297, 108,  14 ),    new WLabel(   StringList::Paralyzed,        Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
-        { FKB_DUR_START  + character::condition::Paralyzed, QRect( 600, 295,  -1,  -1 ),    new WImage(   fakeButton,                                                     this ),  -1,  SLOT(fkButton(bool)) },
-        { LBL_DUR_START  + character::condition::Paralyzed, QRect( 600, 297,  42,  14 ),    new WLabel(   "",                           Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  SLOT(fkButton(bool)) },
+        { CB_COND_START  + character::condition::Paralyzed, QRect( 490, 290,  16,  14 ),    new WCheckBox( "",                                                            this ),  -1,  SLOT(setCb(int)) },
+        { NO_ID,                                            QRect( 506, 288,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/PARALYZED_A.TGA",   0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
+        { LBL_COND_START + character::condition::Paralyzed, QRect( 526, 290, 108,  14 ),    new WLabel(   StringList::Paralyzed,        Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
+        { FKB_DUR_START  + character::condition::Paralyzed, QRect( 600, 288,  -1,  -1 ),    new WImage(   fakeButton,                                                     this ),  -1,  SLOT(fkButton(bool)) },
+        { LBL_DUR_START  + character::condition::Paralyzed, QRect( 600, 290,  42,  14 ),    new WLabel(   "",                           Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  SLOT(fkButton(bool)) },
 
-        { CB_COND_START  + character::condition::Unconscious,QRect( 490, 317,  16,  14 ),   new WCheckBox( "",                                                            this ),  -1,  SLOT(setCb(int)) },
-        { NO_ID,                                            QRect( 506, 315,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/UNCONSCIOUS_A.TGA", 0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
-        { LBL_COND_START + character::condition::Unconscious,QRect( 526, 317, 108,  14 ),   new WLabel(   StringList::Unconscious,      Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
-        { FKB_DUR_START + character::condition::Unconscious,QRect( 600, 315,  -1,  -1 ),    new WImage(   fakeButton,                                                     this ),  -1,  SLOT(fkButton(bool)) },
-        { LBL_DUR_START + character::condition::Unconscious,QRect( 600, 317,  42,  14 ),    new WLabel(   "",                           Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  SLOT(fkButton(bool)) },
+        { CB_COND_START  + character::condition::Unconscious,QRect( 490, 310,  16,  14 ),   new WCheckBox( "",                                                            this ),  -1,  SLOT(setCb(int)) },
+        { NO_ID,                                            QRect( 506, 308,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/UNCONSCIOUS_A.TGA", 0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
+        { LBL_COND_START + character::condition::Unconscious,QRect( 526, 310, 108,  14 ),   new WLabel(   StringList::Unconscious,      Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
+        { FKB_DUR_START + character::condition::Unconscious,QRect( 600, 308,  -1,  -1 ),    new WImage(   fakeButton,                                                     this ),  -1,  SLOT(fkButton(bool)) },
+        { LBL_DUR_START + character::condition::Unconscious,QRect( 600, 310,  42,  14 ),    new WLabel(   "",                           Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  SLOT(fkButton(bool)) },
 
-        { CB_COND_START + character::condition::Dead,       QRect( 490, 337,  16,  14 ),    new WCheckBox( "",                                                            this ),  -1,  SLOT(setCb(int)) },
-        { NO_ID,                                            QRect( 506, 335,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/DEAD_A.TGA",        0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
-        { LBL_COND_START + character::condition::Dead,      QRect( 526, 337, 108,  14 ),    new WLabel(   StringList::Dead,             Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
-
-        { CB_COND_START + character::condition::Missing,    QRect( 490, 357,  16,  14 ),    new WCheckBox( "",                                                            this ),  -1,  SLOT(setCb(int)) },
-        { NO_ID,                                            QRect( 506, 355,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/MISSING_A.TGA",     0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
-        { LBL_COND_START + character::condition::Missing,   QRect( 526, 357, 108,  14 ),    new WLabel(   StringList::Missing,          Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
-
-        { LBL_POISON_STR,                                   QRect( 330, 385, 108,  14 ),    new WLabel(   StringList::PoisonStrength + StringList::APPEND_COLON,   Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
-        { POISON_STRENGTH,                                  QRect( 438, 385,  84,  14 ),    new WSpinBox(  0, 0, 255,                                                     this ),  -1,  SLOT(poisonStrChanged(int)) },
+        { CB_COND_START + character::condition::Dead,       QRect( 490, 330,  16,  14 ),    new WCheckBox( "",                                                            this ),  -1,  SLOT(setCb(int)) },
+        { NO_ID,                                            QRect( 506, 328,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/DEAD_A.TGA",        0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
+        { LBL_COND_START + character::condition::Dead,      QRect( 526, 330, 108,  14 ),    new WLabel(   StringList::Dead,             Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
 
         // TODO: Some kind of warning about messing around with Missing
+        { CB_COND_START + character::condition::Missing,    QRect( 490, 350,  16,  14 ),    new WCheckBox( "",                                                            this ),  -1,  SLOT(setCb(int)) },
+        { NO_ID,                                            QRect( 506, 348,  -1,  -1 ),    new WImage(   "ICONS/MONSTERSPELLS/MISSING_A.TGA",     0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
+        { LBL_COND_START + character::condition::Missing,   QRect( 526, 350, 108,  14 ),    new WLabel(   StringList::Missing,          Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
+
+        { LBL_POISON_STR,                                   QRect( 330, 370, 108,  14 ),    new WLabel(   StringList::PoisonStrength + StringList::APPEND_COLON,   Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
+        { POISON_STRENGTH,                                  QRect( 438, 370,  84,  14 ),    new WSpinBox(  0, 0, 255,                                                     this ),  -1,  SLOT(poisonStrChanged(int)) },
+
+        { NO_ID,                                            QRect( 330, 388,  -1,  -1 ),    new WImage(    healthBox,                                                     this ),  -1,  NULL },
+
+        { NO_ID,                                            QRect( 344, 396,  -1,  -1 ),    new WImage(    "AUTOMAP/MAP_MONSTERFRIENDLY_A.TGA",     0, 0, 0, 0, 0, 0.5,    this ),  -1,  NULL },
+
+        { NO_ID,                                            QRect( 364, 397,  -1,  -1 ),    new WImage(    rowImg,                                                        this ),  -1,  NULL },
+        { NO_ID,                                            QRect( 364, 411,  -1,  -1 ),    new WImage(    rowImg,                                                        this ),  -1,  NULL },
+        { NO_ID,                                            QRect( 364, 425,  -1,  -1 ),    new WImage(    rowImg,                                                        this ),  -1,  NULL },
+
+        { LBL_HP,                                           QRect( 364, 397, 108,  14 ),    new WLabel(   StringList::SAHitPoints,      Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  NULL },
+        { LBL_STAMINA,                                      QRect( 364, 411, 108,  14 ),    new WLabel(   StringList::SAStamina,        Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  NULL },
+        { LBL_SP,                                           QRect( 364, 425, 108,  14 ),    new WLabel(   StringList::SpellPoints,      Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  NULL },
+
+        { CLC_HP,                                           QRect( 472, 397,  82,  14 ),    new WStatBar(  true,                        Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  NULL },
+        { CLC_STAMINA,                                      QRect( 472, 411,  82,  14 ),    new WStatBar(  true,                        Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  NULL },
+        { CLC_SP,                                           QRect( 472, 425,  82,  14 ),    new WStatBar(  true,                        Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  NULL },
+
+        { VAL_HP,                                           QRect( 560, 397,  76,  14 ),    new WSpinBox(  0, 0, 50,                                                      this ),  -1,  SLOT(hpChanged(int))      },
+        { VAL_STAMINA,                                      QRect( 560, 411,  76,  14 ),    new WSpinBox(  0, 0, 50,                                                      this ),  -1,  SLOT(staminaChanged(int)) },
+        { VAL_SP,                                           QRect( 560, 425,  76,  14 ),    new WSpinBox(  0, 0, 50,                                                      this ),  -1,  SLOT(spChanged(int))      },
     };
 
     int num_widgets = sizeof(itemsScrn) / sizeof(struct layout);
@@ -498,6 +530,20 @@ void ScreenLevels::setCb(int state)
         {
             // These 2 don't have duration controls, so all or nothing
             m_char->setCondition( condition, ((state == Qt::Checked) ? 9999 : 0) );
+
+            if (condition == character::condition::Dead)
+            {
+                // If a character is dead their HP _must_ be reset to 0 or they can't
+                // be revived in game.
+                if (WSpinBox *q = qobject_cast<WSpinBox *>(m_widgets[ VAL_HP ]))
+                {
+                    int hp = ((state == Qt::Checked) ? 0 : 1);
+
+                    q->setValue( hp );
+                    hpChanged( hp );
+                    q->setEnabled( ((state == Qt::Checked) ? false : true) );
+                }
+            }
         }
         else
         {
@@ -551,6 +597,23 @@ QPixmap ScreenLevels::makeRowPixmap2()
     p.drawPixmap(  75,   0, rowImg,  5,   0, rowImg.width() - 75, rowImg.height() );
     p.drawPixmap(  81,   0, rowImg,  5,   0, rowImg.width() - 81, rowImg.height() );
     p.drawPixmap( 186,   0, rowImg,  170,   0, rowImg.width() - 186, rowImg.height() );
+    p.end();
+
+    return customImage;
+}
+
+QPixmap ScreenLevels::makeHealthBoxPixmap()
+{
+    QPixmap baseBox = SLFFile::getPixmapFromSlf( "REVIEW/REVIEWSKILLSPAGE.STI", 2 );
+    QSize   custSz( 320, 61 );
+
+    QPixmap customImage( custSz );
+
+    QPainter p;
+
+    p.begin( &customImage );
+    p.drawPixmap(   0,   0, baseBox,  0,   0, 320,  50 );
+    p.drawPixmap(   0,  46, baseBox,  0, 270, 320,  15 );
     p.end();
 
     return customImage;
@@ -668,10 +731,50 @@ void ScreenLevels::spinnerChanged(int value)
         int   prof = m_widgets.key( q ) - VAL_PROFS_START;
 
         m_char->setProfessionLevel( static_cast<character::profession>(m_metaProf.value(prof)), value );
+
         if (WStatBar *clc = qobject_cast<WStatBar *>( m_widgets[ CLC_PROFS + prof ]))
         {
             clc->setValue( value, m_char->getProfessionLevel( static_cast<character::profession>(m_metaProf.value(prof)) ), 50 );
         }
+
+        emit changedLevel();
+
+        // Changing the level affects just about everything, including the
+        // HP, Stamina and Spell Point maximums shown by this screen
+
+        m_char->recomputeEverything();
+
+        resetHPStaminaSP();
+    }
+}
+
+void ScreenLevels::hpChanged(int value)
+{
+    m_char->setHp( character::atIdx::Current, value );
+
+    if (WStatBar *clc = qobject_cast<WStatBar *>( m_widgets[ CLC_HP ]))
+    {
+        clc->setValue( value, value, m_char->getHp(character::atIdx::Base) );
+    }
+}
+
+void ScreenLevels::staminaChanged(int value)
+{
+    m_char->setStamina( character::atIdx::Current, value );
+
+    if (WStatBar *clc = qobject_cast<WStatBar *>( m_widgets[ CLC_STAMINA ]))
+    {
+        clc->setValue( value, value, m_char->getStamina(character::atIdx::Base) );
+    }
+}
+
+void ScreenLevels::spChanged(int value)
+{
+    m_char->setMp( character::realm::REALM_SIZE, character::atIdx::Current, value );
+
+    if (WStatBar *clc = qobject_cast<WStatBar *>( m_widgets[ CLC_SP ]))
+    {
+        clc->setValue( value, value, m_char->getMp(character::realm::REALM_SIZE, character::atIdx::Base) );
     }
 }
 
@@ -686,27 +789,80 @@ void ScreenLevels::resetScreen( void *char_tag, void *party_tag )
 
     m_char = (character *)char_tag;
 
-    struct { int id; QString str; } vals[] =
-    {
-        { VAL_XP_LAST,         QLocale(QLocale::English).toString(m_char->getXpLastLevelNeeded()) },
-        { VAL_XP_NOW,          QLocale(QLocale::English).toString(m_char->getXp())                },
-        { VAL_XP_NEXT,         QLocale(QLocale::English).toString(m_char->getXpNeeded())          },
+    resetXP();
+    resetHPStaminaSP();
+    resetConditions();
+    resetLevels();
+}
 
-        { -1, "" }
+void ScreenLevels::resetXP()
+{
+    struct { int id; quint32 num; } vals[] =
+    {
+        { VAL_XP_LAST,         m_char->getXpLastLevelNeeded() },
+        { VAL_XP_NOW,          m_char->getXp()                },
+        { VAL_XP_NEXT,         m_char->getXpNeeded()          },
+
+        { -1, 0 }
     };
 
     for (int k=0; vals[k].id != -1; k++)
     {
         if (WLabel *q = qobject_cast<WLabel *>(m_widgets[ vals[k].id ]))
         {
-            q->setText( vals[k].str );
+            q->setText( QLocale(QLocale::English).toString( vals[k].num ) );
         }
         else if (WLineEdit *q = qobject_cast<WLineEdit *>(m_widgets[ vals[k].id ]))
         {
-            q->setText( vals[k].str );
+            q->setText( QLocale(QLocale::English).toString( vals[k].num ) );
         }
     }
+}
 
+void ScreenLevels::resetHPStaminaSP()
+{
+    for (int k=VAL_HP; k<=VAL_SP; k++)
+    {
+        int initial = 0;
+        int current = 0;
+        int range   = 0;
+
+        switch (k)
+        {
+            case VAL_HP:
+                initial = m_char->getHp( character::atIdx::Initial );
+                current = m_char->getHp( character::atIdx::Current );
+                range   = m_char->getHp( character::atIdx::Base    );
+                break;
+
+            case VAL_STAMINA:
+                initial = m_char->getStamina( character::atIdx::Initial );
+                current = m_char->getStamina( character::atIdx::Current );
+                range   = m_char->getStamina( character::atIdx::Base    );
+                break;
+
+            case VAL_SP:
+                initial = m_char->getMp( character::realm::REALM_SIZE, character::atIdx::Initial );
+                current = m_char->getMp( character::realm::REALM_SIZE, character::atIdx::Current );
+                range   = m_char->getMp( character::realm::REALM_SIZE, character::atIdx::Base    );
+                break;
+        }
+
+        if (WSpinBox *q = qobject_cast<WSpinBox *>(m_widgets[ k ]))
+        {
+            q->setRange( 0, range );
+            q->setValueEx( current, initial );
+
+            if (WStatBar *s = qobject_cast<WStatBar *>(m_widgets[ k - VAL_HP + CLC_HP ]))
+            {
+                s->setValue( current, current, range );
+            }
+        }
+    }
+}
+
+void ScreenLevels::resetConditions()
+{
     for (int k=0; k< character::condition::CONDITION_SIZE; k++)
     {
         character::condition cond = static_cast<character::condition>(k);
@@ -751,7 +907,10 @@ void ScreenLevels::resetScreen( void *char_tag, void *party_tag )
             }
         }
     }
+}
 
+void ScreenLevels::resetLevels()
+{
     for (int k=0; k < m_metaProf.keyCount(); k++)
     {
         character::profession prof = static_cast<character::profession>(m_metaProf.value(k));
@@ -773,6 +932,7 @@ void ScreenLevels::resetScreen( void *char_tag, void *party_tag )
         }
     }
 }
+
 void ScreenLevels::xpLastChanged(const QString &)
 {
     if (QAbstractButton *q = qobject_cast<QAbstractButton *>(m_widgets[ BTN_XP_LAST ]))

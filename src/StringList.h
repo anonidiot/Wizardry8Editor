@@ -98,6 +98,12 @@ public:
         Possessed           =  5400,
         PoisonStrength      =  5401,
 
+        FilterByProfession  =  5500,
+        FilterByRace        =  5501,
+        FilterByGender      =  5502,
+        Special             =  5503,
+        Stackable           =  5504,
+
         /////
 
         FullName            =  132,
@@ -435,6 +441,9 @@ public:
         Spell               = 2282,
         SpellCasterLevel    = 2283,
 
+        Professions         = 2286,
+
+        Races               = 2290,
         Sex                 = 2291,
         Requires            = 2292,
 

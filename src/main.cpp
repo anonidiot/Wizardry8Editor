@@ -30,6 +30,7 @@
 #include <QFile>
 #include <QFileDialog>
 #include <QFontDatabase>
+#include <QMessageBox>
 #include <QSettings>
 #include <QStyleFactory>
 
@@ -167,8 +168,18 @@ int main(int argc, char *argv[])
         if ((strcmp( argv[k], "--help" ) == 0) ||   // usual unix help option
             (strcmp( argv[k], "/?" ) == 0))         // common Windows help option
         {
-            printf("%s usage:\n  %s [--resetWizardryPath] <save game file>\n", argv[0], argv[0]);
+#if defined( Q_OS_WIN )
+            QMessageBox m( QMessageBox::NoIcon, QCoreApplication::applicationName(), QString(), QMessageBox::Ok );
+
+            m.setText( QString("Edits Wizardry 8 Save game files.\n\n"
+                           "%1 [--resetWizardryPath] [<save game file>]\n\n"
+                           "--resetWizardryPath\n"
+                           "     Forget existing stored Wizardry folder location and prompt again.\n").arg(argv[0]));
+            m.exec();
+#else
+            printf("%s usage:\n  %s [--resetWizardryPath] [<save game file>]\n", argv[0], argv[0]);
             printf("\n  --resetWizardryPath       Forget existing stored Wizardry folder location and prompt again.\n");
+#endif
             return 0;
         }
         else if (strcmp( argv[k], "--resetWizardryPath" ) == 0)
@@ -287,6 +298,8 @@ int main(int argc, char *argv[])
     return 0;
 }
 
+// FIXME: this is AR, not scale
+// Should really be eg [800|1024|1280|...] / 640
 static double s_scale = (double)ORIGINAL_DIM_X / (double)ORIGINAL_DIM_Y;
 
 void setAppScale(double scale)

@@ -43,6 +43,9 @@
 
 #include <QDebug>
 
+// These patches were developed for the version of Wizardry 8 v1.24 that
+// came with the MD5SUM of cdf6a691d899fa192e05ceb4a3cc1e67
+// They may not work on other versions
 #define ENG_WIZARDRY_124_EXE_SIZE   3580513
 
 int apply_pickpocket_patch( quint8 *data );
