@@ -1,3 +1,17 @@
+0.1.3
+Added an Item List/Filter/Sort window.
+Fix up some of the triggers for alterations that weren't updating dependent
+stats.
+Added ability to edit HP, Stamina, SP current values.
+Changed Level name to reflect levels in current profession always, and not
+combined.
+Hardcode in a HP adjustment on Dead state change.
+Remove SP filter calculation for non-magic professions who previously were
+magic.
+Show commandline help options (/?, --help) in messagebox on Windows as no
+console.
+Added Windows Icons.
+
 0.1.2
 Poison Strength wasn't saving or restoring
 Dead and Missing conditions could be turned off but not back on again.
