@@ -46,6 +46,7 @@ SOURCES += main.cpp \
            Wizardry8Style.cpp \
            WButton.cpp \
            WCheckBox.cpp \
+           WDDL.cpp \
            WImage.cpp \
            WItem.cpp \
            WLabel.cpp \
@@ -94,6 +95,7 @@ HEADERS += Wizardry8Style.h \
            Wizardry8Scalable.h \
            WButton.h \
            WCheckBox.h \
+           WDDL.h \
            WImage.h \
            WItem.h \
            WLabel.h \

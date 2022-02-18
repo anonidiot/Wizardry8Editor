@@ -43,6 +43,7 @@
 
 #include "WButton.h"
 #include "WCheckBox.h"
+#include "WDDL.h"
 #include "WImage.h"
 #include "WItem.h"
 #include "WLabel.h"
@@ -55,8 +56,6 @@
 
 #include <QDebug>
 
-#define ITEMS_ACROSS 4
-
 typedef enum
 {
     NO_ID,
@@ -65,81 +64,11 @@ typedef enum
     CB_FILTER_BY_RACE,
     CB_FILTER_BY_SEX,
 
-    BTN_PREV_PROF,
-    BTN_NEXT_PROF,
-
-    FRAME_PROFS,
-    I_PROFS,
-    VAL_PROFS,
-
-    DDL_PROFS_TOP,
-    DDL_PROFS_ROW2,
-    DDL_PROFS_ROW3,
-    DDL_PROFS_ROW4,
-    DDL_PROFS_ROW5,
-    DDL_PROFS_ROW6,
-    DDL_PROFS_ROW7,
-    DDL_PROFS_ROW8,
-    DDL_PROFS_ROW9,
-    DDL_PROFS_ROW10,
-    DDL_PROFS_ROW11,
-    DDL_PROFS_SCROLLLIST,
-    DDL_PROFS_BOTTOM,
-
-    BTN_PREV_RACE,
-    BTN_NEXT_RACE,
-
-    FRAME_RACES,
-    I_RACES,
-    VAL_RACES,
-
-    DDL_RACES_TOP,
-    DDL_RACES_ROW2,
-    DDL_RACES_ROW3,
-    DDL_RACES_ROW4,
-    DDL_RACES_ROW5,
-    DDL_RACES_ROW6,
-    DDL_RACES_ROW7,
-    DDL_RACES_ROW8,
-    DDL_RACES_ROW9,
-    DDL_RACES_ROW10,
-    DDL_RACES_ROW11,
-    DDL_RACES_SCROLLLIST,
-    DDL_RACES_BOTTOM,
-
-    BTN_PREV_SEX,
-    BTN_NEXT_SEX,
-
-    FRAME_GENDERS,
-    I_GENDERS,
-    VAL_GENDERS,
-
-    DDL_GENDERS_TOP,
-    DDL_GENDERS_SCROLLLIST,
-    DDL_GENDERS_BOTTOM,
-
-    ITEMS_START,
-    VAL_DROPPED1 = ITEMS_START,
-    VAL_DROPPED2,
-    VAL_DROPPED3,
-    VAL_DROPPED4,
-    VAL_DROPPED5,
-    VAL_DROPPED6,
-    VAL_DROPPED7,
-    VAL_DROPPED8,
-    VAL_DROPPED9,
-    VAL_DROPPED10,
-    VAL_DROPPED11,
-    VAL_DROPPED12,
-    VAL_DROPPED13,
-    VAL_DROPPED14,
-    VAL_DROPPED15,
-    VAL_DROPPED16,
-    ITEMS_END,
+    DDL_PROFS,
+    DDL_RACES,
+    DDL_GENDERS,
 
     TABLE_ITEMS,
-
-    DROPPED_SCROLLBAR,
 
     SIZE_WIDGET_IDS
 } widget_ids;
@@ -154,8 +83,6 @@ WindowItemsList::WindowItemsList(character::profession profession, character::ra
     m_contextMenu(NULL)
 {
     QPixmap controlsBg = makeDialogForm();
-
-    loadDDLPixmaps();
 
     // Tile the background image that was loaded as part of making the controlBg
     QBrush   b( m_bgImg.toImage() );
@@ -174,125 +101,44 @@ WindowItemsList::WindowItemsList(character::profession profession, character::ra
 
     struct layout listItemsScrn[] =
     {
-        { NO_ID,              QRect(   0,   0,  -1,  -1 ),    new WImage(    controlsBg,                                                     this ),  -1,  NULL },
-
-        { CB_FILTER_BY_PROF,  QRect(  20,  19, 140,  13 ),    new WCheckBox( StringList::FilterByProfession + StringList::APPEND_COLON,         this ),  -1,  SLOT(filterProf(int)) },
-        { BTN_PREV_PROF,      QRect( 169,  12,  -1,  -1 ),    new WButton(   "CHAR GENERATION/CG_BUTTONS.STI",     10, false, 1.0,              this ),  -1,  SLOT(prevProf(bool)) },
-        { FRAME_PROFS,        QRect( 200,  14,  -1,  -1 ),    new WImage(                                                                       this ),  -1,  SLOT(dropDownList(bool)) },
-        { I_PROFS,            QRect( 203,  17,  -1,  -1 ),    new WImage(                                                                       this ),  -1,  SLOT(dropDownList(bool)) },
-        { VAL_PROFS,          QRect( 223,  17, 120,  18 ),    new WLabel(    "", "Lucida Calligraphy",        Qt::AlignLeft,  9, QFont::Thin,   this ),  -1,  SLOT(dropDownList(bool)) },
-        { BTN_NEXT_PROF,      QRect( 330,  12,  -1,  -1 ),    new WButton(   "CHAR GENERATION/CG_BUTTONS.STI",     15, false, 1.0,              this ),  -1,  SLOT(nextProf(bool)) },
-
-        { CB_FILTER_BY_RACE,  QRect(  20,  60, 140,  13 ),    new WCheckBox( StringList::FilterByRace + StringList::APPEND_COLON,               this ),  -1,  SLOT(filterRace(int)) },
-        { BTN_PREV_RACE,      QRect( 169,  53,  -1,  -1 ),    new WButton(   "CHAR GENERATION/CG_BUTTONS.STI",     10, false, 1.0,              this ),  -1,  SLOT(prevRace(bool)) },
-        { FRAME_RACES,        QRect( 200,  55,  -1,  -1 ),    new WImage(                                                                       this ),  -1,  SLOT(dropDownList(bool)) },
-        { I_RACES,            QRect( 203,  58,  -1,  -1 ),    new WImage(                                                                       this ),  -1,  SLOT(dropDownList(bool)) },
-        { VAL_RACES,          QRect( 223,  58, 120,  18 ),    new WLabel(    "", "Lucida Calligraphy",        Qt::AlignLeft,  9, QFont::Thin,   this ),  -1,  SLOT(dropDownList(bool)) },
-        { BTN_NEXT_RACE,      QRect( 330,  53,  -1,  -1 ),    new WButton(   "CHAR GENERATION/CG_BUTTONS.STI",     15, false, 1.0,              this ),  -1,  SLOT(nextRace(bool)) },
-
-        { CB_FILTER_BY_SEX,   QRect(  20, 101, 140,  13 ),    new WCheckBox( StringList::FilterByGender + StringList::APPEND_COLON,             this ),  -1,  SLOT(filterSex(int)) },
-        { BTN_PREV_SEX,       QRect( 169,  94,  -1,  -1 ),    new WButton(   "CHAR GENERATION/CG_BUTTONS.STI",     10, false, 1.0,              this ),  -1,  SLOT(prevGender(bool)) },
-        { FRAME_GENDERS,      QRect( 200,  96,  -1,  -1 ),    new WImage(                                                                       this ),  -1,  SLOT(dropDownList(bool)) },
-        { I_GENDERS,          QRect( 203,  99,  -1,  -1 ),    new WImage(                                                                       this ),  -1,  SLOT(dropDownList(bool)) },
-        { VAL_GENDERS,        QRect( 223,  99, 120,  18 ),    new WLabel(    "", "Lucida Calligraphy",        Qt::AlignLeft,  9, QFont::Thin,   this ),  -1,  SLOT(dropDownList(bool)) },
-        { BTN_NEXT_SEX,       QRect( 330,  94,  -1,  -1 ),    new WButton(   "CHAR GENERATION/CG_BUTTONS.STI",     15, false, 1.0,              this ),  -1,  SLOT(nextGender(bool)) },
-
+        { NO_ID,              QRect(   0,   0,  -1,  -1 ),    new WImage(    controlsBg,                                                        this ),  -1,  NULL },
 
         { TABLE_ITEMS,        QRect(  10, 145, 400, 200 ),    new WTableWidget( this ), -1, NULL },
-        /*
-        { VAL_DROPPED1,       QRect(  34,  26,  46,  55 ),    new WItem( WItem::context_mode::NoDrops,                                       this ),  -1,  NULL },
-        */
 
-        { DDL_PROFS_TOP,            QRect( 200,  37,  -1,  -1 ),    new WImage(    m_ddlTop,                                                    this ),  -1,  NULL },
-        { DDL_PROFS_ROW2,           QRect( 200,  59,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_PROFS_ROW3,           QRect( 200,  79,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_PROFS_ROW4,           QRect( 200,  99,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_PROFS_ROW5,           QRect( 200, 119,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_PROFS_ROW6,           QRect( 200, 139,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_PROFS_ROW7,           QRect( 200, 159,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_PROFS_ROW8,           QRect( 200, 179,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_PROFS_ROW9,           QRect( 200, 199,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_PROFS_ROW10,          QRect( 200, 219,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_PROFS_ROW11,          QRect( 200, 239,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_PROFS_BOTTOM,         QRect( 200, 259,  -1,  -1 ),    new WImage(    m_ddlBottom,                                                 this ),  -1,  NULL },
-        { DDL_PROFS_SCROLLLIST,     QRect( 202,  39, 122, 240 ),    new WListWidget(  "Lucida Calligraphy",                    9, QFont::Thin,  this ),  -1,  NULL },
+        { CB_FILTER_BY_PROF,  QRect(  20,  19, 140,  13 ),    new WCheckBox( StringList::FilterByProfession + StringList::APPEND_COLON,         this ),  -1,  SLOT(filterProf(int)) },
+        { CB_FILTER_BY_RACE,  QRect(  20,  60, 140,  13 ),    new WCheckBox( StringList::FilterByRace + StringList::APPEND_COLON,               this ),  -1,  SLOT(filterRace(int)) },
+        { CB_FILTER_BY_SEX,   QRect(  20, 101, 140,  13 ),    new WCheckBox( StringList::FilterByGender + StringList::APPEND_COLON,             this ),  -1,  SLOT(filterSex(int)) },
 
-        { DDL_RACES_TOP,            QRect( 200,  82,  -1,  -1 ),    new WImage(    m_ddlTop,                                                    this ),  -1,  NULL },
-        { DDL_RACES_ROW2,           QRect( 200, 104,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_RACES_ROW3,           QRect( 200, 124,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_RACES_ROW4,           QRect( 200, 144,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_RACES_ROW5,           QRect( 200, 164,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_RACES_ROW6,           QRect( 200, 184,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_RACES_ROW7,           QRect( 200, 204,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_RACES_ROW8,           QRect( 200, 224,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_RACES_ROW9,           QRect( 200, 244,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_RACES_ROW10,          QRect( 200, 264,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_RACES_ROW11,          QRect( 200, 284,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_RACES_BOTTOM,         QRect( 200, 304,  -1,  -1 ),    new WImage(    m_ddlBottom,                                                 this ),  -1,  NULL },
-        { DDL_RACES_SCROLLLIST,     QRect( 202,  84, 122, 240 ),    new WListWidget(  "Lucida Calligraphy",                    9, QFont::Thin,  this ),  -1,  NULL },
-
-        { DDL_GENDERS_TOP,          QRect( 200, 137,  -1,  -1 ),    new WImage(    m_ddlTop,                                                    this ),  -1,  NULL },
-        { DDL_GENDERS_BOTTOM,       QRect( 200, 159,  -1,  -1 ),    new WImage(    m_ddlBottom,                                                 this ),  -1,  NULL },
-        { DDL_GENDERS_SCROLLLIST,   QRect( 202, 139, 122,  42 ),    new WListWidget(  "Lucida Calligraphy",                    9, QFont::Thin,  this ),  -1,  NULL },
+        // Do these in reverse order because each drop down list obscures the one below it, and they need to
+        // be on top to do it.
+        { DDL_GENDERS,        QRect( 169,  94,  -1,  -1 ),    new WDDL(      "Lucida Calligraphy",        Qt::AlignLeft,  9, QFont::Thin,       this ),  -1,  SLOT(ddlChanged(int)) },
+        { DDL_RACES,          QRect( 169,  53,  -1,  -1 ),    new WDDL(      "Lucida Calligraphy",        Qt::AlignLeft,  9, QFont::Thin,       this ),  -1,  SLOT(ddlChanged(int)) },
+        { DDL_PROFS,          QRect( 169,  12,  -1,  -1 ),    new WDDL(      "Lucida Calligraphy",        Qt::AlignLeft,  9, QFont::Thin,       this ),  -1,  SLOT(ddlChanged(int)) },
     };
 
     int num_widgets = sizeof(listItemsScrn) / sizeof(struct layout);
 
     m_widgets = Screen::widgetInit( listItemsScrn, num_widgets, this );
 
-    if (WListWidget *ddl = qobject_cast<WListWidget *>(m_widgets[ DDL_PROFS_SCROLLLIST ] ))
-    {
-        ddl->setHorizontalScrollBarPolicy( Qt::ScrollBarAlwaysOff );
-        ddl->clear();
-
-        populateDDLProfessions( ddl );
-
-        connect( ddl, SIGNAL(itemClicked(QListWidgetItem *)),
-                 this, SLOT(professionChanged(QListWidgetItem *)) );
-
-        ddl->setMouseTracking(true);
-        ddl->setStyleSheet("QListWidget { selection-color: #00df00; selection-background-color: transparent; } "
-                           "*::item::hover { border-style: outset; border-width: 1px; border-color: beige; }");
-    }
-
-    if (WListWidget *ddl = qobject_cast<WListWidget *>(m_widgets[ DDL_RACES_SCROLLLIST ] ))
-    {
-        ddl->setHorizontalScrollBarPolicy( Qt::ScrollBarAlwaysOff );
-        ddl->clear();
-
-        populateDDLRaces( ddl );
-
-        connect( ddl, SIGNAL(itemClicked(QListWidgetItem *)),
-                 this, SLOT(raceChanged(QListWidgetItem *)) );
-
-        ddl->setMouseTracking(true);
-        ddl->setStyleSheet("QListWidget { selection-color: #00df00; selection-background-color: transparent; } "
-                           "*::item::hover { border-style: outset; border-width: 1px; border-color: beige; }");
-    }
-
-    if (WListWidget *ddl = qobject_cast<WListWidget *>(m_widgets[ DDL_GENDERS_SCROLLLIST ] ))
-    {
-        ddl->setHorizontalScrollBarPolicy( Qt::ScrollBarAlwaysOff );
-        ddl->setVerticalScrollBarPolicy( Qt::ScrollBarAlwaysOff );
-        ddl->clear();
-
-        populateDDLGenders( ddl );
-
-        connect( ddl, SIGNAL(itemClicked(QListWidgetItem *)),
-                 this, SLOT(genderChanged(QListWidgetItem *)) );
-
-        ddl->setMouseTracking(true);
-        ddl->setStyleSheet("QListWidget { selection-color: #00df00; selection-background-color: transparent; } "
-                           "*::item::hover { border-style: outset; border-width: 1px; border-color: beige; }");
-    }
-
     if (WCheckBox *q = qobject_cast<WCheckBox *>(m_widgets[ CB_FILTER_BY_PROF ]))
     {
         q->setCheckState( (m_prof_filter == (character::profession) 0) ? Qt::Unchecked : Qt::Checked );
     }
-    if (m_prof_filter != (character::profession) 0)
+    if (WCheckBox *q = qobject_cast<WCheckBox *>(m_widgets[ CB_FILTER_BY_RACE ]))
     {
-        if (WListWidget *ddl = qobject_cast<WListWidget *>(m_widgets[ DDL_PROFS_SCROLLLIST ] ))
+        q->setCheckState( (m_race_filter == (character::race) 0) ? Qt::Unchecked : Qt::Checked );
+    }
+    if (WCheckBox *q = qobject_cast<WCheckBox *>(m_widgets[ CB_FILTER_BY_SEX ]))
+    {
+        q->setCheckState( (m_gender_filter == (character::gender) 0) ? Qt::Unchecked : Qt::Checked );
+    }
+
+    if (WDDL *q = qobject_cast<WDDL *>(m_widgets[ DDL_PROFS ]))
+    {
+        populateDDLProfessions( q );
+
+        connect( q, SIGNAL(listActive()), this, SLOT(ddlActive()) );
+        if (m_prof_filter != (character::profession) 0)
         {
             QMetaEnum metaProf = QMetaEnum::fromType<character::profession>();
 
@@ -300,19 +146,18 @@ WindowItemsList::WindowItemsList(character::profession profession, character::ra
             {
                 if (m_prof_filter == static_cast<character::profession>( metaProf.value(k) ))
                 {
-                    ddl->setCurrentRow( k );
+                    q->setCurrentRow( k );
                 }
             }
         }
+        q->updateList();
     }
+    if (WDDL *q = qobject_cast<WDDL *>(m_widgets[ DDL_RACES ]))
+    {
+        populateDDLRaces( q );
 
-    if (WCheckBox *q = qobject_cast<WCheckBox *>(m_widgets[ CB_FILTER_BY_RACE ]))
-    {
-        q->setCheckState( (m_race_filter == (character::race) 0) ? Qt::Unchecked : Qt::Checked );
-    }
-    if (m_race_filter != (character::race) 0)
-    {
-        if (WListWidget *ddl = qobject_cast<WListWidget *>(m_widgets[ DDL_RACES_SCROLLLIST ] ))
+        connect( q, SIGNAL(listActive()), this, SLOT(ddlActive()) );
+        if (m_race_filter != (character::race) 0)
         {
             QMetaEnum metaRace = QMetaEnum::fromType<character::race>();
 
@@ -320,19 +165,18 @@ WindowItemsList::WindowItemsList(character::profession profession, character::ra
             {
                 if (m_race_filter == static_cast<character::race>( metaRace.value(k) ))
                 {
-                    ddl->setCurrentRow( k );
+                    q->setCurrentRow( k );
                 }
             }
         }
+        q->updateList();
     }
+    if (WDDL *q = qobject_cast<WDDL *>(m_widgets[ DDL_GENDERS ]))
+    {
+        populateDDLGenders( q );
 
-    if (WCheckBox *q = qobject_cast<WCheckBox *>(m_widgets[ CB_FILTER_BY_SEX ]))
-    {
-        q->setCheckState( (m_gender_filter == (character::gender) 0) ? Qt::Unchecked : Qt::Checked );
-    }
-    if (m_gender_filter != (character::gender) 0)
-    {
-        if (WListWidget *ddl = qobject_cast<WListWidget *>(m_widgets[ DDL_GENDERS_SCROLLLIST ] ))
+        connect( q, SIGNAL(listActive()), this, SLOT(ddlActive()) );
+        if (m_gender_filter != (character::gender) 0)
         {
             QMetaEnum metaGender = QMetaEnum::fromType<character::gender>();
 
@@ -340,24 +184,11 @@ WindowItemsList::WindowItemsList(character::profession profession, character::ra
             {
                 if (m_gender_filter == static_cast<character::gender>( metaGender.value(k) ))
                 {
-                    ddl->setCurrentRow( k );
+                    q->setCurrentRow( k );
                 }
             }
         }
-    }
-
-    // hide the Drop-down lists until they are clicked on
-    for (int k=DDL_PROFS_TOP; k<=DDL_PROFS_BOTTOM; k++)
-    {
-        m_widgets[ k ]->setVisible( false );
-    }
-    for (int k=DDL_RACES_TOP; k<=DDL_RACES_BOTTOM; k++)
-    {
-        m_widgets[ k ]->setVisible( false );
-    }
-    for (int k=DDL_GENDERS_TOP; k<=DDL_GENDERS_BOTTOM; k++)
-    {
-        m_widgets[ k ]->setVisible( false );
+        q->updateList();
     }
 
     if (QTableWidget *q = qobject_cast<QTableWidget *>(m_widgets[ TABLE_ITEMS ]))
@@ -378,7 +209,6 @@ WindowItemsList::WindowItemsList(character::profession profession, character::ra
         populateColumns();
     }
 
-    updateLists();
     updateFilter();
 
     this->setMinimumSize( 420 * m_scale, 355 * m_scale );
@@ -578,43 +408,11 @@ void WindowItemsList::setVisible( bool visible )
             q->setVisible( visible );
         }
     }
-    // but not the drop down lists
-    for (int k=DDL_PROFS_TOP; k<=DDL_PROFS_BOTTOM; k++)
-    {
-        m_widgets[ k ]->setVisible( false );
-    }
-    for (int k=DDL_RACES_TOP; k<=DDL_RACES_BOTTOM; k++)
-    {
-        m_widgets[ k ]->setVisible( false );
-    }
-    for (int k=DDL_GENDERS_TOP; k<=DDL_GENDERS_BOTTOM; k++)
-    {
-        m_widgets[ k ]->setVisible( false );
-    }
 
     QWidget::setVisible( visible );
 }
 
-void WindowItemsList::loadDDLPixmaps()
-{
-    // DDL Pixmaps
-    SLFFile imgs( "CHAR GENERATION/CG_PROFESSION.STI" );
-    if (imgs.open(QFile::ReadOnly))
-    {
-        QByteArray array = imgs.readAll();
-        STItoQImage sti_imgs( array );
-
-        m_ddlInactive = QPixmap::fromImage( sti_imgs.getImage( 1 ) );
-        m_ddlActive   = QPixmap::fromImage( sti_imgs.getImage( 2 ) );
-        m_ddlTop      = QPixmap::fromImage( sti_imgs.getImage( 4 ) );
-        m_ddlMiddle   = QPixmap::fromImage( sti_imgs.getImage( 5 ) );
-        m_ddlBottom   = QPixmap::fromImage( sti_imgs.getImage( 6 ) );
-
-        imgs.close();
-    }
-}
-
-void WindowItemsList::populateDDLProfessions(QListWidget *ddl)
+void WindowItemsList::populateDDLProfessions(WDDL *ddl)
 {
     if (ddl)
     {
@@ -665,7 +463,7 @@ void WindowItemsList::populateDDLProfessions(QListWidget *ddl)
     }
 }
 
-void WindowItemsList::populateDDLRaces(QListWidget *ddl)
+void WindowItemsList::populateDDLRaces(WDDL *ddl)
 {
     if (ddl)
     {
@@ -717,7 +515,7 @@ void WindowItemsList::populateDDLRaces(QListWidget *ddl)
     }
 }
 
-void WindowItemsList::populateDDLGenders(QListWidget *ddl)
+void WindowItemsList::populateDDLGenders(WDDL *ddl)
 {
     if (ddl)
     {
@@ -755,321 +553,104 @@ void WindowItemsList::populateDDLGenders(QListWidget *ddl)
     }
 }
 
-void WindowItemsList::prevProf(bool)
+void WindowItemsList::ddlChanged(int value)
 {
-    m_prof_filter = static_cast<character::profession> (changeListItem( DDL_PROFS_SCROLLLIST, -1 ));
+    if (sender() == m_widgets[ DDL_PROFS ])
+        m_prof_filter = static_cast<character::profession> (value);
+    else if (sender() == m_widgets[ DDL_RACES ])
+        m_race_filter = static_cast<character::race> (value);
+    else if (sender() == m_widgets[ DDL_GENDERS ])
+        m_gender_filter = static_cast<character::gender> (value);
 
-    updateLists();
     updateFilter();
 }
 
-void WindowItemsList::nextProf(bool)
+void WindowItemsList::ddlActive()
 {
-    m_prof_filter = static_cast<character::profession> (changeListItem( DDL_PROFS_SCROLLLIST, 1 ));
-
-    updateLists();
-    updateFilter();
-}
-
-void WindowItemsList::prevRace(bool)
-{
-    m_race_filter = static_cast<character::race> (changeListItem( DDL_RACES_SCROLLLIST, -1 ));
-
-    updateLists();
-    updateFilter();
-}
-
-void WindowItemsList::nextRace(bool)
-{
-    m_race_filter = static_cast<character::race> (changeListItem( DDL_RACES_SCROLLLIST, 1 ));
-
-    updateLists();
-    updateFilter();
-}
-
-void WindowItemsList::prevGender(bool)
-{
-    m_gender_filter = static_cast<character::gender> (changeListItem( DDL_GENDERS_SCROLLLIST, -1 ));
-
-    updateLists();
-    updateFilter();
-}
-
-void WindowItemsList::nextGender(bool)
-{
-    m_gender_filter = static_cast<character::gender> (changeListItem( DDL_GENDERS_SCROLLLIST, 1 ));
-
-    updateLists();
-    updateFilter();
-}
-
-int WindowItemsList::changeListItem( int widgetId, int delta )
-{
-    int newValue = -1;
-    if (QPushButton *q = qobject_cast<QPushButton *>(this->sender()))
+    if (sender() != m_widgets[ DDL_PROFS ])
     {
-        q->setChecked(false);
-    }
-
-    if (WListWidget *ddl = qobject_cast<WListWidget *>(m_widgets[ widgetId ] ))
-    {
-        int newIndex = ddl->currentRow();
-
-        newIndex += delta;
-        if (newIndex >= ddl->count())
-            newIndex = 0;
-        else if (newIndex < 0)
-            newIndex = ddl->count() - 1;
-
-        ddl->setCurrentRow( newIndex );
-
-        newValue = ddl->currentItem()->data( Qt::UserRole ).toInt();
-    }
-    return newValue;
-}
-
-void WindowItemsList::updateLists()
-{
-    if (WListWidget *ddl = qobject_cast<WListWidget *>(m_widgets[ DDL_PROFS_SCROLLLIST ] ))
-    {
-        if (ddl->currentItem())
+        if (WDDL *ddl = qobject_cast<WDDL *>(m_widgets[ DDL_PROFS ] ))
         {
-            if (WLabel *w = qobject_cast<WLabel *>(m_widgets[ VAL_PROFS ] ))
-            {
-                QString s = ddl->currentItem()->text();
-
-                w->setText( s.isNull() ? "" : s );
-            }
-            if (WImage *w = qobject_cast<WImage *>(m_widgets[ I_PROFS ] ))
-            {
-                QVariant v = ddl->currentItem()->data( Qt::DecorationRole );
-                QPixmap ic = v.value<QPixmap>();
-
-                w->setPixmap( ic );
-            }
+            ddl->showDDL( false );
         }
     }
-    if (WListWidget *ddl = qobject_cast<WListWidget *>(m_widgets[ DDL_RACES_SCROLLLIST ] ))
+    if (sender() != m_widgets[ DDL_RACES ])
     {
-        if (ddl->currentItem())
+        if (WDDL *ddl = qobject_cast<WDDL *>(m_widgets[ DDL_RACES ] ))
         {
-            if (WLabel *w = qobject_cast<WLabel *>(m_widgets[ VAL_RACES ] ))
-            {
-                w->setText( ddl->currentItem()->text() );
-            }
-            if (WImage *w = qobject_cast<WImage *>(m_widgets[ I_RACES ] ))
-            {
-                QVariant v = ddl->currentItem()->data( Qt::DecorationRole );
-                QPixmap ic = v.value<QPixmap>();
-
-                w->setPixmap( ic );
-            }
+            ddl->showDDL( false );
         }
     }
-    if (WListWidget *ddl = qobject_cast<WListWidget *>(m_widgets[ DDL_GENDERS_SCROLLLIST ] ))
+    if (sender() != m_widgets[ DDL_GENDERS ])
     {
-        if (ddl->currentItem())
+        if (WDDL *ddl = qobject_cast<WDDL *>(m_widgets[ DDL_GENDERS ] ))
         {
-            if (WLabel *w = qobject_cast<WLabel *>(m_widgets[ VAL_GENDERS ] ))
-            {
-                w->setText( ddl->currentItem()->text() );
-            }
-            if (WImage *w = qobject_cast<WImage *>(m_widgets[ I_GENDERS ] ))
-            {
-                QVariant v = ddl->currentItem()->data( Qt::DecorationRole );
-                QPixmap ic = v.value<QPixmap>();
-
-                w->setPixmap( ic );
-            }
+            ddl->showDDL( false );
         }
-    }
-}
-
-void WindowItemsList::dropDownList(bool down)
-{
-    if (down)
-    {
-        bool toggle;
-        int  widgetId = -1;
-
-        if ((sender() == m_widgets[ FRAME_PROFS ]) ||
-            (sender() == m_widgets[ I_PROFS     ]) ||
-            (sender() == m_widgets[ VAL_PROFS   ]))
-        {
-            if (m_prof_filter != (character::profession) 0)
-            {
-                widgetId = I_PROFS;
-            }
-        }
-        else if ((sender() == m_widgets[ FRAME_RACES ]) ||
-                 (sender() == m_widgets[ I_RACES     ]) ||
-                 (sender() == m_widgets[ VAL_RACES   ]))
-        {
-            if (m_race_filter != (character::race) 0)
-            {
-                widgetId = I_RACES;
-            }
-        }
-        else if ((sender() == m_widgets[ FRAME_GENDERS ]) ||
-                 (sender() == m_widgets[ I_GENDERS     ]) ||
-                 (sender() == m_widgets[ VAL_GENDERS   ]))
-        {
-            if (m_gender_filter != (character::gender) 0)
-            {
-                widgetId = I_GENDERS;
-            }
-        }
-
-        // If the clicked DDL list was open, close it
-        // If it was closed open it
-        // And close any other lists which may have already been open
-        toggle = m_widgets[ DDL_PROFS_TOP ]->isVisible();
-        for (int k=DDL_PROFS_TOP; k<=DDL_PROFS_BOTTOM; k++)
-        {
-            m_widgets[ k ]->setVisible( (widgetId == I_PROFS) ? !toggle : false );
-        }
-        toggle = m_widgets[ DDL_RACES_TOP ]->isVisible();
-        for (int k=DDL_RACES_TOP; k<=DDL_RACES_BOTTOM; k++)
-        {
-            m_widgets[ k ]->setVisible( (widgetId == I_RACES) ? !toggle : false );
-        }
-        toggle = m_widgets[ DDL_GENDERS_TOP ]->isVisible();
-        for (int k=DDL_GENDERS_TOP; k<=DDL_GENDERS_BOTTOM; k++)
-        {
-            m_widgets[ k ]->setVisible( (widgetId == I_GENDERS) ? !toggle : false );
-        }
-    }
-}
-
-void WindowItemsList::professionChanged(QListWidgetItem *now)
-{
-    if (now)
-    {
-        for (int k=DDL_PROFS_TOP; k<=DDL_PROFS_BOTTOM; k++)
-        {
-            m_widgets[ k ]->setVisible( false );
-        }
-
-        m_prof_filter = static_cast<character::profession>(now->data( Qt::UserRole ).toInt());
-
-        updateLists();
-        updateFilter();
-    }
-}
-
-void WindowItemsList::raceChanged(QListWidgetItem *now)
-{
-    if (now)
-    {
-        for (int k=DDL_RACES_TOP; k<=DDL_RACES_BOTTOM; k++)
-        {
-            m_widgets[ k ]->setVisible( false );
-        }
-
-        m_race_filter = static_cast<character::race>(now->data( Qt::UserRole ).toInt());
-
-        updateLists();
-        updateFilter();
-    }
-}
-
-void WindowItemsList::genderChanged(QListWidgetItem *now)
-{
-    if (now)
-    {
-        for (int k=DDL_GENDERS_TOP; k<=DDL_GENDERS_BOTTOM; k++)
-        {
-            m_widgets[ k ]->setVisible( false );
-        }
-
-        m_gender_filter = static_cast<character::gender>(now->data( Qt::UserRole ).toInt());
-
-        updateLists();
-        updateFilter();
     }
 }
 
 void WindowItemsList::filterProf(int state)
 {
-    if (WButton *b = qobject_cast<WButton *>(m_widgets[ BTN_PREV_PROF ] ))
+    if (WDDL *ddl = qobject_cast<WDDL *>(m_widgets[ DDL_PROFS ] ))
     {
-        b->setEnabled( state == Qt::Checked );
-    }
-    if (WButton *b = qobject_cast<WButton *>(m_widgets[ BTN_NEXT_PROF ] ))
-    {
-        b->setEnabled( state == Qt::Checked );
-    }
-    if (state == Qt::Checked)
-    {
-        if (m_prof_filter == (character::profession) 0)
+        ddl->setEnabled( state == Qt::Checked );
+        if (state == Qt::Checked)
         {
-            // reset the profession filter from whatever the list is showing
-            m_prof_filter = static_cast<character::profession> (changeListItem( DDL_PROFS_SCROLLLIST, 0 ));
+            if (m_prof_filter == (character::profession) 0)
+            {
+                // reset the profession filter from whatever the list is showing
+                m_prof_filter = static_cast<character::profession> (ddl->getValue());
+            }
         }
+        else
+        {
+            m_prof_filter = (character::profession) 0;
+        }
+        updateFilter();
     }
-    else
-    {
-        m_prof_filter = (character::profession) 0;
-        dropDownList(true);
-    }
-    updateFilter();
 }
 
 void WindowItemsList::filterRace(int state)
 {
-    if (WButton *b = qobject_cast<WButton *>(m_widgets[ BTN_PREV_RACE ] ))
+    if (WDDL *ddl = qobject_cast<WDDL *>(m_widgets[ DDL_RACES ] ))
     {
-        b->setEnabled( state == Qt::Checked );
-    }
-    if (WButton *b = qobject_cast<WButton *>(m_widgets[ BTN_NEXT_RACE ] ))
-    {
-        b->setEnabled( state == Qt::Checked );
-    }
-    if (state == Qt::Checked)
-    {
-        if (m_race_filter == (character::race) 0)
+        ddl->setEnabled( state == Qt::Checked );
+        if (state == Qt::Checked)
         {
-            // reset the race filter from whatever the list is showing
-            m_race_filter = static_cast<character::race> (changeListItem( DDL_RACES_SCROLLLIST, 0 ));
+            if (m_race_filter == (character::race) 0)
+            {
+                // reset the race filter from whatever the list is showing
+                m_race_filter = static_cast<character::race> (ddl->getValue());
+            }
         }
+        else
+        {
+            m_race_filter = (character::race) 0;
+        }
+        updateFilter();
     }
-    else
-    {
-        m_race_filter = (character::race) 0;
-        dropDownList(true);
-    }
-    updateFilter();
 }
 
 void WindowItemsList::filterSex(int state)
 {
-    if (WButton *b = qobject_cast<WButton *>(m_widgets[ BTN_PREV_SEX ] ))
+    if (WDDL *ddl = qobject_cast<WDDL *>(m_widgets[ DDL_GENDERS ] ))
     {
-        b->setEnabled( state == Qt::Checked );
-    }
-    if (WButton *b = qobject_cast<WButton *>(m_widgets[ BTN_NEXT_SEX ] ))
-    {
-        b->setEnabled( state == Qt::Checked );
-    }
-    if (state == Qt::Checked)
-    {
-        if (m_gender_filter == (character::gender) 0)
+        ddl->setEnabled( state == Qt::Checked );
+        if (state == Qt::Checked)
         {
-            // reset the gender filter from whatever the list is showing
-            m_gender_filter = static_cast<character::gender> (changeListItem( DDL_GENDERS_SCROLLLIST, 0 ));
+            if (m_gender_filter == (character::gender) 0)
+            {
+                // reset the gender filter from whatever the list is showing
+                m_gender_filter = static_cast<character::gender> (ddl->getValue());
+            }
         }
+        else
+        {
+            m_gender_filter = (character::gender) 0;
+        }
+        updateFilter();
     }
-    else
-    {
-        m_gender_filter = (character::gender) 0;
-        dropDownList(true);
-    }
-    updateFilter();
-}
-
-void WindowItemsList::mouseOverLabel(bool)
-{
-    // stubbed
 }
 
 void WindowItemsList::updateFilter()

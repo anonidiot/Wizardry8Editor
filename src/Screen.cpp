@@ -30,6 +30,7 @@
 
 #include "WButton.h"
 #include "WCheckBox.h"
+#include "WDDL.h"
 #include "WImage.h"
 #include "WItem.h"
 #include "WLabel.h"
@@ -162,6 +163,10 @@ QMap<int, QWidget *> Screen::widgetInit( struct layout *widgets, int num_widgets
             else if (WButton *button = qobject_cast<WButton *>(w))
             {
                 connect( button, SIGNAL(clicked(bool)), parent, widgets[k].trigger );
+            }
+            else if (WDDL *ddl = qobject_cast<WDDL *>(w))
+            {
+                connect( ddl, SIGNAL(valueChanged(int)), parent, widgets[k].trigger );
             }
             else if (WSpinBox *sb = qobject_cast<WSpinBox *>(w))
             {

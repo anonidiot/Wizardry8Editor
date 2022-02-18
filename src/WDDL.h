@@ -23,56 +23,62 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef SCREENATTRIBS_H__
-#define SCREENATTRIBS_H__
+#ifndef WDDL_H__
+#define WDDL_H__
 
-#include <QWidget>
+#include <QMap>
 #include <QPixmap>
+#include <QString>
+#include <QWidget>
+#include "Wizardry8Scalable.h"
 
-#include "character.h"
-#include "Screen.h"
+class QListWidgetItem;
 
-class QHelpEvent;
-class WDDL;
-
-class ScreenAttribs : public Screen
+class WDDL : public QWidget, public Wizardry8Scalable
 {
     Q_OBJECT
 
 public:
-    ScreenAttribs(character *c, QWidget *parent = nullptr);
-    ~ScreenAttribs();
+    WDDL(QString fontname, Qt::Alignment alignment, int pointSize, int weight, QWidget* parent = Q_NULLPTR);
 
-    void        setVisible(bool visible) override;
+    ~WDDL();
 
-signals:
-    void        changedRace();
-    void        changedProf();
-    void        changedSex();
+    int         getValue() { return changeListItem( 0 ); }
+
+    void        addItem(QListWidgetItem *i);
+    void        setCurrentRow(int row);
+    void        showDDL( bool show );
+
+    void        updateList();
+
+    void        setScale(double scale) override;
 
 public slots:
-    void        spinnerChanged(int value);
-    void        attributeDetail(bool checked);
-    void        info(bool checked);
+    void        setEnabled(bool enabled);
+//    void        setVisible(bool visible) override;
 
-    void        mouseOverLabel(bool on) override;
+    void        mouseOverLabel(bool on);
+    void        dropDownList(bool down);
 
-    void        ddlChanged(int value);
-    void        ddlActive();
+    void        prev(bool);
+    void        next(bool);
+    void        ddlChanged(QListWidgetItem *);
+
+signals:
+    void        listActive();
+    void        valueChanged(int value);
 
 private:
-    void        resetScreen(void *char_tag, void *party_tag) override;
-    int         changeListItem( int widgetId, int delta );
+    void        loadDDLPixmaps();
 
-    QPixmap     makeRowPixmap();
+    int         changeListItem( int delta );
 
-    void        updateLists();
-
-    void        populateDDLProfessions(WDDL *ddl);
-    void        populateDDLRaces(WDDL *ddl);
-    void        populateDDLGenders(WDDL *ddl);
-
-    character  *m_char;
-    bool        m_inspectMode;
+    QMap<int, QWidget *>   m_widgets;    
+    
+    QPixmap     m_ddlInactive;
+    QPixmap     m_ddlActive;
+    QPixmap     m_ddlTop;
+    QPixmap     m_ddlBottom;
 };
-#endif
+
+#endif // WDDL_H__

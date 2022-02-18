@@ -41,6 +41,8 @@ class QListWidget;
 class QListWidgetItem;
 class QMenu;
 
+class WDDL;
+
 class WindowItemsList : public QWidget, public Wizardry8Scalable
 {
     Q_OBJECT
@@ -58,24 +60,12 @@ signals:
 
 
 public slots:
-    void        mouseOverLabel(bool on);
-
-    void        dropDownList(bool down);
-
     void        filterProf(int);
     void        filterRace(int);
     void        filterSex(int);
 
-    void        professionChanged(QListWidgetItem *);
-    void        raceChanged(QListWidgetItem *);
-    void        genderChanged(QListWidgetItem *);
-
-    void        prevProf(bool);
-    void        nextProf(bool);
-    void        prevRace(bool);
-    void        nextRace(bool);
-    void        prevGender(bool);
-    void        nextGender(bool);
+    void        ddlChanged(int value);
+    void        ddlActive();
 
     void        tableMenu(QPoint pos);
     void        chooseColumns();
@@ -85,32 +75,23 @@ protected:
     void        resizeEvent(QResizeEvent *event) override;
 
 private:
-    int         changeListItem( int widgetId, int delta );
     QString     lookupItemProperty( item *i, DialogChooseColumns::column col, bool *numeric );
 
     QList<DialogChooseColumns::column> loadColumnsFromRegistry();
 
     void        populateColumns();
 
-    void        loadDDLPixmaps();
-    void        updateLists();
     void        updateFilter();
 
-    void        populateDDLProfessions(QListWidget *ddl);
-    void        populateDDLRaces(QListWidget *ddl);
-    void        populateDDLGenders(QListWidget *ddl);
+    void        populateDDLProfessions(WDDL *ddl);
+    void        populateDDLRaces(WDDL *ddl);
+    void        populateDDLGenders(WDDL *ddl);
 
     QPixmap     makeDialogForm();
 
     character::profession  m_prof_filter;
     character::race        m_race_filter;
     character::gender      m_gender_filter;
-
-    QPixmap     m_ddlInactive;
-    QPixmap     m_ddlActive;
-    QPixmap     m_ddlTop;
-    QPixmap     m_ddlMiddle;
-    QPixmap     m_ddlBottom;
 
     QPixmap     m_bgImg;
     QMap<int, QWidget *>   m_widgets;

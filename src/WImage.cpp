@@ -280,15 +280,24 @@ void WImage::paintEvent(QPaintEvent *)
     painter.setRenderHint( QPainter::TextAntialiasing,      true );
     painter.setRenderHint( QPainter::SmoothPixmapTransform, true );
 
+    QPixmap pic = m_pixmap;
+
+    // Grayscale disabled images
+    if (! this->isEnabled())
+    {
+        QImage s = pic.toImage();
+        pic = QPixmap::fromImage( s.convertToFormat( QImage::Format_Grayscale8 ) );
+    }
+
     if ((m_xScale == 1.0) && (m_yScale == 1.0) && (m_extraScale == 1.0))
     {
         if (m_crop.isNull())
         {
-            painter.drawPixmap( rect(), m_pixmap);
+            painter.drawPixmap( rect(), pic);
         }
         else
         {
-            painter.drawPixmap( rect(), m_pixmap, m_crop);
+            painter.drawPixmap( rect(), pic, m_crop);
         }
     }
     else
@@ -308,7 +317,7 @@ void WImage::paintEvent(QPaintEvent *)
         if (m_anchor & Qt::AlignBottom)
             y_pos += rect().height() * (1.0 - m_yScale);
 
-        painter.drawPixmap( x_pos, y_pos, rect().width()*m_xScale * m_extraScale, rect().height()*m_yScale * m_extraScale, m_pixmap);
+        painter.drawPixmap( x_pos, y_pos, rect().width()*m_xScale * m_extraScale, rect().height()*m_yScale * m_extraScale, pic);
     }
 }
 

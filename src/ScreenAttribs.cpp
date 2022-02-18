@@ -27,7 +27,6 @@
 
 #include <QApplication>
 #include <QHelpEvent>
-#include <QListWidgetItem>
 #include <QPainter>
 #include <QPixmap>
 #include <QPushButton>
@@ -39,6 +38,7 @@
 
 #include "StringList.h"
 #include "WButton.h"
+#include "WDDL.h"
 #include "WImage.h"
 #include "WLabel.h"
 #include "WListWidget.h"
@@ -56,49 +56,9 @@ typedef enum
 {
     NO_ID,
 
-    FRAME_PROFS,
-    I_PROFS,
-    VAL_PROFS,
-
-    DDL_PROFS_TOP,
-    DDL_PROFS_ROW2,
-    DDL_PROFS_ROW3,
-    DDL_PROFS_ROW4,
-    DDL_PROFS_ROW5,
-    DDL_PROFS_ROW6,
-    DDL_PROFS_ROW7,
-    DDL_PROFS_ROW8,
-    DDL_PROFS_ROW9,
-    DDL_PROFS_ROW10,
-    DDL_PROFS_ROW11,
-    DDL_PROFS_SCROLLLIST,
-    DDL_PROFS_BOTTOM,
-
-    FRAME_RACES,
-    I_RACES,
-    VAL_RACES,
-
-    DDL_RACES_TOP,
-    DDL_RACES_ROW2,
-    DDL_RACES_ROW3,
-    DDL_RACES_ROW4,
-    DDL_RACES_ROW5,
-    DDL_RACES_ROW6,
-    DDL_RACES_ROW7,
-    DDL_RACES_ROW8,
-    DDL_RACES_ROW9,
-    DDL_RACES_ROW10,
-    DDL_RACES_ROW11,
-    DDL_RACES_SCROLLLIST,
-    DDL_RACES_BOTTOM,
-
-    FRAME_GENDERS,
-    I_GENDERS,
-    VAL_GENDERS,
-
-    DDL_GENDERS_TOP,
-    DDL_GENDERS_SCROLLLIST,
-    DDL_GENDERS_BOTTOM,
+    DDL_PROFS,
+    DDL_RACES,
+    DDL_GENDERS,
 
     VAL_STATUE,
 
@@ -143,8 +103,6 @@ ScreenAttribs::ScreenAttribs(character *c, QWidget *parent) :
 {
     QPixmap rowImg = makeRowPixmap();
 
-    loadDDLPixmaps();
-
     // All these controls are added as children of this widget, and hence will be destructed automatically
     // when we are destroyed
 
@@ -172,24 +130,6 @@ ScreenAttribs::ScreenAttribs(character *c, QWidget *parent) :
         { NO_ID,              QRect( 264, 359,  -1,  -1 ),    new WImage(    "CHAR GENERATION/CG_PROFESSION.STI",   0,  20, 230, 217,  82, 1.0, this ),  -1,  NULL },
 
         { NO_ID,              QRect( 310, 168,  -1,  -1 ),    new WImage(    "CHAR GENERATION/CG_PROFESSION.STI",   0, 238, 166, 208, 105, 1.0, this ),  -1,  NULL },
-
-        { NO_ID,              QRect( 329,  12,  -1,  -1 ),    new WButton(   "CHAR GENERATION/CG_BUTTONS.STI",     10, false, 1.0,              this ),  -1,  SLOT(prevProf(bool)) },
-        { FRAME_PROFS,        QRect( 360,  14,  -1,  -1 ),    new WImage(                                                                       this ),  -1,  SLOT(dropDownList(bool)) },
-        { I_PROFS,            QRect( 363,  17,  -1,  -1 ),    new WImage(                                                                       this ),  -1,  SLOT(dropDownList(bool)) },
-        { VAL_PROFS,          QRect( 383,  17, 120,  18 ),    new WLabel(    "", "Lucida Calligraphy",        Qt::AlignLeft,  9, QFont::Thin,   this ),  -1,  SLOT(dropDownList(bool)) },
-        { NO_ID,              QRect( 490,  12,  -1,  -1 ),    new WButton(   "CHAR GENERATION/CG_BUTTONS.STI",     15, false, 1.0,              this ),  -1,  SLOT(nextProf(bool)) },
-
-        { NO_ID,              QRect( 329,  63,  -1,  -1 ),    new WButton(   "CHAR GENERATION/CG_BUTTONS.STI",     10, false, 1.0,              this ),  -1,  SLOT(prevRace(bool)) },
-        { FRAME_RACES,        QRect( 360,  65,  -1,  -1 ),    new WImage(                                                                       this ),  -1,  SLOT(dropDownList(bool)) },
-        { I_RACES,            QRect( 363,  68,  -1,  -1 ),    new WImage(                                                                       this ),  -1,  SLOT(dropDownList(bool)) },
-        { VAL_RACES,          QRect( 383,  68, 120,  18 ),    new WLabel(    "", "Lucida Calligraphy",        Qt::AlignLeft,  9, QFont::Thin,   this ),  -1,  SLOT(dropDownList(bool)) },
-        { NO_ID,              QRect( 490,  63,  -1,  -1 ),    new WButton(   "CHAR GENERATION/CG_BUTTONS.STI",     15, false, 1.0,              this ),  -1,  SLOT(nextRace(bool)) },
-
-        { NO_ID,              QRect( 329, 114,  -1,  -1 ),    new WButton(   "CHAR GENERATION/CG_BUTTONS.STI",     10, false, 1.0,              this ),  -1,  SLOT(prevGender(bool)) },
-        { FRAME_GENDERS,      QRect( 360, 116,  -1,  -1 ),    new WImage(                                                                       this ),  -1,  SLOT(dropDownList(bool)) },
-        { I_GENDERS,          QRect( 363, 119,  -1,  -1 ),    new WImage(                                                                       this ),  -1,  SLOT(dropDownList(bool)) },
-        { VAL_GENDERS,        QRect( 383, 119, 120,  18 ),    new WLabel(    "", "Lucida Calligraphy",        Qt::AlignLeft,  9, QFont::Thin,   this ),  -1,  SLOT(dropDownList(bool)) },
-        { NO_ID,              QRect( 490, 114,  -1,  -1 ),    new WButton(   "CHAR GENERATION/CG_BUTTONS.STI",     15, false, 1.0,              this ),  -1,  SLOT(nextGender(bool)) },
 
         { VAL_STATUE,         QRect( 520, 130,  -1,  -1 ),    new WImage(                                                                       this ),  -1,  NULL }, // naked individual
 
@@ -260,87 +200,29 @@ ScreenAttribs::ScreenAttribs(character *c, QWidget *parent) :
         { VAL_ATTRIBUTES + character::attribute::Speed,       QRect( 224, 258,  76,  14 ),    new WSpinBox(  0, 0, 100,                         this ),  -1,  SLOT(spinnerChanged(int)) },
         { VAL_ATTRIBUTES + character::attribute::Senses,      QRect( 224, 272,  76,  14 ),    new WSpinBox(  0, 0, 100,                         this ),  -1,  SLOT(spinnerChanged(int)) },
 
-        { DDL_PROFS_TOP,            QRect( 360,  37,  -1,  -1 ),    new WImage(    m_ddlTop,                                                    this ),  -1,  NULL },
-        { DDL_PROFS_ROW2,           QRect( 360,  59,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_PROFS_ROW3,           QRect( 360,  79,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_PROFS_ROW4,           QRect( 360,  99,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_PROFS_ROW5,           QRect( 360, 119,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_PROFS_ROW6,           QRect( 360, 139,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_PROFS_ROW7,           QRect( 360, 159,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_PROFS_ROW8,           QRect( 360, 179,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_PROFS_ROW9,           QRect( 360, 199,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_PROFS_ROW10,          QRect( 360, 219,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_PROFS_ROW11,          QRect( 360, 239,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_PROFS_BOTTOM,         QRect( 360, 259,  -1,  -1 ),    new WImage(    m_ddlBottom,                                                 this ),  -1,  NULL },
-        { DDL_PROFS_SCROLLLIST,     QRect( 362,  39, 122, 240 ),    new WListWidget(  "Lucida Calligraphy",                    9, QFont::Thin,  this ),  -1,  NULL },
-
-        { DDL_RACES_TOP,            QRect( 360,  92,  -1,  -1 ),    new WImage(    m_ddlTop,                                                    this ),  -1,  NULL },
-        { DDL_RACES_ROW2,           QRect( 360, 114,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_RACES_ROW3,           QRect( 360, 134,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_RACES_ROW4,           QRect( 360, 154,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_RACES_ROW5,           QRect( 360, 174,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_RACES_ROW6,           QRect( 360, 194,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_RACES_ROW7,           QRect( 360, 214,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_RACES_ROW8,           QRect( 360, 234,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_RACES_ROW9,           QRect( 360, 254,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_RACES_ROW10,          QRect( 360, 274,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_RACES_ROW11,          QRect( 360, 294,  -1,  -1 ),    new WImage(    m_ddlMiddle,                                                 this ),  -1,  NULL },
-        { DDL_RACES_BOTTOM,         QRect( 360, 314,  -1,  -1 ),    new WImage(    m_ddlBottom,                                                 this ),  -1,  NULL },
-        { DDL_RACES_SCROLLLIST,     QRect( 362,  94, 122, 240 ),    new WListWidget(  "Lucida Calligraphy",                    9, QFont::Thin,  this ),  -1,  NULL },
-
-        { DDL_GENDERS_TOP,          QRect( 360, 147,  -1,  -1 ),    new WImage(    m_ddlTop,                                                    this ),  -1,  NULL },
-        { DDL_GENDERS_BOTTOM,       QRect( 360, 169,  -1,  -1 ),    new WImage(    m_ddlBottom,                                                 this ),  -1,  NULL },
-        { DDL_GENDERS_SCROLLLIST,   QRect( 362, 149, 122,  42 ),    new WListWidget(  "Lucida Calligraphy",                    9, QFont::Thin,  this ),  -1,  NULL },
+        { DDL_GENDERS,        QRect( 329, 114,  -1,  -1 ),    new WDDL(          "Lucida Calligraphy",        Qt::AlignLeft,  9, QFont::Thin,   this ),  -1,  SLOT(ddlChanged(int)) },
+        { DDL_RACES,          QRect( 329,  63,  -1,  -1 ),    new WDDL(          "Lucida Calligraphy",        Qt::AlignLeft,  9, QFont::Thin,   this ),  -1,  SLOT(ddlChanged(int)) },
+        { DDL_PROFS,          QRect( 329,  12,  -1,  -1 ),    new WDDL(          "Lucida Calligraphy",        Qt::AlignLeft,  9, QFont::Thin,   this ),  -1,  SLOT(ddlChanged(int)) },
     };
 
     int num_widgets = sizeof(itemsScrn) / sizeof(struct layout);
 
     m_widgets = Screen::widgetInit( itemsScrn, num_widgets, this );
 
-    if (WListWidget *ddl = qobject_cast<WListWidget *>(m_widgets[ DDL_PROFS_SCROLLLIST ] ))
+    if (WDDL *ddl = qobject_cast<WDDL *>(m_widgets[ DDL_PROFS ] ))
     {
-        ddl->setHorizontalScrollBarPolicy( Qt::ScrollBarAlwaysOff );
-        ddl->clear();
-
         populateDDLProfessions( ddl );
-
-        connect( ddl, SIGNAL(itemClicked(QListWidgetItem *)),
-                  this, SLOT(professionChanged(QListWidgetItem *)) );
-
-        ddl->setMouseTracking(true);
-        ddl->setStyleSheet("QListWidget { selection-color: #00df00; selection-background-color: transparent; } "
-                           "*::item::hover { border-style: outset; border-width: 1px; border-color: beige; }");
+        connect( ddl, SIGNAL(listActive()), this, SLOT(ddlActive()) );
     }
-
-    if (WListWidget *ddl = qobject_cast<WListWidget *>(m_widgets[ DDL_RACES_SCROLLLIST ] ))
+    if (WDDL *ddl = qobject_cast<WDDL *>(m_widgets[ DDL_RACES ] ))
     {
-        ddl->setHorizontalScrollBarPolicy( Qt::ScrollBarAlwaysOff );
-        ddl->clear();
-
         populateDDLRaces( ddl );
-
-        connect( ddl, SIGNAL(itemClicked(QListWidgetItem *)),
-                  this, SLOT(raceChanged(QListWidgetItem *)) );
-
-        ddl->setMouseTracking(true);
-        ddl->setStyleSheet("QListWidget { selection-color: #00df00; selection-background-color: transparent; } "
-                           "*::item::hover { border-style: outset; border-width: 1px; border-color: beige; }");
+        connect( ddl, SIGNAL(listActive()), this, SLOT(ddlActive()) );
     }
-
-    if (WListWidget *ddl = qobject_cast<WListWidget *>(m_widgets[ DDL_GENDERS_SCROLLLIST ] ))
+    if (WDDL *ddl = qobject_cast<WDDL *>(m_widgets[ DDL_GENDERS ] ))
     {
-        ddl->setHorizontalScrollBarPolicy( Qt::ScrollBarAlwaysOff );
-        ddl->setVerticalScrollBarPolicy( Qt::ScrollBarAlwaysOff );
-        ddl->clear();
-
         populateDDLGenders( ddl );
-
-        connect( ddl, SIGNAL(itemClicked(QListWidgetItem *)),
-                  this, SLOT(genderChanged(QListWidgetItem *)) );
-
-        ddl->setMouseTracking(true);
-        ddl->setStyleSheet("QListWidget { selection-color: #00df00; selection-background-color: transparent; } "
-                           "*::item::hover { border-style: outset; border-width: 1px; border-color: beige; }");
+        connect( ddl, SIGNAL(listActive()), this, SLOT(ddlActive()) );
     }
     if (WListWidget *w = qobject_cast<WListWidget *>(m_widgets[ SCROLL_ABILITIES ] ))
     {
@@ -351,20 +233,6 @@ ScreenAttribs::ScreenAttribs(character *c, QWidget *parent) :
         w->setSelectionMode( QAbstractItemView::NoSelection );
     }
 
-    // hide the Drop-down lists until they are clicked on
-    for (int k=DDL_PROFS_TOP; k<=DDL_PROFS_BOTTOM; k++)
-    {
-        m_widgets[ k ]->setVisible( false );
-    }
-    for (int k=DDL_RACES_TOP; k<=DDL_RACES_BOTTOM; k++)
-    {
-        m_widgets[ k ]->setVisible( false );
-    }
-    for (int k=DDL_GENDERS_TOP; k<=DDL_GENDERS_BOTTOM; k++)
-    {
-        m_widgets[ k ]->setVisible( false );
-    }
-
     resetScreen( m_char, NULL );
 }
 
@@ -373,56 +241,52 @@ ScreenAttribs::~ScreenAttribs()
     // Child widgets are automatically destroyed
 }
 
-void ScreenAttribs::professionChanged(QListWidgetItem *now)
+void ScreenAttribs::ddlChanged(int value)
 {
-    if (now)
+    if (sender() == m_widgets[ DDL_PROFS ])
     {
-        for (int k=DDL_PROFS_TOP; k<=DDL_PROFS_BOTTOM; k++)
-        {
-            m_widgets[ k ]->setVisible( false );
-        }
-
-        m_char->setProfession( static_cast<character::profession>(now->data( Qt::UserRole ).toInt()) );
+        m_char->setProfession( static_cast<character::profession>( value ) );
 
         emit changedProf();
-
-        updateLists();
-        resetScreen( m_char, NULL ); // update professional skills and any profession related stats
     }
-}
-
-void ScreenAttribs::raceChanged(QListWidgetItem *now)
-{
-    if (now)
+    else if (sender() == m_widgets[ DDL_RACES ])
     {
-        for (int k=DDL_RACES_TOP; k<=DDL_RACES_BOTTOM; k++)
-        {
-            m_widgets[ k ]->setVisible( false );
-        }
-
-        m_char->setRace( static_cast<character::race>(now->data( Qt::UserRole ).toInt()) );
+        m_char->setRace( static_cast<character::race>( value ) );
 
         emit changedRace();
-
-        updateLists();
-        resetScreen( m_char, NULL ); // Faerie, Dracon, Lizardman and Dwarf add racial abilities
     }
-}
-
-void ScreenAttribs::genderChanged(QListWidgetItem *now)
-{
-    if (now)
+    else if (sender() == m_widgets[ DDL_GENDERS ])
     {
-        for (int k=DDL_GENDERS_TOP; k<=DDL_GENDERS_BOTTOM; k++)
-        {
-            m_widgets[ k ]->setVisible( false );
-        }
-
-        m_char->setGender( static_cast<character::gender>(now->data( Qt::UserRole ).toInt()) );
+        m_char->setGender( static_cast<character::gender>( value ) );
 
         emit changedSex();
+    }
 
-        updateLists();
+    resetScreen( m_char, NULL ); // update professional skills and any profession related stats
+}
+
+void ScreenAttribs::ddlActive()
+{
+    if (sender() != m_widgets[ DDL_PROFS ])
+    {
+        if (WDDL *ddl = qobject_cast<WDDL *>(m_widgets[ DDL_PROFS ] ))
+        {
+            ddl->showDDL( false );
+        }
+    }
+    if (sender() != m_widgets[ DDL_RACES ])
+    {
+        if (WDDL *ddl = qobject_cast<WDDL *>(m_widgets[ DDL_RACES ] ))
+        {
+            ddl->showDDL( false );
+        }
+    }
+    if (sender() != m_widgets[ DDL_GENDERS ])
+    {
+        if (WDDL *ddl = qobject_cast<WDDL *>(m_widgets[ DDL_GENDERS ] ))
+        {
+            ddl->showDDL( false );
+        }
     }
 }
 
@@ -455,26 +319,7 @@ QPixmap ScreenAttribs::makeRowPixmap()
     return customImage;
 }
 
-void ScreenAttribs::loadDDLPixmaps()
-{
-    // DDL Pixmaps
-    SLFFile imgs( "CHAR GENERATION/CG_PROFESSION.STI" );
-    if (imgs.open(QFile::ReadOnly))
-    {
-        QByteArray array = imgs.readAll();
-        STItoQImage sti_imgs( array );
-
-        m_ddlInactive = QPixmap::fromImage( sti_imgs.getImage( 1 ) );
-        m_ddlActive   = QPixmap::fromImage( sti_imgs.getImage( 2 ) );
-        m_ddlTop      = QPixmap::fromImage( sti_imgs.getImage( 4 ) );
-        m_ddlMiddle   = QPixmap::fromImage( sti_imgs.getImage( 5 ) );
-        m_ddlBottom   = QPixmap::fromImage( sti_imgs.getImage( 6 ) );
-
-        imgs.close();
-    }
-}
-
-void ScreenAttribs::populateDDLProfessions(QListWidget *ddl)
+void ScreenAttribs::populateDDLProfessions(WDDL *ddl)
 {
     if (ddl)
     {
@@ -525,7 +370,7 @@ void ScreenAttribs::populateDDLProfessions(QListWidget *ddl)
     }
 }
 
-void ScreenAttribs::populateDDLRaces(QListWidget *ddl)
+void ScreenAttribs::populateDDLRaces(WDDL *ddl)
 {
     if (ddl)
     {
@@ -577,7 +422,7 @@ void ScreenAttribs::populateDDLRaces(QListWidget *ddl)
     }
 }
 
-void ScreenAttribs::populateDDLGenders(QListWidget *ddl)
+void ScreenAttribs::populateDDLGenders(WDDL *ddl)
 {
     if (ddl)
     {
@@ -781,7 +626,7 @@ void ScreenAttribs::resetScreen(void *char_tag, void *party_tag)
         }
     }
 
-    if (WListWidget *ddl = qobject_cast<WListWidget *>(m_widgets[ DDL_PROFS_SCROLLLIST ] ))
+    if (WDDL *ddl = qobject_cast<WDDL *>(m_widgets[ DDL_PROFS ] ))
     {
         character::profession p = m_char->getProfession();
 
@@ -796,7 +641,7 @@ void ScreenAttribs::resetScreen(void *char_tag, void *party_tag)
         }
     }
 
-    if (WListWidget *ddl = qobject_cast<WListWidget *>(m_widgets[ DDL_RACES_SCROLLLIST ] ))
+    if (WDDL *ddl = qobject_cast<WDDL *>(m_widgets[ DDL_RACES ] ))
     {
         character::race r = m_char->getRace();
 
@@ -810,7 +655,7 @@ void ScreenAttribs::resetScreen(void *char_tag, void *party_tag)
             }
         }
     }
-    if (WListWidget *ddl = qobject_cast<WListWidget *>(m_widgets[ DDL_GENDERS_SCROLLLIST ] ))
+    if (WDDL *ddl = qobject_cast<WDDL *>(m_widgets[ DDL_GENDERS ] ))
     {
         character::gender g = m_char->getGender();
 
@@ -839,166 +684,23 @@ void ScreenAttribs::setVisible( bool visible )
             q->setVisible( visible );
         }
     }
-    // but not the drop down lists
-    for (int k=DDL_PROFS_TOP; k<=DDL_PROFS_BOTTOM; k++)
-    {
-        m_widgets[ k ]->setVisible( false );
-    }
-    for (int k=DDL_RACES_TOP; k<=DDL_RACES_BOTTOM; k++)
-    {
-        m_widgets[ k ]->setVisible( false );
-    }
-    for (int k=DDL_GENDERS_TOP; k<=DDL_GENDERS_BOTTOM; k++)
-    {
-        m_widgets[ k ]->setVisible( false );
-    }
 
     QWidget::setVisible( visible );
 }
 
-void ScreenAttribs::prevProf(bool)
-{
-    int newVal = changeListItem( DDL_PROFS_SCROLLLIST, -1 );
-    m_char->setProfession( static_cast<character::profession>( newVal ) );
-
-    emit changedProf();
-
-    updateLists();
-    resetScreen( m_char, NULL ); // update professional skills and any profession related stats
-}
-
-void ScreenAttribs::nextProf(bool)
-{
-    int newVal = changeListItem( DDL_PROFS_SCROLLLIST, 1 );
-    m_char->setProfession( static_cast<character::profession>( newVal ) );
-
-    emit changedProf();
-
-    updateLists();
-    resetScreen( m_char, NULL ); // update professional skills and any profession related stats
-}
-
-void ScreenAttribs::prevRace(bool)
-{
-    int newVal = changeListItem( DDL_RACES_SCROLLLIST, -1 );
-    m_char->setRace( static_cast<character::race>( newVal ) );
-
-    emit changedRace();
-
-    updateLists();
-    resetScreen( m_char, NULL ); // Faerie, Dracon, Lizardman and Dwarf add racial abilities
-}
-
-void ScreenAttribs::nextRace(bool)
-{
-    int newVal = changeListItem( DDL_RACES_SCROLLLIST, 1 );
-    m_char->setRace( static_cast<character::race>( newVal ) );
-
-    emit changedRace();
-
-    updateLists();
-    resetScreen( m_char, NULL ); // Faerie, Dracon, Lizardman and Dwarf add racial abilities
-}
-
-void ScreenAttribs::prevGender(bool)
-{
-    int newVal = changeListItem( DDL_GENDERS_SCROLLLIST, -1 );
-    m_char->setGender( static_cast<character::gender>( newVal ) );
-
-    emit changedSex();
-
-    updateLists();
-}
-
-void ScreenAttribs::nextGender(bool)
-{
-    int newVal = changeListItem( DDL_GENDERS_SCROLLLIST, 1 );
-    m_char->setGender( static_cast<character::gender>( newVal ) );
-
-    emit changedSex();
-
-    updateLists();
-}
-
-int ScreenAttribs::changeListItem( int widgetId, int delta )
-{
-    int newValue = -1;
-    if (QPushButton *q = qobject_cast<QPushButton *>(this->sender()))
-    {
-        q->setChecked(false);
-
-        if (WListWidget *ddl = qobject_cast<WListWidget *>(m_widgets[ widgetId ] ))
-        {
-            int newIndex = ddl->currentRow();
-
-            newIndex += delta;
-            if (newIndex >= ddl->count())
-                newIndex = 0;
-            else if (newIndex < 0)
-                newIndex = ddl->count() - 1;
-
-            ddl->setCurrentRow( newIndex );
-
-            newValue = ddl->currentItem()->data( Qt::UserRole ).toInt();
-        }
-    }
-    return newValue;
-}
-
 void ScreenAttribs::updateLists()
 {
-    if (WListWidget *ddl = qobject_cast<WListWidget *>(m_widgets[ DDL_PROFS_SCROLLLIST ] ))
+    if (WDDL *q = qobject_cast<WDDL *>(m_widgets[ DDL_PROFS ]))
     {
-        if (ddl->currentItem())
-        {
-            if (WLabel *w = qobject_cast<WLabel *>(m_widgets[ VAL_PROFS ] ))
-            {
-                QString s = ddl->currentItem()->text();
-
-                w->setText( s.isNull() ? "" : s );
-            }
-            if (WImage *w = qobject_cast<WImage *>(m_widgets[ I_PROFS ] ))
-            {
-                QVariant v = ddl->currentItem()->data( Qt::DecorationRole );
-                QPixmap ic = v.value<QPixmap>();
-
-                w->setPixmap( ic );
-            }
-        }
+        q->updateList();
     }
-    if (WListWidget *ddl = qobject_cast<WListWidget *>(m_widgets[ DDL_RACES_SCROLLLIST ] ))
+    if (WDDL *q = qobject_cast<WDDL *>(m_widgets[ DDL_RACES ]))
     {
-        if (ddl->currentItem())
-        {
-            if (WLabel *w = qobject_cast<WLabel *>(m_widgets[ VAL_RACES ] ))
-            {
-                w->setText( ddl->currentItem()->text() );
-            }
-            if (WImage *w = qobject_cast<WImage *>(m_widgets[ I_RACES ] ))
-            {
-                QVariant v = ddl->currentItem()->data( Qt::DecorationRole );
-                QPixmap ic = v.value<QPixmap>();
-
-                w->setPixmap( ic );
-            }
-        }
+        q->updateList();
     }
-    if (WListWidget *ddl = qobject_cast<WListWidget *>(m_widgets[ DDL_GENDERS_SCROLLLIST ] ))
+    if (WDDL *q = qobject_cast<WDDL *>(m_widgets[ DDL_GENDERS ]))
     {
-        if (ddl->currentItem())
-        {
-            if (WLabel *w = qobject_cast<WLabel *>(m_widgets[ VAL_GENDERS ] ))
-            {
-                w->setText( ddl->currentItem()->text() );
-            }
-            if (WImage *w = qobject_cast<WImage *>(m_widgets[ I_GENDERS ] ))
-            {
-                QVariant v = ddl->currentItem()->data( Qt::DecorationRole );
-                QPixmap ic = v.value<QPixmap>();
-
-                w->setPixmap( ic );
-            }
-        }
+        q->updateList();
     }
 
     // Update the statue image based on the new choice of race and gender
@@ -1037,52 +739,5 @@ void ScreenAttribs::updateLists()
         statue = QPixmap::fromImage( mod_img );
 
         w->setPixmap( statue.scaledToHeight( 160, Qt::SmoothTransformation ) );
-    }
-}
-
-void ScreenAttribs::dropDownList(bool down)
-{
-    if (down)
-    {
-        bool toggle;
-        int  widgetId = -1;
-
-        if ((sender() == m_widgets[ FRAME_PROFS ]) ||
-            (sender() == m_widgets[ I_PROFS     ]) ||
-            (sender() == m_widgets[ VAL_PROFS   ]))
-        {
-            widgetId = I_PROFS;
-        }
-        else if ((sender() == m_widgets[ FRAME_RACES ]) ||
-                 (sender() == m_widgets[ I_RACES     ]) ||
-                 (sender() == m_widgets[ VAL_RACES   ]))
-        {
-            widgetId = I_RACES;
-        }
-        else if ((sender() == m_widgets[ FRAME_GENDERS ]) ||
-                 (sender() == m_widgets[ I_GENDERS     ]) ||
-                 (sender() == m_widgets[ VAL_GENDERS   ]))
-        {
-            widgetId = I_GENDERS;
-        }
-
-        // If the clicked DDL list was open, close it
-        // If it was closed open it
-        // And close any other lists which may have already been open
-        toggle = m_widgets[ DDL_PROFS_TOP ]->isVisible();
-        for (int k=DDL_PROFS_TOP; k<=DDL_PROFS_BOTTOM; k++)
-        {
-            m_widgets[ k ]->setVisible( (widgetId == I_PROFS) ? !toggle : false );
-        }
-        toggle = m_widgets[ DDL_RACES_TOP ]->isVisible();
-        for (int k=DDL_RACES_TOP; k<=DDL_RACES_BOTTOM; k++)
-        {
-            m_widgets[ k ]->setVisible( (widgetId == I_RACES) ? !toggle : false );
-        }
-        toggle = m_widgets[ DDL_GENDERS_TOP ]->isVisible();
-        for (int k=DDL_GENDERS_TOP; k<=DDL_GENDERS_BOTTOM; k++)
-        {
-            m_widgets[ k ]->setVisible( (widgetId == I_GENDERS) ? !toggle : false );
-        }
     }
 }

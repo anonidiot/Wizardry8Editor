@@ -258,7 +258,7 @@ void Wizardry8Style::polish(QWidget *widget)
         QObject::connect( q, SIGNAL(valueChanged(int)), delta, SLOT(valueChanged(int)));
     }
 
-    if (WindowItemsList *q = qobject_cast<WindowItemsList *>(widget))
+    if (qobject_cast<WindowItemsList *>(widget))
     {
         // This widget wants to setup a tiled background; it can't if the
         // palette gets reset here.
