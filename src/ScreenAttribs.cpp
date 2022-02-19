@@ -233,7 +233,8 @@ ScreenAttribs::ScreenAttribs(character *c, QWidget *parent) :
         w->setSelectionMode( QAbstractItemView::NoSelection );
     }
 
-    resetScreen( m_char, NULL );
+    if (! m_char->isNull() )
+        resetScreen( m_char, NULL );
 }
 
 ScreenAttribs::~ScreenAttribs()

@@ -71,6 +71,7 @@ MainWindow::MainWindow(QString loadFile) :
         m_loadedGame = new RIFFFile(loadFile);
         if (!m_loadedGame->open(QIODevice::ReadOnly))
         {
+            qWarning() << "Failed to open file" << loadFile << "for reading";
             statusBar()->showMessage(tr("Cannot open file for reading!"));
             QMessageBox::warning(this, tr("File Open Error"),
             tr("Can't open that file for reading."));
@@ -478,6 +479,18 @@ void MainWindow::saveAs()
     if (!saveFile.endsWith(".SAV", Qt::CaseInsensitive))
         saveFile += ".SAV";
 
+    // This check isn't perfect for identifying duplicate refs to the same file,
+    // since we can have relative paths, symlinks and hardlinks etc. but best I
+    // can come up with for a quick patch to a file corrupting issue.
+    if (m_loadedGame && (m_loadedGame->fileName().compare( saveFile ) == 0))
+    {
+        // Selected Save As for file currently loaded. That won't work, since
+        // there is some file copying involved here - instead invoke the save()
+        // routine.
+        save();
+        return;
+    }
+
     QFile dst(saveFile);
 
     if (! dst.open(QFile::WriteOnly))
@@ -496,7 +509,14 @@ void MainWindow::saveAs()
         {
             delete m_loadedGame;
             m_loadedGame = new RIFFFile(saveFile);
-            save();
+            if (m_loadedGame->isGood())
+            {
+                save();
+            }
+            else
+            {
+                QMessageBox::warning(this, tr("Save Error"), m_loadedGame->getError());
+            }
         }
         else
         {
@@ -526,7 +546,7 @@ void MainWindow::saveAs()
         dst.write( "RIFF", 4 );
         ASSIGN_LE8(  b, 0xff );      dst.write( (char *)b, sizeof(quint8)  );
         ASSIGN_LE8(  b, 0x00 );      dst.write( (char *)b, sizeof(quint8)  );
-        ASSIGN_LE32( b, 80662 );     dst.write( (char *)b, sizeof(quint32) ); // file size is fixed
+        ASSIGN_LE32( b, 80652 );     dst.write( (char *)b, sizeof(quint32) ); // file size is fixed
         ASSIGN_LE32( b, 4 );         dst.write( (char *)b, sizeof(quint32) ); // 4 sections
 
         dst.write( "GVER", 4 );

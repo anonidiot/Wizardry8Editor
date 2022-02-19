@@ -28,6 +28,14 @@
 
 #include <QtGlobal>
 
+#include <assert.h>
+
+#if Q_ASSERT_IS_BROKEN
+ #include <assert.h>
+ #undef Q_ASSERT
+ #define Q_ASSERT assert
+#endif
+
 union itof
 {
     float  a;

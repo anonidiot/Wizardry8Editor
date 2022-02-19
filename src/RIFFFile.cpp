@@ -35,6 +35,7 @@
 
 RIFFFile::RIFFFile(const QString &name) :
     QFile(name),
+    m_error(),
     m_filesize(-1),
     m_numSegs(0)
 {
@@ -48,12 +49,17 @@ RIFFFile::RIFFFile(const QString &name) :
     }
     else
     {
-        qWarning() << "Couldn't open file:" << name;
+        m_error = QString( tr("Couldn't open file: %1") ).arg( name );
     }
 }
 
 RIFFFile::~RIFFFile()
 {
+}
+
+QString RIFFFile::getError()
+{
+    return m_error;
 }
 
 // expects that desired LVLS has already been seeked to prior to call
@@ -133,7 +139,15 @@ void RIFFFile::readDirectory()
 
                 skip(r.size);
             }
+            if (m_numSegs == 0)
+            {
+                m_error = tr( "RIFF file doesn't have any segments." );
+            }
         }
+    }
+    else
+    {
+        m_error = tr( "Save game file doesn't start with the expected RIFF header" );
     }
 }
 

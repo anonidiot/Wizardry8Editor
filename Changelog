@@ -1,3 +1,18 @@
+0.1.4
+FEATURE: Add in new patch for disabling level sensor on all Treasure chests
+and loot drop
+BUGFIX: New games weren't initialising the blank party correctly, this was
+causing New Games (as opposed to Reset Games which should have worked) to
+fail soon after loading in Wizardry in a variety of ways. [ It is not
+necessary to repatch the EXE, as the patch is unchanged, but any previously
+created NEW games are corrupt and should be regenerated. ]
+BUGFIX: Don't corrupt save game file if Save As is chosen on the currently
+loaded file instead of Save, just silently map it through to Save.
+BUGFIX: New Game RIFF header had wrong size - caused New Games to fail to
+reload in Editor.
+BUGFIX: Crashing even attempting to create a New Game.
+BUGFIX: Exported characters not getting an automatic CHR suffix.
+
 0.1.3
 Added an Item List/Filter/Sort window.
 Fix up some of the triggers for alterations that weren't updating dependent

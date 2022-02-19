@@ -40,12 +40,3 @@ QPixmap               getCursor(int id);
 
 QString getOpenFileName(QWidget *parent, const QString &caption, const QString &directory, const QString &filter);
 QString getSaveFileName(QWidget *parent, const QString &caption, const QString &directory, const QString &filter);
-
-#include <assert.h>
-
-#if Q_ASSERT_IS_BROKEN
- #include <assert.h>
- #undef Q_ASSERT
- #define Q_ASSERT assert
-#endif
-

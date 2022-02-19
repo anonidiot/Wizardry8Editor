@@ -1,4 +1,4 @@
-VERSION=0.1.3
+VERSION=0.1.4
 
 # "These comments are in quotes because the apostrophes mix up the"
 # "syntax highlighting otherwise."

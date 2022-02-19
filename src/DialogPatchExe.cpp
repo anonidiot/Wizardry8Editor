@@ -49,6 +49,7 @@
 #define ENG_WIZARDRY_124_EXE_SIZE   3580513
 
 int apply_pickpocket_patch( quint8 *data );
+int apply_levelsensor_patch( quint8 *data );
 int apply_hacksav_patch( quint8 *data );
 
 struct patch
@@ -61,6 +62,7 @@ struct patch
 struct patch known_patches[] =
 {
     { "Pickpocket restore",     "Removes the XP-based random set-seed functionality, which restores the more random pickpocket behaviour from the 1.0 version of the game. Pickpocketing can be significantly easier. Doesn't affect the more limited number of items pickpocketable from a single character also introduced in 1.24.", &apply_pickpocket_patch },
+    { "Disable Level Sensor on Treasure",     "Disables the level sensor check on treasure chests and item drops from monsters, but retains it for random attack encounters.", &apply_levelsensor_patch },
     { "NEW Savegame support",   "Patches the game so it can recognise SAV game files without ANY level info (such as the ones produced by this editor when creating a NEW file). Such games only need the patch to load the first time, if they are resaved afterwards they become a regular save game and can be played in unpatched versions of the game also.", &apply_hacksav_patch }
 };
 
@@ -340,6 +342,28 @@ int apply_pickpocket_patch( quint8 *data )
         { 0x0010bebe,  16, "\x28\x7d\x09\x8b\x54\x24\x30\x8d\x04\xb2\xeb\x04\x8b\x44\x24\x30" },
         { 0x0010becf,   5, "\x30\xeb\x7c\x90\x90" },
         { 0x0010c0ea,   4, "\x90\x90\x90\x90" },
+    };
+
+    for (unsigned long j=0; j < sizeof(p) / sizeof(p[0]); j++)
+    {
+        for (int k=0; k < p[j].cnt; k++)
+        {
+            data[ p[j].offset + k ] = p[j].bytes[k];
+        }
+    }
+    return 0;
+}
+
+int apply_levelsensor_patch( quint8 *data )
+{
+    // Yes this is an overly simplistic test for patch application
+    if (data[0x0f8a40] == 0x32)
+        return -1; // Patch already applied
+
+    struct patch_detail p[] =
+    {
+        { 0x000f8a40,   6, "\x32\xc9\x90\x90\x90\x90" },
+        { 0x000f8b17,   6, "\x32\xc0\x90\x90\x90\x90" },
     };
 
     for (unsigned long j=0; j < sizeof(p) / sizeof(p[0]); j++)

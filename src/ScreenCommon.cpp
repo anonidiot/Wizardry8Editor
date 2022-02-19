@@ -1293,6 +1293,9 @@ void ScreenCommon::cmExportChar()
     if (saveChar.isEmpty())
         return;
 
+    if (!saveChar.endsWith(".CHR", Qt::CaseInsensitive))
+        saveChar += ".CHR";
+
     if (QMainWindow *w = qobject_cast<QMainWindow *>(parent()))
     {
         w->statusBar()->showMessage(QString( tr("Saving %1 to %2.") ).arg( m_party->m_chars[m_cmTargetCharIdx]->getName() ).arg( saveChar ));

@@ -50,6 +50,7 @@ public:
     ~RIFFFile();
 
     bool       isGood() { if (m_numSegs != 0) return true; else return false; }
+    QString    getError();
 
     QString    getSegmentCode(int segment);
     void       seekSegment(int segment);
@@ -83,6 +84,7 @@ private:
     void                readDirectory();
     QList<riff_entry>   readLVLS();
 
+    QString             m_error;
     qint64              m_filesize;
     int                 m_numSegs;
     QList<riff_entry>   m_segments;

@@ -45,6 +45,102 @@ party::party() :
             m_positions[ posn ][ plyr_idx ] = -1;
         }
     }
+
+    // WE created the party file from scratch here, and currently it's all
+    // zeros. Some of the fields we know how to populate properly, but some
+    // of them we don't. These byte sequences are just straight copies of
+    // currently unknown sequences from a working game, required to get the
+    // "New Game" feature to work properly the same as the "Save as Reset Game"
+    // works. When they've been identified they'll move to proper setup.
+
+    // One of these contains the game time, so it's going to be VERY wrong for
+    // a newly started game, but that's of minor importance compared to getting
+    // this working.
+
+    quint8 *blank = (quint8 *) m_data.data();
+    blank[0x0000] = 0xcd;
+    blank[0x0001] = 0xcc;
+    blank[0x0002] = 0x8c;
+    blank[0x0003] = 0x3f;
+    blank[0x0004] = 0x98;
+    blank[0x0005] = 0x88;
+    blank[0x0006] = 0x3f;
+    blank[0x0007] = 0x0b;
+    blank[0x0008] = 0xb0;
+    blank[0x0009] = 0x4b;
+    blank[0x000a] = 0x40;
+    blank[0x000b] = 0x0b;
+    blank[0x000c] = 0x01;
+
+    ASSIGN_LE32( blank + 0x18d0, 0x00000111 );
+    ASSIGN_LE32( blank + 0x18d4, 0x00000111 );
+    ASSIGN_LE32( blank + 0x18d8, 0x00000014 );
+    ASSIGN_LE32( blank + 0x18dc, 0x00000040 );
+
+    ASSIGN_LE32( blank + 0x1900, 0x00000008 );
+
+    ASSIGN_LE32( blank + 0x1b0c, 0x00000001 );
+
+    blank[0x22a7] = 0x3a;
+    blank[0x22a8] = 0x4d;
+    blank[0x22a9] = 0x94;
+    blank[0x22aa] = 0x47;
+    blank[0x22ab] = 0x17;
+    blank[0x22ac] = 0xf4;
+    blank[0x22ad] = 0xb1;
+    blank[0x22ae] = 0x44;
+    blank[0x22af] = 0x00;
+    blank[0x22b0] = 0xfb;
+    blank[0x22b1] = 0x4d;
+    blank[0x22b2] = 0x47;
+    blank[0x22b3] = 0x5a;
+    blank[0x22b4] = 0x88;
+    blank[0x22b5] = 0xa8;
+    blank[0x22b6] = 0x34;
+
+    blank[0x22cb] = 0x08;
+    blank[0x22cc] = 0x82;
+    blank[0x22cd] = 0x98;
+    blank[0x22ce] = 0x40;
+
+    ASSIGN_LE32( blank + 0x234a, 0x00000157 );
+    ASSIGN_LE32( blank + 0x234e, 0x0000031d );
+    ASSIGN_LE32( blank + 0x2352, 0x0000009c );
+    ASSIGN_LE32( blank + 0x2356, 0x00000077 );
+    blank[0x235a] = 0x00;
+    ASSIGN_LE32( blank + 0x235b, 0xffffffff );
+
+    blank[0x2387] = 0x60;
+    blank[0x2388] = 0x7c;
+    blank[0x2389] = 0x93;
+    blank[0x238a] = 0x02;
+    blank[0x238b] = 0x60;
+    blank[0x238c] = 0x4e;
+
+    blank[0x2391] = 0x4e;
+    blank[0x2392] = 0x1b;
+    blank[0x2393] = 0xfa;
+    blank[0x2394] = 0x43;
+
+    blank[0x2399] = 0x03;
+
+    blank[0x239d] = 0x60;
+    blank[0x239e] = 0x4e;
+
+    blank[0x2425] = 0x01;
+
+    blank[0x242e] = 0x01;
+
+    blank[0x2434] = 0xff;
+
+    blank[0x2447] = 0x01;
+
+    ASSIGN_LE32( blank + 0x2483, 0x000001d0 );
+
+    blank[0x2497] = 0x01;
+
+    blank[0x4997] = 0x01;
+    blank[0x49a7] = 0x01;
 }
 
 party::party(QByteArray p) :
@@ -52,6 +148,7 @@ party::party(QByteArray p) :
     m_data(p),
     m_filter(0)
 {
+    Q_ASSERT(m_data.size());
     unpackParty(p);
 }
 
@@ -318,26 +415,19 @@ void party::unpackParty(const QByteArray &c)
     // [0019--001c] gold
     m_gold = FORMAT_LE32(cdata+0x19);
 
+    // [1791-1794] number of items that should be in the list
+    qint32 num_items = FORMAT_LE32(cdata+0x1791);
+
     // [0021--1790] 500 items in party pool
-    for (int k=0; k<500; k++)
+    for (int k=0; (k < 500) && (k < num_items); k++)
     {
         if (! appendItem( cdata+0x0021 + k*12 ))
             break;
     }
 
     // [1791-1794] number of items that should be in the list
-    quint32 num_items = FORMAT_LE32(cdata+0x1791);
+    // (done up above -- needed to be done before importing items)
 
-    if (num_items != (quint32) m_items.size())
-    {
-        qWarning() << "Incorrect number of party items registered";
-
-        // Appropriate action?
-        // Should we delete the excess elements on the list, or do
-        // we fix the number of items stored?
-        // Opting for the second choice which means doing nothing here.
-        // It will be fixed on save.
-    }
     // Formation -- player's number (0x00-0x07 is put in one of the bytes, 0xff any empty positions)
 
     const quint8 *fdata = cdata + 0x23a1;
