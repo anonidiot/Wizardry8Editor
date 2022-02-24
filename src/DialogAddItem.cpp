@@ -102,6 +102,8 @@ typedef enum
     DDL_ROW11,
     DDL_SCROLLLIST,
     DDL_BOTTOM,
+    DDL_PREV,
+    DDL_NEXT,
 
     ITEMS_SCROLLLIST,
     ITEMS_SCROLLBAR,
@@ -114,6 +116,71 @@ DialogAddItem::DialogAddItem(int tag, QWidget *parent)
     : Dialog(parent),
     m_tag(tag),
     m_type(static_cast<item::type>(0))
+{
+    init();
+    show();
+}
+
+// Edit an existing item
+DialogAddItem::DialogAddItem(int tag, const item &existing_item, QWidget *parent)
+    : Dialog(parent),
+    m_tag(tag),
+    m_type(static_cast<item::type>(0))
+{
+    init();
+
+    // prepopulate the DDLs with the existing item and then deactivate those controls.
+
+    m_type = existing_item.getType();
+
+    updateList();
+
+    if (WListWidget *w = qobject_cast<WListWidget *>(m_widgets[ ITEMS_SCROLLLIST ] ))
+    {
+        for (int k=0; k < w->count(); k++)
+        {
+            QListWidgetItem *wi = w->item(k);
+
+            if (static_cast<item::type>( wi->data( Qt::UserRole ).toInt() ) == existing_item.getId())
+            {
+                w->setCurrentItem( wi );
+                updateMulti( existing_item );
+                break;
+            }
+        }
+
+        w->setEnabled( false );
+    }
+
+    if (WImage *w = qobject_cast<WImage *>(m_widgets[ FRAME_TYPE ] ))
+    {
+        w->setEnabled( false );
+    }
+    if (WImage *w = qobject_cast<WImage *>(m_widgets[ I_TYPE ] ))
+    {
+        w->setEnabled( false );
+    }
+    if (WLabel *w = qobject_cast<WLabel *>(m_widgets[ VAL_TYPE ] ))
+    {
+        w->setEnabled( false );
+    }
+    if (WButton *w = qobject_cast<WButton *>(m_widgets[ DDL_PREV ] ))
+    {
+        w->setEnabled( false );
+    }
+    if (WButton *w = qobject_cast<WButton *>(m_widgets[ DDL_NEXT ] ))
+    {
+        w->setEnabled( false );
+    }
+
+    show();
+}
+
+DialogAddItem::~DialogAddItem()
+{
+}
+
+void DialogAddItem::init()
 {
     QPixmap bgImg = makeDialogForm();
     QSize   bgImgSize = bgImg.size();
@@ -128,11 +195,11 @@ DialogAddItem::DialogAddItem(int tag, QWidget *parent)
         { NO_ID,              QRect(   0,   0,  -1,  -1 ),    new WImage(    bgImg,                                                          this ),  -1,  NULL },
 
         { NO_ID,              QRect(  10,  32,  70,  12 ),    new WLabel(    ::getStringTable()->getString( StringList::Type + StringList::APPEND_COLON ),  Qt::AlignRight, 10, QFont::Thin, this ),  -1,  NULL },
-        { NO_ID,              QRect(  96,  25,  -1,  -1 ),    new WButton(   "CHAR GENERATION/CG_BUTTONS.STI",               0, false, 1.0,  this ),  -1,  SLOT(prevType(bool)) },
+        { DDL_PREV,           QRect(  96,  25,  -1,  -1 ),    new WButton(   "CHAR GENERATION/CG_BUTTONS.STI",               0, false, 1.0,  this ),  -1,  SLOT(prevType(bool)) },
         { FRAME_TYPE,         QRect( 122,  27,  -1,  -1 ),    new WImage(                                                                    this ),  -1,  SLOT(dropDownList(bool)) },
         { I_TYPE,             QRect( 125,  30,  -1,  -1 ),    new WImage(                                                                    this ),  -1,  SLOT(dropDownList(bool)) },
         { VAL_TYPE,           QRect( 145,  30, 120,  18 ),    new WLabel(    "", "Lucida Calligraphy",       Qt::AlignLeft,  9, QFont::Thin, this ),  -1,  SLOT(dropDownList(bool)) },
-        { NO_ID,              QRect( 278,  25,  -1,  -1 ),    new WButton(   "CHAR GENERATION/CG_BUTTONS.STI",               5, false, 1.0,  this ),  -1,  SLOT(nextType(bool)) },
+        { DDL_NEXT,           QRect( 278,  25,  -1,  -1 ),    new WButton(   "CHAR GENERATION/CG_BUTTONS.STI",               5, false, 1.0,  this ),  -1,  SLOT(nextType(bool)) },
         { NO_ID,              QRect(  10,  75,  70,  12 ),    new WLabel(    ::getStringTable()->getString( StringList::Item + StringList::APPEND_COLON ),  Qt::AlignRight, 10, QFont::Thin, this ),  -1,  NULL },
 
         { LBL_MULTI,          QRect(  10, 245,  70,  12 ),    new WLabel(    "",                            Qt::AlignRight, 10, QFont::Thin, this ),  -1,  NULL },
@@ -223,11 +290,6 @@ DialogAddItem::DialogAddItem(int tag, QWidget *parent)
     // bigger than minimum dialog. We have to make an additional call to force
     // it back to the right size after adding the OK button.
     this->resize( bgImgSize * m_scale );
-    show();
-}
-
-DialogAddItem::~DialogAddItem()
-{
 }
 
 void DialogAddItem::typeChanged(QListWidgetItem *now)
@@ -268,21 +330,27 @@ void DialogAddItem::mouseOverDropDownList(bool mouseover)
 {
     if (WImage *w = qobject_cast<WImage *>(m_widgets[ FRAME_TYPE ] ))
     {
-        if (mouseover)
+        if (w->isEnabled())
         {
-            w->setPixmap( m_ddlActive );
-        }
-        else
-        {
-            w->setPixmap( m_ddlInactive );
+            if (mouseover)
+            {
+                w->setPixmap( m_ddlActive );
+            }
+            else
+            {
+                w->setPixmap( m_ddlInactive );
+            }
         }
     }
     if (WLabel *q = qobject_cast<WLabel *>(m_widgets[ VAL_TYPE ] ))
     {
-        if (mouseover)
-            q->setStyleSheet("QLabel {color: #ffffff}"); // White
-        else
-            q->setStyleSheet("QLabel {color: #e0e0c3}"); // Light yellow
+        if (q->isEnabled())
+        {
+            if (mouseover)
+                q->setStyleSheet("QLabel {color: #ffffff}"); // White
+            else
+                q->setStyleSheet("");
+        }
     }
 }
 
@@ -368,7 +436,7 @@ void DialogAddItem::dropDownList(bool down)
     }
 }
 
-void DialogAddItem::updateMulti( item &i )
+void DialogAddItem::updateMulti( const item &i )
 {
     WLabel   *w = qobject_cast<WLabel *>(m_widgets[ LBL_MULTI ]);
     WSpinBox *v = qobject_cast<WSpinBox *>(m_widgets[ VAL_MULTI ]);
@@ -381,25 +449,53 @@ void DialogAddItem::updateMulti( item &i )
         {
             w->setText( ::getStringTable()->getString( StringList::Quantity + StringList::APPEND_COLON ) );
             v->setRange( 0, 255 );
-            v->setValueEx( 1, 1 );
+            if (i.getCount() == 0)
+            {
+                v->setValueEx( 1, 1 );
+            }
+            else
+            {
+                v->setValueEx( i.getCount(), i.getCount() );
+            }
         }
         else if (i.hasCharges())
         {
             w->setText( ::getStringTable()->getString( StringList::Charges + StringList::APPEND_COLON ) );
             v->setRange( 0, i.getMaxCharges() );
-            v->setValueEx( i.getMaxCharges(), i.getMaxCharges() );
+            if (i.getCharges() == 0)
+            {
+                v->setValueEx( i.getMaxCharges(), i.getMaxCharges() );
+            }
+            else
+            {
+                v->setValueEx( i.getCharges(), i.getCharges() );
+            }
         }
         else if (i.hasUses())
         {
             w->setText( ::getStringTable()->getString( StringList::Uses + StringList::APPEND_COLON ) );
             v->setRange( 0, i.getMaxCharges() );
-            v->setValueEx( i.getMaxCharges(), i.getMaxCharges() );
+            if (i.getCharges() == 0)
+            {
+                v->setValueEx( i.getMaxCharges(), i.getMaxCharges() );
+            }
+            else
+            {
+                v->setValueEx( i.getCharges(), i.getCharges() );
+            }
         }
         else if (i.hasShots())
         {
             w->setText( ::getStringTable()->getString( StringList::Shots + StringList::APPEND_COLON ) );
             v->setRange( 0, i.getMaxCharges() );
-            v->setValueEx( i.getMaxCharges(), i.getMaxCharges() );
+            if (i.getCharges() == 0)
+            {
+                v->setValueEx( i.getMaxCharges(), i.getMaxCharges() );
+            }
+            else
+            {
+                v->setValueEx( i.getCharges(), i.getCharges() );
+            }
         }
         else
         {

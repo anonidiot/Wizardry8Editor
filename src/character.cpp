@@ -35,6 +35,8 @@
 
 #include "RIFFFile.h"
 
+#define FACT_RFS_HAS_BEEN_FIXED   68
+
 // We use this with the QMaps to avoid making entries for 0 values on some of the maps,
 // eg. the one used for levels by profession - we only include professions the character
 // has actually been.
@@ -2358,18 +2360,17 @@ void character::recomputeAttack()
                 {
                     // An unrepaired android suffers an attack penalty - BAR halved
 
-                    // FIXME: Don't have the support routines for testing FACT_RFS81_HAS_BEEN_FIXED
-                    //        nor for validating the RPC id
-#if 0
-                    v21 = sub_50B800( m_rpc_id );
-                    if ( v21 )
+                    // Depending on the individual fact some are better to be tested under their
+                    // numeric id and some are better tested by name. Any fact which has hard-coded
+                    // logic surrounding it inside the exe itself should be tested by number. Anything
+                    // referenced in script on the other hand, could potentially be better off being tested
+                    // by name.
+                    // The reason for this is that if facts are renamed in Cosmic Editor, these are the ways
+                    // in which the game itself is going to try and track down the facts
+                    if (testFact( FACT_RFS_HAS_BEEN_FIXED ) == false)
                     {
-                        // Think this might be trying to detect if it is the unrepaired android (RFS81A)
-                        // and if so halving its BAR compared to the repaired one (RFS81B)
-                        if ( *(_BYTE *)(v21 + 46) == 32 && !sub_506280(68) ) // FACT 68 = FACT_RFS81_HAS_BEEN_FIXED
-                            m_attack[ currentIdx ].BAR /= 2;
+                        m_attack[ currentIdx ].BAR /= 2;
                     }
-#endif
                 }
             }
             int attack_score = (m_attack[ currentIdx ].skill_total +

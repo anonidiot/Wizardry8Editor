@@ -62,6 +62,8 @@ public:
     bool       writeCharacter(int charIdx, const QByteArray &character);
     QByteArray readCharacterExtra(int charIdx);
     bool       writeCharacterExtra(int charIdx, const QByteArray &pa);
+    QByteArray readFacts();
+    bool       writeFacts(const QByteArray &fa);
 
     qint8      readByte();
     quint8     readUByte();

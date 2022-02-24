@@ -165,7 +165,7 @@ QPalette Wizardry8Style::standardPalette() const
         brush.setColor(brush.color().darker());
 
         palette.setBrush(QPalette::Disabled, QPalette::WindowText, brush);
-        palette.setBrush(QPalette::Disabled, QPalette::Text,       brush);
+        palette.setBrush(QPalette::Disabled, QPalette::Text,       gr_yellow);
         palette.setBrush(QPalette::Disabled, QPalette::ButtonText, brush);
         palette.setBrush(QPalette::Disabled, QPalette::Base,       brush);
         palette.setBrush(QPalette::Disabled, QPalette::Button,     brush);

@@ -1,3 +1,13 @@
+0.1.5
+FEATURE: Patch to randomise treasure chests on first open, not seed them at
+level entry
+FEATURE: Add Fact editor - for existing save games only (New games don't
+have ANY facts)
+FEATURE: Hook up Edit item dialog to change quantity / charges of items
+that support it.
+BUGFIX: Fix crash that occurred trying to display RPCs (due to bug in the
+portrait caching for the medium sized portraits)
+
 0.1.4
 FEATURE: Add in new patch for disabling level sensor on all Treasure chests
 and loot drop

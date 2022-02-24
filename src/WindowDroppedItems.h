@@ -51,6 +51,7 @@ public slots:
 
     void itemDragged(item i);
     void itemDropped(item i);
+    void itemEdited(int tag, item i);
 
     void inspectItem(item i);
     void editItem(item i);

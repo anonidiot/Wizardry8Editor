@@ -117,7 +117,7 @@ ScreenPersonality::ScreenPersonality(character *c, QWidget *parent) :
         { NO_ID,              QRect( 195,   0,  -1,  -1 ),    new WImage(    "CHAR GENERATION/CG_PIECES.STI",                   0,              this ),  -1,  NULL },
         { NO_ID,              QRect(  44, 450,  -1,  -1 ),    new WImage(    "CHAR GENERATION/CG_PIECES.STI",                   4,              this ),  -1,  NULL },
         { NO_ID,              QRect( 195,  43,  -1,  -1 ),    new WImage(    "CHAR GENERATION/CG_PERSONALITY.STI",              0,              this ),  -1,  NULL },
-        { NO_ID,              QRect(   4, 290, 200,  50 ),    new WLabel(    StringList::InstructPersonality, Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  NULL },
+        { NO_ID,              QRect(   4, 290, 190,  60 ),    new WLabel(    StringList::InstructPersonality, Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  NULL },
 
         { NO_ID,              QRect( 236,  64,  54,  30 ),    new WLabel(    StringList::PrevRace,            Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  NULL },
         { NO_ID,              QRect( 296,  69,  -1,  -1 ),    new WButton(   "CHAR GENERATION/CG_BUTTONS.STI",                  0, true,  1.0,  this ),  -1,  SLOT(prevRace(bool)) },

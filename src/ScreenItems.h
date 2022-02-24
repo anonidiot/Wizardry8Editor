@@ -76,6 +76,7 @@ public slots:
     void dropItem(item i);
 
     void itemAdded(int tag, item i);
+    void itemEdited(int tag, item i);
 
     void      setVisible(bool visible) override;
 
@@ -86,7 +87,7 @@ protected:
 private:
     void      resetPartyItemsScrollbar();
 
-    void      setItemAtLoc( item i, int item_loc );
+    void      setItemAtLoc( item i, int item_loc, bool in_place = false );
 
 
     party            *m_party;

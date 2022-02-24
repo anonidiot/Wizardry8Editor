@@ -23,63 +23,49 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef DLGADDITEM_H
-#define DLGADDITEM_H
+#ifndef WNDFACTEDIT_H
+#define WNDFACTEDIT_H
 
-#include "Dialog.h"
+#include "Screen.h"
+
+#include <QPixmap>
+#include <QMap>
+#include <QSize>
+#include <QWidget>
+
+#include "facts.h"
+
 #include "Wizardry8Scalable.h"
 
-#include "item.h"
-
-class QListWidgetItem;
-
-class DialogAddItem : public Dialog
+class WindowFactEditor : public QWidget, public Wizardry8Scalable
 {
     Q_OBJECT
 
 public:
-    DialogAddItem(int tag, QWidget *parent = nullptr);
-    DialogAddItem(int tag, const item &existing_item, QWidget *parent = nullptr);
-    ~DialogAddItem();
+    WindowFactEditor( facts &f );
+    ~WindowFactEditor();
 
-signals:
-    void itemAdded(int tag, item i);
+    void setScale(double scale) override;
 
 public slots:
-    void typeChanged(QListWidgetItem *now);
-    void itemChanged(QListWidgetItem *now);
+    void apply(bool checked);
 
-    void addNewItem(bool checked);
-
-    void prevType(bool down);
-    void nextType(bool down);
-    void dropDownList(bool down);
-
-    void mouseOverDropDownList(bool mouseover);
+signals:
+    void windowClosing();
 
 protected:
-    void init();
-    void updateList();
-    void updateMulti( const item &i );
+    void closeEvent(QCloseEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
 
-    void mouseOverLabel(bool on) override;
+    void updateList();
 
 private:
-    QPixmap    makeDialogForm();
-    QPixmap    makeWider( QImage im, int width );
-    void       makeTypePixmaps();
+    QPixmap     makeDialogForm();
 
-    QPixmap         m_ddlInactive;
-    QPixmap         m_ddlActive;
-    QPixmap         m_ddlTop;
-    QPixmap         m_ddlMiddle;
-    QPixmap         m_ddlBottom;
+    QSize                  m_bgImgSize;
+    QMap<int, QWidget *>   m_widgets;
 
-    QPixmap         m_typeIcon[static_cast<int>(item::type::Other) + 1];
-
-    int             m_tag;
-    item::type      m_type;
+    facts                 &m_facts;
 };
 
 #endif
-

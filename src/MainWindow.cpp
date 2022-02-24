@@ -31,6 +31,7 @@
 #include "DialogNewFile.h"
 #include "WindowDroppedItems.h"
 #include "WindowItemsList.h"
+#include "WindowFactEditor.h"
 #include <QFile>
 #include <QByteArray>
 
@@ -52,6 +53,7 @@ static QSize g_windowPadding;
 MainWindow::MainWindow(QString loadFile) :
     m_droppedItems(NULL),
     m_findItems(NULL),
+    m_factEditor(NULL),
     m_w7_ending(wiz7_end::Null),
     m_barlone_dead(false),
     m_rodan_dead(false)
@@ -59,6 +61,8 @@ MainWindow::MainWindow(QString loadFile) :
     if (loadFile.isEmpty())
     {
         m_loadedGame = NULL;
+        m_facts = facts();
+        setFacts( m_facts );
         m_party = new party();
 
         for (unsigned int k=0; k<NUM_CHARS; k++)
@@ -77,6 +81,8 @@ MainWindow::MainWindow(QString loadFile) :
             tr("Can't open that file for reading."));
             delete m_loadedGame;
             m_loadedGame = NULL;
+            m_facts = facts();
+            setFacts( m_facts );
             m_party = new party();
 
             for (unsigned int k=0; k<NUM_CHARS; k++)
@@ -86,12 +92,15 @@ MainWindow::MainWindow(QString loadFile) :
         }
         else
         {
+            m_facts = facts( m_loadedGame->readFacts() );
+            setFacts( m_facts );
             m_party = new party( m_loadedGame->readParty() );
 
             for (unsigned int k=0; k<NUM_CHARS; k++)
             {
                 m_party->m_chars.append( new character( m_loadedGame->readCharacter(k), m_loadedGame->readCharacterExtra(k) ));
             }
+
             m_loadedGame->close();
         }
     }
@@ -124,8 +133,6 @@ MainWindow::MainWindow(QString loadFile) :
 
     QString message = tr("A context menu is available by right-clicking");
     statusBar()->showMessage(message);
-
-    setWindowTitle(tr("Menus"));
 
     g_windowPadding = this->layout()->sizeHint() + QSize( 0, statusBar()->sizeHint().height() ) - m_contentWidget->sizeHint();
 
@@ -232,6 +239,7 @@ MainWindow::~MainWindow()
     pasteAct->deleteLater();
     droppedItemsAct->deleteLater();
     findItemsAct->deleteLater();
+    factEditorAct->deleteLater();
     patchAct->deleteLater();
     aboutAct->deleteLater();
     aboutQtAct->deleteLater();
@@ -270,6 +278,8 @@ void MainWindow::newFile()
         // Reset the screen with no characters
 
         party *old_party = m_party;
+        m_facts = facts();
+        setFacts( m_facts );
         m_party = new party();
 
         for (unsigned int k=0; k<NUM_CHARS; k++)
@@ -336,6 +346,9 @@ void MainWindow::open()
     m_loadedGame = loadGame;
 
     party *old_party = m_party;
+
+    m_facts = facts( m_loadedGame->readFacts() );
+    setFacts( m_facts );
     m_party = new party( m_loadedGame->readParty() );
 
     for (unsigned int k=0; k<NUM_CHARS; k++)
@@ -389,6 +402,11 @@ void MainWindow::save()
         {
             m_loadedGame->writeCharacter( k, m_party->m_chars[k]->serialize() );
             m_loadedGame->writeCharacterExtra( k, m_party->m_chars[k]->getCharExtra() );
+        }
+
+        if (! m_facts.isNull())
+        {
+            m_loadedGame->writeFacts( m_facts.serialize() );
         }
 
         m_loadedGame->close();
@@ -579,7 +597,6 @@ void MainWindow::saveAs()
 
         for (unsigned int k=0; k<NUM_CHARS; k++)
         {
-            // TODO: if creating a party from nothing ensure sensible variables everywhere
             QByteArray ch = m_party->m_chars[k]->serialize();
 
             Q_ASSERT( ch.size() == RIFFFile::CHARACTER_SIZE );
@@ -719,6 +736,26 @@ void MainWindow::droppedItemsClosed()
     m_droppedItems = NULL;
 }
 
+void MainWindow::factEditor()
+{
+    if (m_factEditor)
+    {
+        m_factEditor->show();
+        m_factEditor->setWindowState(Qt::WindowState::WindowActive);
+    }
+    else
+    {
+        m_factEditor = new WindowFactEditor( m_facts );
+        connect( m_factEditor, SIGNAL(windowClosing()), this, SLOT(factEditorClosed()) );
+    }
+}
+
+void MainWindow::factEditorClosed()
+{
+    // The window close should have deleted the widget object itself
+    m_factEditor = NULL;
+}
+
 void MainWindow::findItems()
 {
     if (m_findItems)
@@ -839,6 +876,10 @@ void MainWindow::createActions()
     findItemsAct->setStatusTip(tr("Filter and Sort all available items"));
     connect(findItemsAct, &QAction::triggered, this, &MainWindow::findItems);
 
+    factEditorAct = new QAction(tr("Fact Editor..."), this);
+    factEditorAct->setStatusTip(tr("Edit the game state fact variables"));
+    connect(factEditorAct, &QAction::triggered, this, &MainWindow::factEditor);
+
     patchAct = new QAction(tr("Patch Wiz8.exe..."), this);
     patchAct->setStatusTip(tr("Modify Wizardry 8 with selected patches"));
     connect(patchAct, &QAction::triggered, this, &MainWindow::patchExe);
@@ -879,6 +920,8 @@ void MainWindow::createMenus()
     specialMenu = menuBar()->addMenu(tr("&Special"));
     specialMenu->addAction(droppedItemsAct);
     specialMenu->addAction(findItemsAct);
+    specialMenu->addSeparator();
+    specialMenu->addAction(factEditorAct);
     specialMenu->addSeparator();
     specialMenu->addAction(patchAct);
 

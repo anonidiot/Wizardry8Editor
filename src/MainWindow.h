@@ -27,6 +27,7 @@
 #include <QMainWindow>
 #include <QSize>
 #include "common.h"
+#include "facts.h"
 
 QT_BEGIN_NAMESPACE
 class QAction;
@@ -38,6 +39,7 @@ QT_END_NAMESPACE
 
 class WindowDroppedItems;
 class WindowItemsList;
+class WindowFactEditor;
 class RIFFFile;
 class party;
 class character;
@@ -73,6 +75,7 @@ public:
 public slots:
     void droppedItemsClosed();
     void findItemsClosed();
+    void factEditorClosed();
     void enableSave();
     void disableSave();
 
@@ -99,6 +102,7 @@ private slots:
     void paste();
     void droppedItems();
     void findItems();
+    void factEditor();
     void patchExe();
     void about();
 
@@ -127,6 +131,7 @@ private:
     QAction *pasteAct;
     QAction *droppedItemsAct;
     QAction *findItemsAct;
+    QAction *factEditorAct;
     QAction *patchAct;
     QAction *aboutAct;
     QAction *aboutQtAct;
@@ -136,9 +141,11 @@ private:
 
     WindowDroppedItems *m_droppedItems;
     WindowItemsList    *m_findItems;
+    WindowFactEditor   *m_factEditor;
 
     RIFFFile  *m_loadedGame;
     party     *m_party;
+    facts      m_facts;
 
     // only used if we're making a 'New' game (ie. m_loadedGame == NULL
     wiz7_end   m_w7_ending;

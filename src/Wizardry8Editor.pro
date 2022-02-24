@@ -1,4 +1,4 @@
-VERSION=0.1.4
+VERSION=0.1.5
 
 # "These comments are in quotes because the apostrophes mix up the"
 # "syntax highlighting otherwise."
@@ -84,8 +84,10 @@ SOURCES += main.cpp \
            WTableWidgetItem.h \
            WTableWidget.h \
            WindowItemsList.cpp \
+           WindowFactEditor.cpp \
            dbHelper.cpp \
            character.cpp \
+           facts.cpp \
            party.cpp \
            item.cpp \
            spell.cpp \
@@ -131,9 +133,11 @@ HEADERS += Wizardry8Style.h \
            ScreenPersonality.h \
            WindowDroppedItems.h \
            WindowItemsList.h \
+           WindowFactEditor.h \
            bspatch.h \
            dbHelper.h \
            character.h \
+           facts.h \
            party.h \
            item.h \
            spell.h \

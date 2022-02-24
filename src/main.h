@@ -28,10 +28,16 @@
 
 #include "StringList.h"
 
+class facts;
+
 #define ORIGINAL_DIM_X   640
 #define ORIGINAL_DIM_Y   480
 
 const StringList     *getStringTable();
+
+void                  setFacts(facts f);
+bool                  testFact(int fact_id);
+bool                  testFact(QString fact_name);
 
 void                  setAppScale(double scale);
 double                getAppScale();

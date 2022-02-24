@@ -1123,7 +1123,14 @@ void ScreenItems::inspectItem(item i)
 
 void ScreenItems::editItem(item i)
 {
-    // TODO: ScreenItems::editItem()
+    if (WItem *q = qobject_cast<WItem *>(this->sender()))
+    {
+        int   item_id = m_widgets.key( q );
+
+        DialogAddItem *ai = new DialogAddItem(item_id, i, this);
+        connect( ai, SIGNAL(itemAdded(int, item)), this, SLOT(itemEdited(int, item)));
+    }
+    resetScreen( m_char, m_party );
 }
 
 void ScreenItems::addItem()
@@ -1172,6 +1179,11 @@ void ScreenItems::dropItem(item i)
     resetScreen( m_char, m_party );
 }
 
+void ScreenItems::itemEdited(int tag, item i )
+{
+    setItemAtLoc( i, tag, true );
+}
+
 void ScreenItems::itemAdded(int tag, item i )
 {
     setItemAtLoc( i, tag );
@@ -1185,7 +1197,7 @@ void ScreenItems::itemDropped( item i )
     }
 }
 
-void ScreenItems::setItemAtLoc( item i, int item_loc )
+void ScreenItems::setItemAtLoc( item i, int item_loc, bool in_place )
 {
     if (WItem *q = qobject_cast<WItem *>(m_widgets[ item_loc ]))
     {
@@ -1197,7 +1209,7 @@ void ScreenItems::setItemAtLoc( item i, int item_loc )
             // stack and take its place
             const item &old_item = q->getItem();
 
-            if (! old_item.isNull())
+            if (! old_item.isNull() && !in_place)
             {
                 m_party->addDroppedItem( old_item );
             }

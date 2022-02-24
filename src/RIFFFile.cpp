@@ -265,6 +265,37 @@ bool RIFFFile::writeCharacterExtra(int charIdx, const QByteArray &pa)
     return false;
 }
 
+QByteArray RIFFFile::readFacts()
+{
+    for (int k=0; k<m_segments.size(); k++)
+    {
+        if (m_segments.at(k).code.compare("NPCF") == 0)
+        {
+            seekSegment( k );
+
+            return read( m_segments.at(k).size );
+        }
+    }
+    return QByteArray();
+}
+
+bool RIFFFile::writeFacts(const QByteArray &fa)
+{
+    for (int k=0; k<m_segments.size(); k++)
+    {
+        if (m_segments.at(k).code.compare("NPCF") == 0)
+        {
+            seekSegment( k );
+
+            if (fa.size() <= m_segments.at(k).size )
+            {
+                write( fa );
+                return true;
+            }
+        }
+    }
+    return false;
+}
 
 bool RIFFFile::seekPartySegment()
 {

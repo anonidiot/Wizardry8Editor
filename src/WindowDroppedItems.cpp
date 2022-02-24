@@ -36,6 +36,7 @@
 #include <QPainter>
 #include <QPixmap>
 
+#include "DialogAddItem.h"
 #include "DialogItemInfo.h"
 #include "WImage.h"
 #include "WItem.h"
@@ -332,5 +333,20 @@ void WindowDroppedItems::inspectItem(item i)
 
 void WindowDroppedItems::editItem(item i)
 {
-    // TODO: WindowDroppedItems::editItem()
+    if (WItem *q = qobject_cast<WItem *>(this->sender()))
+    {
+        int   item_id = m_widgets.key( q );
+
+        DialogAddItem *ai = new DialogAddItem(item_id, i, this);
+        connect( ai, SIGNAL(itemAdded(int, item)), this, SLOT(itemEdited(int, item)));
+    }
+}
+
+void WindowDroppedItems::itemEdited( int tag, item i )
+{
+    if (WItem *q = qobject_cast<WItem *>(m_widgets[ tag ]))
+    {
+        q->setItem( i );
+        q->update();
+    }
 }

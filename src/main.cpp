@@ -49,6 +49,7 @@
 #include "MainWindow.h"
 #include "main.h"
 #include "bspatch.h"
+#include "facts.h"
 
 StringList *wiz8Strings = NULL;
 
@@ -406,4 +407,29 @@ QString getSaveFileName(QWidget *parent, const QString &caption, const QString &
     }
 
     return response;
+}
+
+facts s_facts = facts();
+
+void setFacts(facts f)
+{
+    s_facts = f;
+}
+
+bool testFact(int fact_id)
+{
+    if (! s_facts.isNull())
+    {
+        return s_facts.getValue( fact_id );
+    }
+    return false;
+}
+
+bool testFact(QString fact_name)
+{
+    if (! s_facts.isNull())
+    {
+        return s_facts.testFact( fact_name );
+    }
+    return false;
 }

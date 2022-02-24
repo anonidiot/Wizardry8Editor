@@ -23,63 +23,53 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef DLGADDITEM_H
-#define DLGADDITEM_H
+#ifndef FACTS_H__
+#define FACTS_H__
 
-#include "Dialog.h"
-#include "Wizardry8Scalable.h"
+#include <QByteArray>
+#include <QList>
+#include <QObject>
+#include <QString>
 
-#include "item.h"
-
-class QListWidgetItem;
-
-class DialogAddItem : public Dialog
+class facts : QObject
 {
     Q_OBJECT
 
 public:
-    DialogAddItem(int tag, QWidget *parent = nullptr);
-    DialogAddItem(int tag, const item &existing_item, QWidget *parent = nullptr);
-    ~DialogAddItem();
+    facts();
+    facts(QByteArray f);
+    facts(const facts &other) : QObject()
+    {
+        m_data       = other.m_data;
+        m_namedFacts = other.m_namedFacts;
+    }
+    facts & operator=(const facts &other)
+    {
+        m_data       = other.m_data;
+        m_namedFacts = other.m_namedFacts;
 
-signals:
-    void itemAdded(int tag, item i);
+        return *this;
+    }
 
-public slots:
-    void typeChanged(QListWidgetItem *now);
-    void itemChanged(QListWidgetItem *now);
+    ~facts();
 
-    void addNewItem(bool checked);
+    QByteArray    serialize() const;
 
-    void prevType(bool down);
-    void nextType(bool down);
-    void dropDownList(bool down);
+    void          reset();
 
-    void mouseOverDropDownList(bool mouseover);
+    bool          isNull() const;
+    int           size() const;
 
-protected:
-    void init();
-    void updateList();
-    void updateMulti( const item &i );
+    QString       getKey( int idx ) const;
+    bool          getValue( int idx ) const;
+    void          setValue( int idx, bool value );
 
-    void mouseOverLabel(bool on) override;
+    bool          testFact( QString fact_name );
 
 private:
-    QPixmap    makeDialogForm();
-    QPixmap    makeWider( QImage im, int width );
-    void       makeTypePixmaps();
+    QByteArray        m_data;
 
-    QPixmap         m_ddlInactive;
-    QPixmap         m_ddlActive;
-    QPixmap         m_ddlTop;
-    QPixmap         m_ddlMiddle;
-    QPixmap         m_ddlBottom;
-
-    QPixmap         m_typeIcon[static_cast<int>(item::type::Other) + 1];
-
-    int             m_tag;
-    item::type      m_type;
+    QList<QString>    m_namedFacts;
 };
 
 #endif
-

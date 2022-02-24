@@ -63,13 +63,24 @@ SLFFile::SLFFile(const QString &slfFile, const QString &name) :
     {
         QString memory = s_cache.value( m_filename );
 
-        m_in_slf   = (memory.at(0).digitValue() == 1);
-        m_storage  = new QFile( memory.mid(1) ); // fortunately we use absolute paths when we open our files so CWD irrelevent
+        // empty strings in cache mean it wasn't found when search was conducted
+        if (!memory.isEmpty())
+        {
+            m_in_slf   = (memory.at(0).digitValue() == 1);
+            m_storage  = new QFile( memory.mid(1) ); // fortunately we use absolute paths when we open our files so CWD irrelevent
+        }
     }
     else
     {
         setFileName( name );
-        s_cache.insert( m_filename, QString("%1%2").arg( m_in_slf ? "1" : "0" ).arg( m_storage->fileName() ) );
+        if (isGood())
+        {
+            s_cache.insert( m_filename, QString("%1%2").arg( m_in_slf ? "1" : "0" ).arg( m_storage->fileName() ) );
+        }
+        else
+        {
+            s_cache.insert( m_filename, QString() );
+        }
     }
 }
 
