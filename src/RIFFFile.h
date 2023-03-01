@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2023 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -52,9 +52,13 @@ public:
     bool       isGood() { if (m_numSegs != 0) return true; else return false; }
     QString    getError();
 
+    int        getNumSegments();
     QString    getSegmentCode(int segment);
-    void       seekSegment(int segment);
+    bool       seekSegment(int segment);
+    bool       seekSegment(QString segment_code);
     bool       seekPartySegment();
+
+    QVector<qint32> getVisitedMapsList();
 
     QByteArray readParty();
     bool       writeParty(const QByteArray &party);

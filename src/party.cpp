@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2023 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -321,6 +321,16 @@ QByteArray party::serialize()
         offset++;
     }
 
+    // [1900-1903] Current location: map
+    ASSIGN_LE32(cdata + 0x1900, m_mapId);
+
+    // [22a7-22b3] Current location: position (stored with *500.0 already applied)
+    ASSIGN_FLOAT(cdata + 0x22a7 + 0, m_position[0]);
+    ASSIGN_FLOAT(cdata + 0x22a7 + 4, m_position[1]);
+    ASSIGN_FLOAT(cdata + 0x22a7 + 8, m_position[2]);
+
+    // [22cb-22ce] Current location: heading
+    ASSIGN_FLOAT(cdata + 0x22cb, m_heading);
 
     // [23a1-23af] player formation in the party
     quint8 *fdata = cdata + 0x23a1;
@@ -375,9 +385,7 @@ QByteArray party::serialize()
         ASSIGN_LE32(cdata + 0x23b5 + k * 12 + 8, 0);
     }
 
-    // FIXME: Facts
     // FIXME: Journal
-    // FIXME: Current location
     // FIXME: travelling spells - level and turns remaining
 
     return m_data;
@@ -428,6 +436,18 @@ void party::unpackParty(const QByteArray &c)
     // [1791-1794] number of items that should be in the list
     // (done up above -- needed to be done before importing items)
 
+
+    // [1900-1903] Current location: map
+    m_mapId = FORMAT_LE32( cdata + 0x1900 );
+
+    // [22a7-22b3] Current location: position (stored with *500.0 already applied)
+    m_position[0] = FORMAT_FLOAT( cdata + 0x22a7 + 0 );
+    m_position[1] = FORMAT_FLOAT( cdata + 0x22a7 + 4 );
+    m_position[2] = FORMAT_FLOAT( cdata + 0x22a7 + 8 );
+
+    // [22cb-22ce] Current location: heading
+    m_heading = FORMAT_FLOAT( cdata + 0x22cb );
+
     // Formation -- player's number (0x00-0x07 is put in one of the bytes, 0xff any empty positions)
 
     const quint8 *fdata = cdata + 0x23a1;
@@ -440,9 +460,7 @@ void party::unpackParty(const QByteArray &c)
         }
     }
 
-    // FIXME: Facts
     // FIXME: Journal
-    // FIXME: Current location
     // FIXME: travelling spells - level and turns remaining
 }
 
@@ -764,3 +782,49 @@ void party::sortItems()
     //  6. charges
     std::sort(m_items.begin(), m_items.end());
 }
+
+void party::setVisitedMaps(QVector<qint32> maps)
+{
+    m_maps = maps;
+}
+
+QVector<qint32> party::getVisitedMaps()
+{
+    return m_maps;
+}
+
+qint32 party::getMapId() const
+{
+    return m_mapId;
+}
+
+void party::getPosition(float *x, float *y, float *z) const
+{
+    *x = m_position[0];
+    *y = m_position[1];
+    *z = m_position[2];
+}
+
+float party::getHeading() const
+{
+    return m_heading;
+}
+
+void  party::setMapId(qint32 mapId)
+{
+    m_mapId = mapId;
+}
+
+void  party::setPosition(float x, float y, float z)
+{
+    m_position[0] = x;
+    m_position[1] = y;
+    m_position[2] = z;
+}
+
+void  party::setHeading(float heading)
+{
+    m_heading = heading;
+}
+
+

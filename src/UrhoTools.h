@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 Anonymous Idiot
+ * Copyright (C) 2023 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,48 +23,13 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef COMMON_H__
-#define COMMON_H__
+#include <QString>
+#include <QByteArray>
+#include <Urho3D/Container/Str.h>
 
-#include <QtGlobal>
-
-#include <assert.h>
-
-#if Q_ASSERT_IS_BROKEN
- #include <assert.h>
- #undef Q_ASSERT
- #define Q_ASSERT assert
-#endif
-
-union itof
+inline Urho3D::String toUrho( QString qs )
 {
-    float  a;
-    qint32 b;
-};
+    QByteArray qb = qs.toUtf8();
 
-#define FORMAT_8(X)      ((*(X+0)<<0))
-#define FORMAT_LE16(X)   ((*(X+0)<<0) | (*(X+1)<<8))
-#define FORMAT_LE32(X)   ((*(X+0)<<0) | (*(X+1)<<8) | (*(X+2)<<16) | (*(X+3)<<24))
-// This is a GCC specific macro
-#define FORMAT_FLOAT(X)  ({ union itof z; z.b = FORMAT_LE32(X); z.a; })
-
-#define ASSIGN_LE8(X,V)  { *(X+0) = ((V & 0xff) >>  0); }
-#define ASSIGN_LE16(X,V) { *(X+0) = ((V & 0x00ff) >>  0); \
-                           *(X+1) = ((V & 0xff00) >>  8); }
-#define ASSIGN_LE32(X,V) { *(X+0) = ((V & 0x000000ff) >>  0); \
-                           *(X+1) = ((V & 0x0000ff00) >>  8); \
-                           *(X+2) = ((V & 0x00ff0000) >> 16); \
-                           *(X+3) = ((V & 0xff000000) >> 24); }
-#define ASSIGN_FLOAT(X,V)  do { union itof z; z.a = (V); ASSIGN_LE32(X,z.b); } while (0)
-
-// In QImage
-#if QT_VERSION < QT_VERSION_CHECK(5, 10, 0)
- #define sizeInBytes byteCount
-#endif
-
-// In QList
-#if QT_VERSION < QT_VERSION_CHECK(5, 13, 0)
- #define swapItemsAt swap
-#endif
-
-#endif /* COMMON_H__ */
+    return Urho3D::String() + qb.constData();
+}

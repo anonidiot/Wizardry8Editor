@@ -5,5 +5,6 @@
     <file compress-algo="best">death.u4</file>
     <file compress-algo="best">death.v4</file>
     <file compress-algo="none">Wizardry8Editor.zip</file>
+    <file compress-algo="none">CoreData.pak</file>
 </qresource>
 </RCC>

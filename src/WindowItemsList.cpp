@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2023 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -47,7 +47,6 @@
 #include "WImage.h"
 #include "WItem.h"
 #include "WLabel.h"
-#include "WListWidget.h"
 #include "WScrollBar.h"
 #include "WTableWidget.h"
 #include "WTableWidgetItem.h"

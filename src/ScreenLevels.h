@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2023 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -59,15 +59,19 @@ public slots:
     void        setPoisoned(int cb);
     void        setCb(int cb);
 
-    void        xpLastChanged(const QString &);
-    void        xpNowChanged(const QString &);
-    void        xpNextChanged(const QString &);
+    void        portalEnable(int cb);
+
+    void        lineeditChanged(const QString &);
 
     void        setXpLast(bool);
     void        setXpNow(bool);
     void        setXpNext(bool);
+    void        setPosition(bool);
 
     void        fkButton(bool);
+
+    void        openNavigator(bool checked);
+    void        ddlChanged(int value);
 
 protected:
     void        mouseOverLabel(bool on) override;
@@ -78,12 +82,15 @@ private:
     void        resetHPStaminaSP();
     void        resetConditions();
     void        resetLevels();
+    void        resetPortal();
 
     quint32     xpButton( QPushButton *q, int widget_id );
 
     QPixmap     makeRowPixmap();
     QPixmap     makeRowPixmap2();
+    QPixmap     makeRowPixmap3();
     QPixmap     makeProfsBoxPixmap();
+    QPixmap     makePortalBoxPixmap();
     QPixmap     makeHealthBoxPixmap();
     QPixmap     makeFakeButton();
 

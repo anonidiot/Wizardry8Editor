@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2023 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -229,6 +229,17 @@ void WDDL::showDDL(bool show)
         if (cnt > DDL_BOTTOM - DDL_TOP + 1)
             cnt = DDL_BOTTOM - DDL_TOP + 1;
 
+        if (QWidget *wnd = qobject_cast<QWidget *>( parent() ))
+        {
+            if (((double)(OPEN_ROW_HEIGHT * cnt - 2) * m_scale ) > wnd->size().height() - this->pos().y())
+            {
+                // Keep the DDL within the bounds of the dialog
+                cnt = ((wnd->size().height() - this->pos().y()) / m_scale + 2) / OPEN_ROW_HEIGHT -1;
+                if (cnt < 1)
+                    cnt = 1;
+            }
+        }
+
         int height = CLOSED_WIDGET_HEIGHT;
 
         ddl->setVisible( show );
@@ -257,6 +268,15 @@ void WDDL::showDDL(bool show)
     }
 }
 
+int WDDL::count()
+{
+    if (WListWidget *ddl = qobject_cast<WListWidget *>(m_widgets[ DDL_SCROLLLIST ] ))
+    {
+        return ddl->count();
+    }
+    return 0;
+}
+
 void WDDL::addItem(QListWidgetItem *i)
 {
     if (WListWidget *ddl = qobject_cast<WListWidget *>(m_widgets[ DDL_SCROLLLIST ] ))
@@ -265,12 +285,26 @@ void WDDL::addItem(QListWidgetItem *i)
     }
 }
 
-void WDDL::setCurrentRow(int row)
+bool WDDL::setCurrentRow(int row)
 {
     if (WListWidget *ddl = qobject_cast<WListWidget *>(m_widgets[ DDL_SCROLLLIST ] ))
     {
-        ddl->setCurrentRow( row );
+        if (ddl->item(row)->flags() & Qt::ItemIsEnabled)
+        {
+            ddl->setCurrentRow( row );
+            return true;
+        }
     }
+    return false;
+}
+
+QListWidgetItem *WDDL::item(int idx)
+{
+    if (WListWidget *ddl = qobject_cast<WListWidget *>(m_widgets[ DDL_SCROLLLIST ] ))
+    {
+        return ddl->item(idx);
+    }
+    return NULL;
 }
 
 void WDDL::prev(bool)
@@ -303,13 +337,15 @@ int WDDL::changeListItem( int delta )
     {
         int newIndex = ddl->currentRow();
 
-        newIndex += delta;
-        if (newIndex >= ddl->count())
-            newIndex = 0;
-        else if (newIndex < 0)
-            newIndex = ddl->count() - 1;
-
-        ddl->setCurrentRow( newIndex );
+        do
+        {
+            newIndex += delta;
+            if (newIndex >= ddl->count())
+                newIndex = 0;
+            else if (newIndex < 0)
+                newIndex = ddl->count() - 1;
+        }
+        while (! setCurrentRow( newIndex ));
 
         newValue = ddl->currentItem()->data( Qt::UserRole ).toInt();
     }
@@ -354,7 +390,7 @@ void WDDL::setScale(double scale)
 
     for (int k=0; k<kids.size(); k++)
     {
-        if (Wizardry8Scalable *w = dynamic_cast<Wizardry8Scalable *>(kids[k]))        
+        if (Wizardry8Scalable *w = dynamic_cast<Wizardry8Scalable *>(kids[k]))
         {
             w->setScale( scale );
         }

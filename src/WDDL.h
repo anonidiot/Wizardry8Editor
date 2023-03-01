@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2023 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -43,42 +43,44 @@ public:
 
     ~WDDL();
 
-    int         getValue() { return changeListItem( 0 ); }
+    int                getValue() { return changeListItem( 0 ); }
 
-    void        addItem(QListWidgetItem *i);
-    void        setCurrentRow(int row);
-    void        showDDL( bool show );
+    void               addItem(QListWidgetItem *i);
+    bool               setCurrentRow(int row);
+    QListWidgetItem   *item(int idx);
+    int                count();
+    void               showDDL( bool show );
 
-    void        updateList();
+    void               updateList();
 
-    void        setScale(double scale) override;
+    void               setScale(double scale) override;
 
 public slots:
-    void        setEnabled(bool enabled);
-//    void        setVisible(bool visible) override;
+    void               setEnabled(bool enabled);
+//    void               setVisible(bool visible) override;
 
-    void        mouseOverLabel(bool on);
-    void        dropDownList(bool down);
+    void               mouseOverLabel(bool on);
+    void               dropDownList(bool down);
 
-    void        prev(bool);
-    void        next(bool);
-    void        ddlChanged(QListWidgetItem *);
+    void               prev(bool);
+    void               next(bool);
+    void               ddlChanged(QListWidgetItem *);
 
 signals:
-    void        listActive();
-    void        valueChanged(int value);
+    void               listActive();
+    void               valueChanged(int value);
 
 private:
-    void        loadDDLPixmaps();
+    void               loadDDLPixmaps();
 
-    int         changeListItem( int delta );
+    int                changeListItem( int delta );
 
     QMap<int, QWidget *>   m_widgets;    
     
-    QPixmap     m_ddlInactive;
-    QPixmap     m_ddlActive;
-    QPixmap     m_ddlTop;
-    QPixmap     m_ddlBottom;
+    QPixmap            m_ddlInactive;
+    QPixmap            m_ddlActive;
+    QPixmap            m_ddlTop;
+    QPixmap            m_ddlBottom;
 };
 
 #endif // WDDL_H__

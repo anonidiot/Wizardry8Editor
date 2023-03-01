@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2023 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -103,6 +103,12 @@ public:
         FilterByGender      =  5502,
         Special             =  5503,
         Stackable           =  5504,
+
+        OpenNavigator       =  5600,
+        Position            =  5601,
+        Heading             =  5602,
+        MapWarning          =  5603,
+        PortalEnabled       =  5604,
 
         /////
 
@@ -373,6 +379,8 @@ public:
         Legs                = 1085,
         Feet                = 1086,
         LISTItemTypes       = 1087, // [26]        item::type
+
+        Map                 = 1237,
 
         Item                = 1242,
 

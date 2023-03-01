@@ -1,0 +1,9 @@
+<cubemap>
+    <face name="SkyStars_PosX.png" />
+    <face name="SkyStars_NegX.png" />
+    <face name="SkyStars_PosY.png" />
+    <face name="SkyStars_NegY.png" />
+    <face name="SkyStars_PosZ.png" />
+    <face name="SkyStars_NegZ.png" />
+    <quality low="0" />
+</cubemap>

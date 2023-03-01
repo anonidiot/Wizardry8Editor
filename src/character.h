@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2023 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -384,6 +384,9 @@ public:
     void          setXpNeeded(quint32 xp);
     void          setXpLastLevelNeeded(quint32 xp);
 
+    void          getPortalPosition(bool *on, int *mapId, float *x, float *y, float *z, float *heading) const;
+    void          setPortalPosition(bool on, int mapId, float x, float y, float z, float heading);
+
     double        getLoad(atIdx idx) const;
     int           getLoadCategory() const;
     qint32        getPersonalLoad() const;
@@ -654,8 +657,8 @@ private:
     double            m_portal_x;
     double            m_portal_y;
     double            m_portal_z;
-    double            m_portal_pitch_or_direction_dunno;
-    double            m_portal_direction_or_pitch_dunno;
+    double            m_portal_pitch;
+    double            m_portal_heading;
     qint32            m_portal_map;
 
     QMetaEnum         m_metaProf;

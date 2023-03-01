@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2023 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -151,6 +151,11 @@ void RIFFFile::readDirectory()
     }
 }
 
+int RIFFFile::getNumSegments()
+{
+    return m_segments.size();
+}
+
 QString RIFFFile::getSegmentCode(int segment)
 {
     if (segment < m_segments.size())
@@ -160,12 +165,45 @@ QString RIFFFile::getSegmentCode(int segment)
     return "";
 }
 
-void RIFFFile::seekSegment(int segment)
+bool RIFFFile::seekSegment(int segment)
 {
     if (segment < m_segments.size())
     {
         seek(m_segments.at(segment).offset);
+        return true;
     }
+    return false;
+}
+
+bool RIFFFile::seekSegment(QString segment_code)
+{
+    for (int k=0; k<m_segments.size(); k++)
+    {
+        if (m_segments.at(k).code.compare(segment_code) == 0)
+        {
+            return seekSegment(k);
+        }
+    }
+    return false;
+}
+
+QVector<qint32> RIFFFile::getVisitedMapsList()
+{
+    QVector<qint32>  maps;
+
+    int numSegs = m_segments.size();
+    for (int k=0; k<numSegs; k++)
+    {
+        if (getSegmentCode(k) == "LVLS")
+        {
+            seekSegment(k);
+
+            skip(4); // number of sub-segments
+
+            maps.append( readLELong() );
+        }
+    }
+    return maps;
 }
 
 QByteArray RIFFFile::readParty()
@@ -299,16 +337,7 @@ bool RIFFFile::writeFacts(const QByteArray &fa)
 
 bool RIFFFile::seekPartySegment()
 {
-    for (int k=0; k<m_segments.size(); k++)
-    {
-        if (m_segments.at(k).code.compare("GSTA") == 0)
-        {
-            seekSegment( k );
-
-            return true;
-        }
-    }
-    return false;
+    return seekSegment("GSTA");
 }
 
 qint8 RIFFFile::readByte()

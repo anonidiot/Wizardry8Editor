@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2023 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -41,8 +41,10 @@
 #include "DialogInfo.h"
 
 #include "StringList.h"
+#include "Window3DNavigator.h"
 #include "WButton.h"
 #include "WCheckBox.h"
+#include "WDDL.h"
 #include "WImage.h"
 #include "WLabel.h"
 #include "WLineEdit.h"
@@ -53,6 +55,7 @@
 
 #include "spell.h"
 #include "main.h"
+#include "Level.h"
 
 #include <QDebug>
 
@@ -81,6 +84,26 @@ typedef enum
     BTN_XP_LAST,
     BTN_XP_NOW,
     BTN_XP_NEXT,
+
+    LBL_POS_X,
+    LBL_POS_Y,
+    LBL_POS_Z,
+    LBL_HEADING,
+
+    VAL_POS_X,
+    VAL_POS_Y,
+    VAL_POS_Z,
+    VAL_HEADING,
+
+    BTN_POS_X,
+    BTN_POS_Y,
+    BTN_POS_Z,
+    BTN_HEADING,
+
+    CB_PORTAL_ENABLED,
+    BTN_NAVIGATOR,
+    LBL_MAP,
+    DDL_MAP,
 
     LBL_COND_START,
     LBL_COND_END = LBL_COND_START + character::condition::CONDITION_SIZE,
@@ -125,8 +148,10 @@ ScreenLevels::ScreenLevels(character *c, QWidget *parent) :
 
     QPixmap profsBox  = makeProfsBoxPixmap();
     QPixmap healthBox = makeHealthBoxPixmap();
+    QPixmap portalBox = makePortalBoxPixmap();
     QPixmap rowImg    = makeRowPixmap();
     QPixmap rowImg2   = makeRowPixmap2();
+    QPixmap rowImg3   = makeRowPixmap3();
 
     QPixmap fakeButton = makeFakeButton();
 
@@ -135,7 +160,6 @@ ScreenLevels::ScreenLevels(character *c, QWidget *parent) :
 
     struct layout itemsScrn[] =
     {
-        { NO_ID,              QRect( 310,   0,  -1,  -1 ),    new WImage(    "REVIEW/REVIEWSKILLSPAGE.STI",                  0,              this ),  -1,  NULL },
         { NO_ID,              QRect(   0, 450,  -1,  -1 ),    new WImage(    "REVIEW/BOTTOMBUTTONBAR.STI",                   0,              this ),  -1,  NULL },
 
         { NO_ID,              QRect(   0, 164,  -1,  -1 ),    new WImage(    profsBox,                                                       this ),  -1,  NULL },
@@ -215,13 +239,13 @@ ScreenLevels::ScreenLevels(character *c, QWidget *parent) :
         { VAL_PROFS + 14,     QRect( 230, 369,  76,  14 ),    new WSpinBox(  0, 0, 50,                                                      this ),  -1,  SLOT(spinnerChanged(int)) },
 
         { NO_ID,              QRect(  34, 397, 186,  14 ),    new WLabel( StringList::ExpLast,            Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  NULL },
-        { VAL_XP_LAST,        QRect( 220, 397,  70,  14 ),    new WLineEdit( "",                          Qt::AlignRight,  10, QFont::Thin, this ),  -1,  SLOT(xpLastChanged(const QString &)) },
+        { VAL_XP_LAST,        QRect( 220, 397,  70,  14 ),    new WLineEdit( "",                          Qt::AlignRight,  10, QFont::Thin, this ),  -1,  SLOT(lineeditChanged(const QString &)) },
         { BTN_XP_LAST,        QRect( 292, 396,  -1,  -1 ),    new WButton(   "MAIN INTERFACE/PARTYMOVEMENT_BUTTONS.STI",    0, true, 0.70,  this ),  -1,  SLOT(setXpLast(bool)) },
         { NO_ID,              QRect(  34, 411, 186,  14 ),    new WLabel( StringList::ExpEarned,          Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  NULL },
-        { VAL_XP_NOW,         QRect( 220, 411,  70,  14 ),    new WLineEdit( "",                          Qt::AlignRight,  10, QFont::Thin, this ),  -1,  SLOT(xpNowChanged(const QString &)) },
+        { VAL_XP_NOW,         QRect( 220, 411,  70,  14 ),    new WLineEdit( "",                          Qt::AlignRight,  10, QFont::Thin, this ),  -1,  SLOT(lineeditChanged(const QString &)) },
         { BTN_XP_NOW,         QRect( 292, 410,  -1,  -1 ),    new WButton(   "MAIN INTERFACE/PARTYMOVEMENT_BUTTONS.STI",    0, true, 0.70,  this ),  -1,  SLOT(setXpNow(bool)) },
         { NO_ID,              QRect(  34, 425, 186,  14 ),    new WLabel( StringList::ExpNext,            Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  NULL },
-        { VAL_XP_NEXT,        QRect( 220, 425,  70,  14 ),    new WLineEdit( "",                          Qt::AlignRight,  10, QFont::Thin, this ),  -1,  SLOT(xpNextChanged(const QString &)) },
+        { VAL_XP_NEXT,        QRect( 220, 425,  70,  14 ),    new WLineEdit( "",                          Qt::AlignRight,  10, QFont::Thin, this ),  -1,  SLOT(lineeditChanged(const QString &)) },
         { BTN_XP_NEXT,        QRect( 292, 424,  -1,  -1 ),    new WButton(   "MAIN INTERFACE/PARTYMOVEMENT_BUTTONS.STI",    0, true, 0.70,  this ),  -1,  SLOT(setXpNext(bool)) },
 
         // We're using Monster Icons here instead of the Condition Icons, because they're larger and look nicer when scaled up like we're doing;
@@ -369,6 +393,35 @@ ScreenLevels::ScreenLevels(character *c, QWidget *parent) :
         { VAL_HP,                                           QRect( 560, 397,  76,  14 ),    new WSpinBox(  0, 0, 50,                                                      this ),  -1,  SLOT(hpChanged(int))      },
         { VAL_STAMINA,                                      QRect( 560, 411,  76,  14 ),    new WSpinBox(  0, 0, 50,                                                      this ),  -1,  SLOT(staminaChanged(int)) },
         { VAL_SP,                                           QRect( 560, 425,  76,  14 ),    new WSpinBox(  0, 0, 50,                                                      this ),  -1,  SLOT(spChanged(int))      },
+
+        { NO_ID,              QRect( 310,   0,  -1,  -1 ),    new WImage(    portalBox,                                                     this ),  -1,  NULL },
+
+        { CB_PORTAL_ENABLED,  QRect( 320,  15, 200,  14 ),    new WCheckBox( "Portal Enabled",                                              this ),  -1,  SLOT(portalEnable(int)) },
+
+        { NO_ID,              QRect( 344,  90,  -1,  -1 ),    new WImage(    rowImg3,                                                       this ),  -1,  NULL },
+        { NO_ID,              QRect( 344, 104,  -1,  -1 ),    new WImage(    rowImg3,                                                       this ),  -1,  NULL },
+        { NO_ID,              QRect( 344, 118,  -1,  -1 ),    new WImage(    rowImg3,                                                       this ),  -1,  NULL },
+        { NO_ID,              QRect( 344, 132,  -1,  -1 ),    new WImage(    rowImg3,                                                       this ),  -1,  NULL },
+
+        { NO_ID,              QRect( 323,  88,  -1,  -1 ),    new WImage(    "SPELLS/BITMAPS/A-GLOW-BLUE.TGA", 0, QColor(Qt::black), 0.5,   this ),  -1,  NULL },
+
+        { LBL_POS_X,          QRect( 344,  90, 186,  14 ),    new WLabel(    ::getStringTable()->getString( StringList::Position ) + " X",  Qt::AlignCenter,   10, QFont::Thin, this ),  -1,  NULL },
+        { VAL_POS_X,          QRect( 520,  90,  64,  14 ),    new WLineEdit( "",                          Qt::AlignRight,  10, QFont::Thin, this ),  -1,  SLOT(lineeditChanged(const QString &)) },
+        { BTN_POS_X,          QRect( 588,  89,  -1,  -1 ),    new WButton(   "MAIN INTERFACE/PARTYMOVEMENT_BUTTONS.STI",    0, true, 0.70,  this ),  -1,  SLOT(setPosition(bool)) },
+        { LBL_POS_Y,          QRect( 344, 104, 186,  14 ),    new WLabel(    ::getStringTable()->getString( StringList::Position ) + " Y",  Qt::AlignCenter,   10, QFont::Thin, this ),  -1,  NULL },
+        { VAL_POS_Y,          QRect( 520, 104,  64,  14 ),    new WLineEdit( "",                          Qt::AlignRight,  10, QFont::Thin, this ),  -1,  SLOT(lineeditChanged(const QString &)) },
+        { BTN_POS_Y,          QRect( 588, 103,  -1,  -1 ),    new WButton(   "MAIN INTERFACE/PARTYMOVEMENT_BUTTONS.STI",    0, true, 0.70,  this ),  -1,  SLOT(setPosition(bool)) },
+        { LBL_POS_Z,          QRect( 344, 118, 186,  14 ),    new WLabel(    ::getStringTable()->getString( StringList::Position ) + " Z",  Qt::AlignCenter,   10, QFont::Thin, this ),  -1,  NULL },
+        { VAL_POS_Z,          QRect( 520, 118,  64,  14 ),    new WLineEdit( "",                          Qt::AlignRight,  10, QFont::Thin, this ),  -1,  SLOT(lineeditChanged(const QString &)) },
+        { BTN_POS_Z,          QRect( 588, 117,  -1,  -1 ),    new WButton(   "MAIN INTERFACE/PARTYMOVEMENT_BUTTONS.STI",    0, true, 0.70,  this ),  -1,  SLOT(setPosition(bool)) },
+        { LBL_HEADING,        QRect( 344, 132, 186,  14 ),    new WLabel(    StringList::Heading,         Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  NULL },
+        { VAL_HEADING,        QRect( 520, 132,  64,  14 ),    new WLineEdit( "",                          Qt::AlignRight,  10, QFont::Thin, this ),  -1,  SLOT(lineeditChanged(const QString &)) },
+        { BTN_HEADING,        QRect( 588, 131,  -1,  -1 ),    new WButton(   "MAIN INTERFACE/PARTYMOVEMENT_BUTTONS.STI",    0, true, 0.70,  this ),  -1,  SLOT(setPosition(bool)) },
+
+        { BTN_NAVIGATOR,      QRect( 610,  90,  -1,  -1 ),    new WButton(   "MAIN INTERFACE/ICONS_STANDARD.STI",          35, false, 1.0,  this ),  -1,  SLOT(openNavigator(bool)) },
+
+        { LBL_MAP,            QRect( 320,  54,  50,  14 ),    new WLabel(    ::getStringTable()->getString( StringList::Map + StringList::APPEND_COLON ),  Qt::AlignRight, 10, QFont::Thin, this ),  -1,  NULL },
+        { DDL_MAP,            QRect( 386,  47,  -1,  -1 ),    new WDDL(      "Lucida Calligraphy",        Qt::AlignLeft,  9, QFont::Thin,   this ),  -1,  SLOT(ddlChanged(int)) },
     };
 
     int num_widgets = sizeof(itemsScrn) / sizeof(struct layout);
@@ -403,6 +456,19 @@ ScreenLevels::ScreenLevels(character *c, QWidget *parent) :
         q->setDisabled( true );
     }
 
+    // Go through the complete list of levels and try to open them. If a level exists, even if
+    // not previously visited it is available as a location for a portal.
+    if (WDDL *ddl = qobject_cast<WDDL *>(m_widgets[ DDL_MAP ] ))
+    {
+        const int *levels = ::getLevels();
+        for (int k=0; levels[k] != -1; k++)
+        {
+            QListWidgetItem *map = new QListWidgetItem( getLevelName(levels[k]) );
+            map->setData( Qt::UserRole, levels[k] );
+
+            ddl->addItem( map );
+        }
+    }
     resetScreen( m_char, NULL );
 }
 
@@ -515,6 +581,46 @@ void ScreenLevels::fkButton(bool down)
     }
 }
 
+void ScreenLevels::portalEnable(int state)
+{
+    int ids[] = { LBL_POS_X, VAL_POS_X,
+                  LBL_POS_Y, VAL_POS_Y,
+                  LBL_POS_Z, VAL_POS_Z,
+                  LBL_HEADING, VAL_HEADING,
+                  LBL_MAP, DDL_MAP, BTN_NAVIGATOR};
+
+    for (int k=0; k < sizeof(ids) / sizeof(int); k++)
+    {
+        if (QWidget *q = qobject_cast<QWidget *>(m_widgets[ ids[k] ]))
+        {
+            q->setEnabled( state == Qt::Checked );
+        }
+    }
+
+    // disable these until the value in the textbox is changed
+    if (QAbstractButton *q = qobject_cast<QAbstractButton *>(m_widgets[ BTN_POS_X ]))
+    {
+        q->setDisabled( true );
+    }
+    if (QAbstractButton *q = qobject_cast<QAbstractButton *>(m_widgets[ BTN_POS_Y ]))
+    {
+        q->setDisabled( true );
+    }
+    if (QAbstractButton *q = qobject_cast<QAbstractButton *>(m_widgets[ BTN_POS_Z ]))
+    {
+        q->setDisabled( true );
+    }
+    if (QAbstractButton *q = qobject_cast<QAbstractButton *>(m_widgets[ BTN_HEADING ]))
+    {
+        q->setDisabled( true );
+    }
+
+    if ( state == Qt::Unchecked )
+    {
+        resetPortal();
+    }
+}
+
 void ScreenLevels::setCb(int state)
 {
     if (WCheckBox *cb = qobject_cast<WCheckBox *>( sender() ))
@@ -602,6 +708,26 @@ QPixmap ScreenLevels::makeRowPixmap2()
     return customImage;
 }
 
+QPixmap ScreenLevels::makeRowPixmap3()
+{
+    QPixmap rowImg;
+
+    // images used in dialog
+    rowImg = SLFFile::getPixmapFromSlf( "REVIEW/REVIEWSKILLSPAGE.STI", 3 );
+
+    QPixmap customImage( 260, rowImg.height() );
+
+    QPainter p;
+
+    p.begin( &customImage );
+    p.drawPixmap(   0,   0, rowImg,  0,   0,  80, rowImg.height() );
+    p.drawPixmap(  75,   0, rowImg,  5,   0, 120, rowImg.height() );
+    p.drawPixmap( 186,   0, rowImg,  184,   0, rowImg.width() - 186, rowImg.height() );
+    p.end();
+
+    return customImage;
+}
+
 QPixmap ScreenLevels::makeHealthBoxPixmap()
 {
     QPixmap baseBox = SLFFile::getPixmapFromSlf( "REVIEW/REVIEWSKILLSPAGE.STI", 2 );
@@ -614,6 +740,31 @@ QPixmap ScreenLevels::makeHealthBoxPixmap()
     p.begin( &customImage );
     p.drawPixmap(   0,   0, baseBox,  0,   0, 320,  50 );
     p.drawPixmap(   0,  46, baseBox,  0, 270, 320,  15 );
+    p.end();
+
+    return customImage;
+}
+
+QPixmap ScreenLevels::makePortalBoxPixmap()
+{
+    QPixmap bg      = SLFFile::getPixmapFromSlf( "DIALOGS/DIALOGBACKGROUND.STI", 0 );
+    QPixmap baseBox = SLFFile::getPixmapFromSlf( "REVIEW/REVIEWSKILLSPAGE.STI", 2 );
+    QPixmap bgDdl   = SLFFile::getPixmapFromSlf( "CHAR GENERATION/CG_PROFESSION.STI", 0 );
+
+    QSize   custSz( 330, 168 );
+
+    QPixmap customImage( custSz );
+
+    QPainter p;
+
+    p.begin( &customImage );
+    p.drawPixmap(   0,   0, bg, 0, 0, bg.width(), bg.height() );
+    p.drawPixmap( 200,   0, bg, 0, 0, bg.width(), bg.height() );
+    p.drawPixmap(   0,  65, baseBox, 318, 179, baseBox.width() - 318, baseBox.height() - 129 );
+    p.drawPixmap(   0, 133, baseBox, 318, 150, baseBox.width() - 318,                     50 );
+    p.drawPixmap( 288,  93, baseBox, 300, 222, baseBox.width() - 318, baseBox.height() - 131 );
+    p.drawPixmap( 288,  83, baseBox, 300,   2,                    30,                     40 );
+    p.drawPixmap(  71,  39, bgDdl,    15,   4, 200,  46 );
     p.end();
 
     return customImage;
@@ -793,6 +944,15 @@ void ScreenLevels::resetScreen( void *char_tag, void *party_tag )
     resetHPStaminaSP();
     resetConditions();
     resetLevels();
+    resetPortal();
+
+    if (WCheckBox *q = qobject_cast<WCheckBox *>(m_widgets[ CB_PORTAL_ENABLED ]))
+    {
+        if (q->checkState() == Qt::Unchecked )
+        {
+            portalEnable( Qt::Unchecked );
+        }
+    }
 }
 
 void ScreenLevels::resetXP()
@@ -816,6 +976,120 @@ void ScreenLevels::resetXP()
         {
             q->setText( QLocale(QLocale::English).toString( vals[k].num ) );
         }
+    }
+}
+
+void ScreenLevels::ddlChanged(int value)
+{
+    if (sender() == m_widgets[ DDL_MAP ])
+    {
+        int    mapId;
+        float  x, y, z;
+        float  heading;
+        bool   on;
+
+        m_char->getPortalPosition( &on, &mapId, &x, &y, &z, &heading );
+        mapId = value;
+        m_char->setPortalPosition( on, mapId, x, y, z, heading );
+    }
+}
+
+void ScreenLevels::resetPortal()
+{
+    int    mapId;
+    float  x, y, z;
+    float  heading;
+    bool   on;
+
+    m_char->getPortalPosition( &on, &mapId, &x, &y, &z, &heading );
+
+    if (WCheckBox *q = qobject_cast<WCheckBox *>(m_widgets[ CB_PORTAL_ENABLED ]))
+    {
+        q->setCheckState( on ? Qt::Checked : Qt::Unchecked );
+    }
+
+    if (WDDL *ddl = qobject_cast<WDDL *>(m_widgets[ DDL_MAP ]))
+    {
+        for (int j=0; j<=ddl->count(); j++)
+        {
+            QListWidgetItem *row = ddl->item( j );
+            if (row->data( Qt::UserRole ).toInt() == mapId)
+            {
+                ddl->setCurrentRow( j );
+                break;
+            }
+        }
+        ddl->updateList();
+    }
+
+    struct { int id; float num; } vals[] =
+    {
+        { VAL_POS_X,           x            },
+        { VAL_POS_Y,           y            },
+        { VAL_POS_Z,           z            },
+        { VAL_HEADING,         heading      },
+
+        { -1, 0 }
+    };
+
+    for (int k=0; vals[k].id != -1; k++)
+    {
+        if (WLineEdit *q = qobject_cast<WLineEdit *>(m_widgets[ vals[k].id ]))
+        {
+            q->setText( QString::number( vals[k].num ) );
+        }
+    }
+}
+
+void ScreenLevels::openNavigator(bool /* checked */)
+{
+    if (QPushButton *q = qobject_cast<QPushButton *>(this->sender()))
+    {
+        bool loop;
+
+        int    mapId;
+        float  x, y, z;
+        float  heading;
+        bool   on;
+
+        m_char->getPortalPosition( &on, &mapId, &x, &y, &z, &heading );
+
+        // One of the buttons in the Navigator allows for the loading of alternative maps.
+        // Swapping to a new map entails throwing away virtually everything and starting again
+        // And the lazy way of doing that is to destroy the entire class and start again
+        do
+        {
+            // The constructor creates a new window and runs as a modal window -
+            // it doesn't return until the window has been closed
+            Window3DNavigator map( mapId, x, y, z, heading, false, NULL );
+
+            loop = false;
+            switch (map.exec())
+            {
+                case Window3DNavigator::ChangeMap:
+                    mapId = map.getMapId();
+                    x = y = z = heading = NAN;
+                    loop = true;
+                    break;
+
+                case Window3DNavigator::Rejected:
+                    break;
+
+                case Window3DNavigator::Accepted:
+                {
+                    mapId     = map.getMapId();
+                    map.getPosition( &x, &y, &z);
+                    heading = map.getHeading();
+
+                    m_char->setPortalPosition( on, mapId, x, y, z, heading );
+                    resetPortal();
+                    break;
+                }
+            }
+        }
+        while (loop);
+
+        q->setChecked(false);
     }
 }
 
@@ -933,27 +1207,68 @@ void ScreenLevels::resetLevels()
     }
 }
 
-void ScreenLevels::xpLastChanged(const QString &)
+void ScreenLevels::lineeditChanged(const QString &)
 {
-    if (QAbstractButton *q = qobject_cast<QAbstractButton *>(m_widgets[ BTN_XP_LAST ]))
+    struct { int id; int btn_id; } vals[] =
     {
-        q->setDisabled( false );
+        { VAL_XP_LAST, BTN_XP_LAST },
+        { VAL_XP_NOW,  BTN_XP_NOW  },
+        { VAL_XP_NEXT, BTN_XP_NEXT },
+        { VAL_POS_X,   BTN_POS_X   },
+        { VAL_POS_Y,   BTN_POS_Y   },
+        { VAL_POS_Z,   BTN_POS_Z   },
+        { VAL_HEADING, BTN_HEADING },
+
+        { -1, 0 }
+    };
+
+    for (int k=0; vals[k].id != -1; k++)
+    {
+        if (qobject_cast<WLineEdit *>(this->sender()) == qobject_cast<WLineEdit *>(m_widgets[ vals[k].id ]))
+        {
+            if (QAbstractButton *q = qobject_cast<QAbstractButton *>(m_widgets[ vals[k].btn_id ]))
+            {
+                q->setDisabled( false );
+            }
+            break;
+        }
     }
 }
 
-void ScreenLevels::xpNowChanged(const QString &)
+void ScreenLevels::setPosition(bool)
 {
-    if (QAbstractButton *q = qobject_cast<QAbstractButton *>(m_widgets[ BTN_XP_NOW ]))
+    struct { int id; int tb_id; int idx; } vals[] =
     {
-        q->setDisabled( false );
-    }
-}
+        { BTN_POS_X,   VAL_POS_X,   0 },
+        { BTN_POS_Y,   VAL_POS_Y,   1 },
+        { BTN_POS_Z,   VAL_POS_Z,   2 },
+        { BTN_HEADING, VAL_HEADING, 3 },
 
-void ScreenLevels::xpNextChanged(const QString &)
-{
-    if (QAbstractButton *q = qobject_cast<QAbstractButton *>(m_widgets[ BTN_XP_NEXT ]))
+        { -1, 0, 0 }
+    };
+
+    for (int k=0; vals[k].id != -1; k++)
     {
-        q->setDisabled( false );
+        QAbstractButton *q = qobject_cast<QAbstractButton *>(this->sender());
+
+        if (q == qobject_cast<QAbstractButton *>(m_widgets[ vals[k].id ]))
+        {
+            q->setChecked(false);
+            q->setDisabled(true);
+
+            if (WLineEdit *tb = qobject_cast<WLineEdit *>(m_widgets[ vals[k].tb_id ]))
+            {
+                int    mapId;
+                float  xyzhead[4];
+                bool   on;
+
+                m_char->getPortalPosition( &on, &mapId, &xyzhead[0], &xyzhead[1], &xyzhead[2], &xyzhead[3] );
+                xyzhead[ vals[k].idx ] = tb->text().toFloat();
+
+                m_char->setPortalPosition( on, mapId, xyzhead[0], xyzhead[1], xyzhead[2], xyzhead[3] );
+            }
+            break;
+        }
     }
 }
 

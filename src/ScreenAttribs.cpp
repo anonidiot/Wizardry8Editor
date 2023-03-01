@@ -192,13 +192,13 @@ ScreenAttribs::ScreenAttribs(character *c, QWidget *parent) :
         { CLC_ATTRIBUTES + character::attribute::Speed,       QRect( 136, 258,  82,  14 ),    new WStatBar(  true,                                                     Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  NULL },
         { CLC_ATTRIBUTES + character::attribute::Senses,      QRect( 136, 272,  82,  14 ),    new WStatBar(  true,                                                     Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  NULL },
 
-        { VAL_ATTRIBUTES + character::attribute::Strength,    QRect( 224, 188,  76,  14 ),    new WSpinBox(  0, 0, 100,                         this ),  -1,  SLOT(spinnerChanged(int)) },
-        { VAL_ATTRIBUTES + character::attribute::Intelligence,QRect( 224, 202,  76,  14 ),    new WSpinBox(  0, 0, 100,                         this ),  -1,  SLOT(spinnerChanged(int)) },
-        { VAL_ATTRIBUTES + character::attribute::Piety,       QRect( 224, 216,  76,  14 ),    new WSpinBox(  0, 0, 100,                         this ),  -1,  SLOT(spinnerChanged(int)) },
-        { VAL_ATTRIBUTES + character::attribute::Vitality,    QRect( 224, 230,  76,  14 ),    new WSpinBox(  0, 0, 100,                         this ),  -1,  SLOT(spinnerChanged(int)) },
-        { VAL_ATTRIBUTES + character::attribute::Dexterity,   QRect( 224, 244,  76,  14 ),    new WSpinBox(  0, 0, 100,                         this ),  -1,  SLOT(spinnerChanged(int)) },
-        { VAL_ATTRIBUTES + character::attribute::Speed,       QRect( 224, 258,  76,  14 ),    new WSpinBox(  0, 0, 100,                         this ),  -1,  SLOT(spinnerChanged(int)) },
-        { VAL_ATTRIBUTES + character::attribute::Senses,      QRect( 224, 272,  76,  14 ),    new WSpinBox(  0, 0, 100,                         this ),  -1,  SLOT(spinnerChanged(int)) },
+        { VAL_ATTRIBUTES + character::attribute::Strength,    QRect( 224, 188,  76,  14 ),    new WSpinBox(  0, 0, 125,                         this ),  -1,  SLOT(spinnerChanged(int)) },
+        { VAL_ATTRIBUTES + character::attribute::Intelligence,QRect( 224, 202,  76,  14 ),    new WSpinBox(  0, 0, 125,                         this ),  -1,  SLOT(spinnerChanged(int)) },
+        { VAL_ATTRIBUTES + character::attribute::Piety,       QRect( 224, 216,  76,  14 ),    new WSpinBox(  0, 0, 125,                         this ),  -1,  SLOT(spinnerChanged(int)) },
+        { VAL_ATTRIBUTES + character::attribute::Vitality,    QRect( 224, 230,  76,  14 ),    new WSpinBox(  0, 0, 125,                         this ),  -1,  SLOT(spinnerChanged(int)) },
+        { VAL_ATTRIBUTES + character::attribute::Dexterity,   QRect( 224, 244,  76,  14 ),    new WSpinBox(  0, 0, 125,                         this ),  -1,  SLOT(spinnerChanged(int)) },
+        { VAL_ATTRIBUTES + character::attribute::Speed,       QRect( 224, 258,  76,  14 ),    new WSpinBox(  0, 0, 125,                         this ),  -1,  SLOT(spinnerChanged(int)) },
+        { VAL_ATTRIBUTES + character::attribute::Senses,      QRect( 224, 272,  76,  14 ),    new WSpinBox(  0, 0, 125,                         this ),  -1,  SLOT(spinnerChanged(int)) },
 
         { DDL_GENDERS,        QRect( 329, 114,  -1,  -1 ),    new WDDL(          "Lucida Calligraphy",        Qt::AlignLeft,  9, QFont::Thin,   this ),  -1,  SLOT(ddlChanged(int)) },
         { DDL_RACES,          QRect( 329,  63,  -1,  -1 ),    new WDDL(          "Lucida Calligraphy",        Qt::AlignLeft,  9, QFont::Thin,   this ),  -1,  SLOT(ddlChanged(int)) },
@@ -530,7 +530,7 @@ void ScreenAttribs::spinnerChanged(int value)
         m_char->setAttribute( static_cast<character::attribute>(attrib), value );
         if (WStatBar *clc = qobject_cast<WStatBar *>( m_widgets[ CLC_ATTRIBUTES + attrib ]))
         {
-            clc->setValue( value, m_char->getAttribute( static_cast<character::attribute>(attrib), character::atIdx::Current ), 100 );
+            clc->setValue( value, m_char->getAttribute( static_cast<character::attribute>(attrib), character::atIdx::Current ), 125 );
         }
 
         // Vitality affects HP
@@ -605,7 +605,7 @@ void ScreenAttribs::resetScreen(void *char_tag, void *party_tag)
             // These ones won't have got the spinnerChanged() signal
             if (WStatBar *clc = qobject_cast<WStatBar *>( m_widgets[ CLC_ATTRIBUTES + k ]))
             {
-                clc->setValue( base, m_char->getAttribute( static_cast<character::attribute>(k), character::atIdx::Current ), 100 );
+                clc->setValue( base, m_char->getAttribute( static_cast<character::attribute>(k), character::atIdx::Current ), 125 );
             }
         }
     }

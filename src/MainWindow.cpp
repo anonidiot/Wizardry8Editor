@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2023 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,6 +27,8 @@
 
 #include "MainWindow.h"
 #include "DialogAbout.h"
+#include "DialogAboutUrho3D.h"
+#include "DialogCurrentPosition.h"
 #include "DialogPatchExe.h"
 #include "DialogNewFile.h"
 #include "WindowDroppedItems.h"
@@ -58,6 +60,8 @@ MainWindow::MainWindow(QString loadFile) :
     m_barlone_dead(false),
     m_rodan_dead(false)
 {
+    bool nonhack_game = false;
+
     if (loadFile.isEmpty())
     {
         m_loadedGame = NULL;
@@ -100,6 +104,10 @@ MainWindow::MainWindow(QString loadFile) :
             {
                 m_party->m_chars.append( new character( m_loadedGame->readCharacter(k), m_loadedGame->readCharacterExtra(k) ));
             }
+            m_party->setVisitedMaps( m_loadedGame->getVisitedMapsList() );
+
+            if (! m_loadedGame->seekSegment("HACK"))
+                nonhack_game = true;
 
             m_loadedGame->close();
         }
@@ -126,6 +134,12 @@ MainWindow::MainWindow(QString loadFile) :
 
     createActions();
     createMenus();
+
+    // Cannot change the current position on a 'New' or 'Reset' game
+    if (nonhack_game)
+        currPosAct->setEnabled(true);
+    else
+        currPosAct->setEnabled(false);
 
     connect( m_contentWidget, SIGNAL(partyEmpty()),  this, SLOT(disableSave()) );
     connect( m_contentWidget, SIGNAL(partyViable()), this, SLOT(enableSave())  );
@@ -240,9 +254,11 @@ MainWindow::~MainWindow()
     droppedItemsAct->deleteLater();
     findItemsAct->deleteLater();
     factEditorAct->deleteLater();
+    currPosAct->deleteLater();
     patchAct->deleteLater();
     aboutAct->deleteLater();
     aboutQtAct->deleteLater();
+    aboutUrhoAct->deleteLater();
 
     // TODO: delete windowsEvents on WIN32/WIN64 ?
 }
@@ -356,6 +372,13 @@ void MainWindow::open()
         m_party->m_chars.append( new character( m_loadedGame->readCharacter(k), m_loadedGame->readCharacterExtra(k) ));
     }
     m_party->divvyUpPartyWeight();
+    m_party->setVisitedMaps( m_loadedGame->getVisitedMapsList() );
+
+    // Cannot change the current position on a 'New' or 'Reset' game
+    if (m_loadedGame->seekSegment("HACK"))
+        currPosAct->setEnabled(false);
+    else
+        currPosAct->setEnabled(true);
 
     m_loadedGame->close();
 
@@ -756,6 +779,29 @@ void MainWindow::factEditorClosed()
     m_factEditor = NULL;
 }
 
+void MainWindow::currentPosition()
+{
+    // This is a Dialog - main window is suspended until the dialog is closed
+    float  position[3];
+
+    m_party->getPosition( &position[0], &position[1], &position[2] );
+
+    DialogCurrentPosition d( m_party->getMapId(),
+                             position,
+                             m_party->getHeading(),
+                             m_party->getVisitedMaps() );
+
+    if (d.exec() == QDialog::Accepted)
+    {
+        m_party->setMapId( d.getMapId() );
+
+        d.getPosition( &position[0], &position[1], &position[2] );
+        m_party->setPosition( position[0], position[1], position[2] );
+
+        m_party->setHeading( d.getHeading() );
+    }
+}
+
 void MainWindow::findItems()
 {
     if (m_findItems)
@@ -797,6 +843,12 @@ void MainWindow::about()
 {
     statusBar()->showMessage(tr("Invoked <b>Help|About</b>"));
     new DialogAbout(this);
+}
+
+void MainWindow::aboutUrho3D()
+{
+    statusBar()->showMessage(tr("Invoked <b>Help|About Urho3D Graphics Engine</b>"));
+    new DialogAboutUrho3D(this);
 }
 
 void MainWindow::createActions()
@@ -880,6 +932,10 @@ void MainWindow::createActions()
     factEditorAct->setStatusTip(tr("Edit the game state fact variables"));
     connect(factEditorAct, &QAction::triggered, this, &MainWindow::factEditor);
 
+    currPosAct = new QAction(tr("Current Position..."), this);
+    currPosAct->setStatusTip(tr("Change the current saved game position"));
+    connect(currPosAct, &QAction::triggered, this, &MainWindow::currentPosition);
+
     patchAct = new QAction(tr("Patch Wiz8.exe..."), this);
     patchAct->setStatusTip(tr("Modify Wizardry 8 with selected patches"));
     connect(patchAct, &QAction::triggered, this, &MainWindow::patchExe);
@@ -891,7 +947,10 @@ void MainWindow::createActions()
     aboutQtAct = new QAction(tr("About &Qt"), this);
     aboutQtAct->setStatusTip(tr("Show the Qt library's About box"));
     connect(aboutQtAct, &QAction::triggered, qApp, &QApplication::aboutQt);
-    //connect(aboutQtAct, &QAction::triggered, this, &MainWindow::aboutQt);
+
+    aboutUrhoAct = new QAction(tr("&About Urho3D"), this);
+    aboutUrhoAct->setStatusTip(tr("Show the Urho3D library's About box"));
+    connect(aboutUrhoAct, &QAction::triggered, this, &MainWindow::aboutUrho3D);
 }
 
 void MainWindow::createMenus()
@@ -922,10 +981,12 @@ void MainWindow::createMenus()
     specialMenu->addAction(findItemsAct);
     specialMenu->addSeparator();
     specialMenu->addAction(factEditorAct);
+    specialMenu->addAction(currPosAct);
     specialMenu->addSeparator();
     specialMenu->addAction(patchAct);
 
     helpMenu = menuBar()->addMenu(tr("&Help"));
     helpMenu->addAction(aboutAct);
     helpMenu->addAction(aboutQtAct);
+    helpMenu->addAction(aboutUrhoAct);
 }

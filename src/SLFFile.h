@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2023 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,6 +27,7 @@
 #define SLFFILE_H__
 
 #include <QDir>
+#include <QException>
 #include <QFile>
 
 // This class is intended to behave in the same fashion as QFile()
@@ -39,6 +40,7 @@
 class SLFFile
 {
 public:
+    SLFFile(const QString &folder, const QString &slfFile, const QString &name);
     SLFFile(const QString &slfFile, const QString &name);
     SLFFile(const QString &name) : SLFFile(QString("DATA.SLF"), name) {};
     ~SLFFile();
@@ -67,11 +69,15 @@ public:
     quint16    readLEUShort();
     qint32     readLELong();
     quint32    readLEULong();
+    float      readFloat();
+
+    qint64     pos();
 
     static void setWizardryPath(QString path);
     static QString &getWizardryPath();
 
 protected:
+    void init(const QString &name);
     bool isSlf(QFile &file);
     bool containsFile(QFile &file, const QString &filename);
 
@@ -79,13 +85,20 @@ private:
     void seekToFile();
 
     QDir       m_wizardryPath;
+    QString    m_subfolder;
     QString    m_slf;
 
     bool       m_in_slf;
     QString    m_filename;
     QFile     *m_storage;
-    quint32    m_dataOffset;
-    qint64     m_dataLen;
+    quint32    m_dataOffset;     /** offset in SLF file that actual data for file starts at */
+    qint64     m_dataLen;        /** size of file being accessed INSDE the archive - actual data size */
 };
 
+class SLFFileException : public QException
+{
+public:
+    void raise() const override { throw *this; }
+    SLFFileException *clone() const override { return new SLFFileException(*this); }
+};
 #endif /* SLFFILE_H__ */

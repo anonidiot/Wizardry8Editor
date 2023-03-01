@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2023 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -41,6 +41,8 @@
 // eg. the one used for levels by profession - we only include professions the character
 // has actually been.
 #define CHECK_SET(A, B)   { if (B) { A = B; } }
+
+static const float kEpsilon               = 1e-9;
 
 character::character() : QObject(),
     m_data(QByteArray(RIFFFile::CHARACTER_SIZE, 0)),
@@ -617,7 +619,7 @@ QByteArray character::serialize() const
     /* [0x0b69--0x0b6c] */
     ASSIGN_FLOAT( cdata+0x0b69, m_healing_rate );
 
-    /* [0x0b71--0x0b75] */
+    /* [0x0b71--0x0b74] */
     ASSIGN_FLOAT( cdata+0x0b71, m_rest_rate );
 
     /* [0x0b79--0x0b90] */
@@ -828,11 +830,11 @@ QByteArray character::serialize() const
 
     // Portal Location
     /* [0x17db--0x1816] */
-    ASSIGN_FLOAT( cdata+0x17db, m_portal_x * 500.0 );
-    ASSIGN_FLOAT( cdata+0x17df, m_portal_y * 500.0 );
-    ASSIGN_FLOAT( cdata+0x17e3, m_portal_z * 500.0 );
-    ASSIGN_FLOAT( cdata+0x17e7, m_portal_pitch_or_direction_dunno );
-    ASSIGN_FLOAT( cdata+0x17ff, m_portal_direction_or_pitch_dunno );
+    ASSIGN_FLOAT( cdata+0x17d7, m_portal_x );
+    ASSIGN_FLOAT( cdata+0x17db, m_portal_y );
+    ASSIGN_FLOAT( cdata+0x17df, m_portal_z );
+    ASSIGN_FLOAT( cdata+0x17e3, m_portal_pitch );
+    ASSIGN_FLOAT( cdata+0x17fb, m_portal_heading );
     ASSIGN_LE32(  cdata+0x1813, m_portal_map );
 
     /* [0x1830        ] */
@@ -1275,15 +1277,15 @@ void character::unpackCharacter(const QByteArray &c, const QByteArray &cx)
 
     /* [0x17bb        ] */ m_bonus.conditions                      = FORMAT_8( cdata+0x17bb );
 
-    // [0x17bc--0x17da] UNKNOWN
+    // [0x17bc--0x17d6] UNKNOWN
 
     // Portal Location
-    /* [0x17db--0x17de] */ m_portal_x = FORMAT_FLOAT( cdata+0x17db ) / 500.0;
-    /* [0x17df--0x17e2] */ m_portal_y = FORMAT_FLOAT( cdata+0x17df ) / 500.0;
-    /* [0x17e3--0x17e6] */ m_portal_z = FORMAT_FLOAT( cdata+0x17e3 ) / 500.0;
-    /* [0x17e7--0x17ea] */ m_portal_pitch_or_direction_dunno = FORMAT_FLOAT( cdata+0x17e7 );
+    /* [0x17d7--0x17da] */ m_portal_x = FORMAT_FLOAT( cdata+0x17d7 );
+    /* [0x17db--0x17de] */ m_portal_y = FORMAT_FLOAT( cdata+0x17db );
+    /* [0x17df--0x17e2] */ m_portal_z = FORMAT_FLOAT( cdata+0x17df );
+    /* [0x17e3--0x17e6] */ m_portal_pitch = FORMAT_FLOAT( cdata+0x17e3 );
     // 5 32bit 0s
-    /* [0x17ff--0x1802] */ m_portal_direction_or_pitch_dunno = FORMAT_FLOAT( cdata+0x17ff );
+    /* [0x17fb--0x17fe] */ m_portal_heading = FORMAT_FLOAT( cdata+0x17fb );
     // 5 32bit 0s
     /* [0x1813--0x1816] */ m_portal_map = FORMAT_LE32( cdata+0x1813 );
 
@@ -1302,6 +1304,51 @@ void character::unpackCharacter(const QByteArray &c, const QByteArray &cx)
     // so that makes this something else. offset 0x21 is called "char" - which looks like m_charIdx.
     // and 0x1d is called "Target Type" (or maybe just "Type")
     /* [0x00fa--0x00fd] */ m_rpc_id    = FORMAT_LE32(pdata+0xfa);
+}
+
+void character::getPortalPosition(bool *on, int *mapId, float *x, float *y, float *z, float *heading) const
+{
+    if ((m_portal_map == 0)     &&
+        (m_portal_x < kEpsilon) &&
+        (m_portal_y < kEpsilon) &&
+        (m_portal_z < kEpsilon) &&
+        (m_portal_heading < kEpsilon) &&
+        (m_portal_pitch < kEpsilon))
+    {
+        *on = false;
+    }
+    else
+    {
+        *on = true;
+    }
+
+    *mapId   = m_portal_map;
+    *x       = m_portal_x;
+    *y       = m_portal_y;
+    *z       = m_portal_z;
+    *heading = m_portal_heading;
+}
+
+void character::setPortalPosition(bool on, int mapId, float x, float y, float z, float heading)
+{
+    if (on)
+    {
+        m_portal_map     = mapId;
+        m_portal_x       = x;
+        m_portal_y       = y;
+        m_portal_z       = z;
+        m_portal_heading = heading;
+        m_portal_pitch   = 0.0;
+    }
+    else
+    {
+        m_portal_map     = 0;
+        m_portal_x       = 0.0;
+        m_portal_y       = 0.0;
+        m_portal_z       = 0.0;
+        m_portal_heading = 0.0;
+        m_portal_pitch   = 0.0;
+    }
 }
 
 int character::getCondition(condition c) const

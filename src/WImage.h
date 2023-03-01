@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2023 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -41,6 +41,7 @@ public:
     WImage(QPixmap &pix, QWidget* parent = Q_NULLPTR, Qt::WindowFlags f = Qt::WindowFlags());
     WImage(QString file, int image_idx, QWidget* parent = Q_NULLPTR, Qt::WindowFlags f = Qt::WindowFlags());
     WImage(QString file, int image_idx, int crop_left, int crop_top, int crop_width, int crop_height, double extraScale = 1.0, QWidget* parent = Q_NULLPTR, Qt::WindowFlags f = Qt::WindowFlags());
+    WImage(QString file, int image_idx, QColor transparentColor, double extraScale = 1.0, QWidget* parent = Q_NULLPTR, Qt::WindowFlags f = Qt::WindowFlags());
     WImage(int width, int height, QColor c, QWidget* parent = Q_NULLPTR, Qt::WindowFlags f = Qt::WindowFlags());
     ~WImage();
 

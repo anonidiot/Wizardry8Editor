@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2023 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -45,12 +45,29 @@ QString &SLFFile::getWizardryPath()
     return s_wizardryPath;
 }
 
-SLFFile::SLFFile(const QString &slfFile, const QString &name) :
+SLFFile::SLFFile(const QString &folder, const QString &slfFile, const QString &name) :
     m_wizardryPath(s_wizardryPath),
+    m_subfolder(folder),
     m_slf(slfFile),
     m_storage(NULL),
     m_dataOffset(0xffffffff),
     m_dataLen(-1)
+{
+    init( name );
+}
+
+SLFFile::SLFFile(const QString &slfFile, const QString &name) :
+    m_wizardryPath(s_wizardryPath),
+    m_subfolder("DATA"),
+    m_slf(slfFile),
+    m_storage(NULL),
+    m_dataOffset(0xffffffff),
+    m_dataLen(-1)
+{
+    init( name );
+}
+
+void SLFFile::init(const QString &name )
 {
     // The cache only serves to help us avoid the directory parsing multiple times
     // if we encounter the same SLF file we've already found before - helps speed
@@ -120,10 +137,10 @@ void SLFFile::setFileName(const QString &name)
     // 1) File in the filesystem -- complicating factor is that Wizardry
     //    uses case insensitive filenames, but this could be on a case-sensitive OS (eg linux)
 
-    // Find the DATA subfolder - which we don't know the casing of yet
+    // Find the m_subfolder subfolder ("DATA" by default) - which we don't know the casing of yet
 
     filter.clear();
-    filter << "DATA";
+    filter << m_subfolder;
 
     QStringList entries = m_wizardryPath.entryList(filter, QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot );
 
@@ -195,10 +212,10 @@ void SLFFile::setFileName(const QString &name)
         }
     }
 
-    // 3) inside main DATA.SLF file
+    // 3) inside the given SLF file (DATA.SLF by default)
 
     filter.clear();
-    filter << "DATA";
+    filter << m_subfolder;
 
     entries = m_wizardryPath.entryList(filter, QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot );
 
@@ -254,7 +271,14 @@ bool SLFFile::isGood()
 
 bool SLFFile::open(QFile::OpenMode flags)
 {
-    if (m_storage && m_storage->open(flags))
+    if (!m_storage)
+        return false;
+
+    // close it in case we're opening in another mode (although we should be readonly always)
+    if (m_storage->isOpen())
+        m_storage->close();
+
+    if (m_storage->open(flags))
     {
         seekToFile();
         return true;
@@ -300,7 +324,13 @@ qint64 SLFFile::skip(qint64 bytes)
 
 QByteArray SLFFile::readAll()
 {
-    return m_storage->read( m_dataLen - (m_storage->pos() - m_dataOffset) );
+    QByteArray qb = m_storage->read( m_dataLen - (m_storage->pos() - m_dataOffset) );
+    if (qb.size() == 0)
+    {
+        throw SLFFileException();
+    }
+
+    return qb;
 }
 
 QByteArray SLFFile::read(qint64 bytes)
@@ -308,7 +338,23 @@ QByteArray SLFFile::read(qint64 bytes)
     if (bytes > m_dataLen - (m_storage->pos() - m_dataOffset) )
         bytes = m_dataLen - (m_storage->pos() - m_dataOffset);
 
-    return m_storage->read( bytes );
+    if (bytes == 0)
+    {
+        throw SLFFileException();
+    }
+
+    QByteArray qb = m_storage->read( bytes );
+    if (qb.size() == 0)
+    {
+        throw SLFFileException();
+    }
+
+    return qb;
+}
+
+qint64 SLFFile::pos()
+{
+    return m_storage->pos() - m_dataOffset;
 }
 
 qint64 SLFFile::read(char *buf, qint64 bytes)
@@ -316,14 +362,28 @@ qint64 SLFFile::read(char *buf, qint64 bytes)
     if (bytes > m_dataLen - (m_storage->pos() - m_dataOffset) )
         bytes = m_dataLen - (m_storage->pos() - m_dataOffset);
 
-    return m_storage->read( buf, bytes );
+    if (bytes == 0)
+    {
+        throw SLFFileException();
+    }
+
+    qint64 r = m_storage->read( buf, bytes );
+    if (r == -1)
+    {
+        throw SLFFileException();
+    }
+
+    return r;
 }
 
 qint8 SLFFile::readByte()
 {
     qint8 b;
 
-    m_storage->read( (char *)&b, 1 );
+    if (-1 == m_storage->read( (char *)&b, 1 ))
+    {
+        throw SLFFileException();
+    }
 
     return b;
 }
@@ -332,7 +392,10 @@ quint8 SLFFile::readUByte()
 {
     quint8 b;
 
-    m_storage->read( (char *)&b, 1 );
+    if (-1 == m_storage->read( (char *)&b, 1 ))
+    {
+        throw SLFFileException();
+    }
 
     return b;
 }
@@ -341,7 +404,10 @@ qint16 SLFFile::readLEShort()
 {
     quint8 buf[2];
 
-    m_storage->read( (char *)buf, 2 );
+    if (-1 == m_storage->read( (char *)buf, 2 ))
+    {
+        throw SLFFileException();
+    }
 
     return FORMAT_LE16(buf);
 }
@@ -350,7 +416,10 @@ quint16 SLFFile::readLEUShort()
 {
     quint8 buf[2];
 
-    m_storage->read( (char *)buf, 2 );
+    if (-1 == m_storage->read( (char *)buf, 2 ))
+    {
+        throw SLFFileException();
+    }
 
     return FORMAT_LE16(buf);
 }
@@ -359,7 +428,10 @@ qint32 SLFFile::readLELong()
 {
     quint8 buf[4];
 
-    m_storage->read( (char *)buf, 4 );
+    if (-1 == m_storage->read( (char *)buf, 4 ))
+    {
+        throw SLFFileException();
+    }
 
     return FORMAT_LE32(buf);
 }
@@ -368,9 +440,29 @@ quint32 SLFFile::readLEULong()
 {
     quint8 buf[4];
 
-    m_storage->read( (char *)buf, 4 );
+    if (-1 == m_storage->read( (char *)buf, 4 ))
+    {
+        throw SLFFileException();
+    }
 
     return FORMAT_LE32(buf);
+}
+
+float SLFFile::readFloat()
+{
+    quint8   buf[4];
+    quint32  v;
+    float   *f;
+
+    if (-1 == m_storage->read( (char *)buf, 4 ))
+    {
+        throw SLFFileException();
+    }
+
+    v = FORMAT_LE32(buf);
+    f = (float *) &v;
+
+    return *f;
 }
 
 bool SLFFile::isSlf(QFile &file)

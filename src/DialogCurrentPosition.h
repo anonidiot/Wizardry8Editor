@@ -23,58 +23,61 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef TGA_TO_QIMAGE_H__
-#define TGA_TO_QIMAGE_H__
+#ifndef DLGADDITEM_H
+#define DLGADDITEM_H
 
-#include <QByteArray>
-#include <QImage>
-#include <QDebug>
+#include "Dialog.h"
+#include "Wizardry8Scalable.h"
 
-class TGAtoQImage
+#include "item.h"
+
+class QListWidgetItem;
+
+struct level
 {
-public:
-    TGAtoQImage( QByteArray tga );
-
-    QSize         getSize()    { return QSize( m_width, m_height ); }
-    int           getWidth()   { return m_width;                  }
-    int           getHeight()  { return m_height;                 }
-    int           getDepth()   { return m_depth;                  }
-    const QImage  getImage(int *x = NULL, int *y = NULL)
+    level(int i, QString s, bool v)
+         : id(i), name(s), isPreviouslyVisited(v)
     {
-        if (x)
-            *x = m_x_offset;
-        if (y)
-            *y = m_y_offset;
-
-        QImage qImg = QImage();
-
-        if (m_depth == 24)
-        {
-            qImg = QImage( (quint8 *)m_img_data.data(), m_width, m_height, m_width*3, QImage::Format_RGB888);
-        }
-        else if (m_depth == 32)
-        {
-            qImg = QImage( (quint8 *)m_img_data.data(), m_width, m_height, m_width*4, QImage::Format_ARGB32);
-        }
-
-        if (! qImg.isNull() && m_flipped)
-        {
-            qImg = qImg.mirrored( false, true );
-        }
-
-        return qImg;
     }
 
-private:
-    void parseTGA( QByteArray tga );
-
-    QByteArray         m_img_data;
-    quint16            m_x_offset;
-    quint16            m_y_offset;
-    quint16            m_width;
-    quint16            m_height;
-    quint8             m_depth;
-    bool               m_flipped;
+    int      id;
+    QString  name;
+    bool     isPreviouslyVisited;
 };
 
-#endif /* TGA_TO_QIMAGE_H__ */
+class DialogCurrentPosition : public Dialog
+{
+    Q_OBJECT
+
+public:
+    DialogCurrentPosition(int mapId, const float *position, float heading, QVector<qint32> visitedMaps, QWidget *parent = nullptr);
+
+    ~DialogCurrentPosition();
+
+    qint32      getMapId() const;
+    void        getPosition(float *x, float *y, float *z) const;
+    float       getHeading() const;
+
+public slots:
+    void        openNavigator(bool checked);
+
+    void        ddlChanged(int value);
+    void        xChanged(const QString &value);
+    void        yChanged(const QString &value);
+    void        zChanged(const QString &value);
+    void        headingChanged(const QString &value);
+
+private:
+    QPixmap    makeDialogForm();
+    QPixmap    makeRowPixmap();
+
+    qint32         *m_visitedMaps;
+    QList<level>    m_maps;
+
+    qint32          m_map;
+    float           m_position[3];
+    float           m_heading;
+};
+
+#endif
+

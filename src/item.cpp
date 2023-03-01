@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2023 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -50,7 +50,14 @@ item::item(quint32 id, quint8 cnt, quint8 charges, quint8 identified, quint8 unc
 {
     m_helper = dbHelper::getHelper();
 
-    m_db_record = m_helper->getItemRecord(m_id);
+    if (m_id != 0xffffffff)
+    {
+        m_db_record = m_helper->getItemRecord(m_id);
+    }
+    else
+    {
+        m_db_record = NULL;
+    }
 }
 
 // 0x0000: Item name (maximum length unknown)
@@ -67,15 +74,18 @@ QString item::getName() const
 
     QString name = "";
 
-    quint8 *data = (quint8 *)m_db_record.constData();
-    for (int k=0; k<0x3c; k+=2)
+    if (m_id != 0xffffffff)
     {
-        quint16 c = FORMAT_LE16(data+k);
+        quint8 *data = (quint8 *)m_db_record.constData();
+        for (int k=0; k<0x3c; k+=2)
+        {
+            quint16 c = FORMAT_LE16(data+k);
 
-        if (c == 0)
-            break;
+            if (c == 0)
+                break;
 
-        name += QChar(c);
+            name += QChar(c);
+        }
     }
 
     return name;
@@ -91,9 +101,13 @@ QString item::getDesc() const
 // 0x003e: Type of item
 item::type item::getType() const
 {
-    quint8 *data = (quint8 *)m_db_record.constData();
+    if (m_id != 0xffffffff)
+    {
+        quint8 *data = (quint8 *)m_db_record.constData();
 
-    return (item::type)data[0x3e];
+        return (item::type)data[0x3e];
+    }
+    return item::type::Other;
 }
 QString item::getTypeString() const
 {
@@ -103,28 +117,32 @@ QString item::getTypeString() const
 // 0x003f--0x0040: appearance (icon) of item
 QString item::getStiFile() const
 {
-    quint8 *data = (quint8 *)m_db_record.constData();
+    if (m_id != 0xffffffff)
+    {
+        quint8 *data = (quint8 *)m_db_record.constData();
 
-    int sti_idx = FORMAT_LE16(data+0x3f);
+        int sti_idx = FORMAT_LE16(data+0x3f);
 
-    // The default sti file is item_stis[ sti_idx ]
-    // which comes from a list hardcoded in Wiz.exe itself. There's no
-    // simple way to gather it from the executable at runtime without
-    // tying it to a specific version of the exe, so it's been extracted
-    // for use here.
-    //
-    // The default is not used if an ASCII string at offset 0xcd specifies
-    // something else.
+        // The default sti file is item_stis[ sti_idx ]
+        // which comes from a list hardcoded in Wiz.exe itself. There's no
+        // simple way to gather it from the executable at runtime without
+        // tying it to a specific version of the exe, so it's been extracted
+        // for use here.
+        //
+        // The default is not used if an ASCII string at offset 0xcd specifies
+        // something else.
 
-    if (! data[0xcd])
-        return item_stis[ sti_idx ];
+        if (! data[0xcd])
+            return item_stis[ sti_idx ];
 
-    // This relies on null termination, which may not be valid for longest items,
-    // but it's also the last item I know about in the item database, so if it isn't
-    // null terminated it should fill the remainder of the array completely, and still
-    // work. Issue is that if this isn't the last field...
+        // This relies on null termination, which may not be valid for longest items,
+        // but it's also the last item I know about in the item database, so if it isn't
+        // null terminated it should fill the remainder of the array completely, and still
+        // work. Issue is that if this isn't the last field...
 
-    return QString::fromLatin1((char *)data + 0xcd) + ".sti";
+        return QString::fromLatin1((char *)data + 0xcd) + ".sti";
+    }
+    return "";
 }
 
 // Wizardry 8 bases a number of considerations on the sti_idx in addition
@@ -137,167 +155,183 @@ QString item::getStiFile() const
 // the game.
 bool item::weaponRequiresStrength() const
 {
-    quint8 *data = (quint8 *)m_db_record.constData();
-
-    int sti_idx = FORMAT_LE16(data+0x3f);
-
-    switch (sti_idx)
+    if (m_id != 0xffffffff)
     {
-        case 0x68: // "QuestionMark.sti"
-        case 0x6e: // "QuestionMark.sti"
-        case 0x72: // "Musket.sti"
-        case 0x83: // "Omnigun_1.sti"
-        case 0x90: // "rocketlauncher.sti"
-            return false;
+        quint8 *data = (quint8 *)m_db_record.constData();
+
+        int sti_idx = FORMAT_LE16(data+0x3f);
+
+        switch (sti_idx)
+        {
+            case 0x68: // "QuestionMark.sti"
+            case 0x6e: // "QuestionMark.sti"
+            case 0x72: // "Musket.sti"
+            case 0x83: // "Omnigun_1.sti"
+            case 0x90: // "rocketlauncher.sti"
+                return false;
+        }
+        return true;
     }
-    return true;
+    return false;
 }
 
 bool item::isOmnigun() const
 {
-    quint8 *data = (quint8 *)m_db_record.constData();
-
-    int sti_idx = FORMAT_LE16(data+0x3f);
-
-    switch (sti_idx)
+    if (m_id != 0xffffffff)
     {
-        case 0x83: // "Omnigun_1.sti"
-            return true;
+        quint8 *data = (quint8 *)m_db_record.constData();
+
+        int sti_idx = FORMAT_LE16(data+0x3f);
+
+        switch (sti_idx)
+        {
+            case 0x83: // "Omnigun_1.sti"
+                return true;
+        }
     }
     return false;
 }
 
 bool item::isOneShotMaximum() const
 {
-    quint8 *data = (quint8 *)m_db_record.constData();
-
-    int sti_idx = FORMAT_LE16(data+0x3f);
-
-    switch (sti_idx)
+    if (m_id != 0xffffffff)
     {
-        case 0x90: // "rocketlauncher.sti"
-            return true;
+        quint8 *data = (quint8 *)m_db_record.constData();
+
+        int sti_idx = FORMAT_LE16(data+0x3f);
+
+        switch (sti_idx)
+        {
+            case 0x90: // "rocketlauncher.sti"
+                return true;
+        }
     }
     return false;
 }
 
 bool item::damageComesFromAmmunition() const
 {
-    quint8 *data = (quint8 *)m_db_record.constData();
-
-    int sti_idx = FORMAT_LE16(data+0x3f);
-
-    switch (sti_idx)
+    if (m_id != 0xffffffff)
     {
-        case 0x0b: // "LongBow.sti"
-        case 0x0c: // "Crossbow.sti"
-        case 0x0d: // "Sling.sti"
-        case 0x25: // "GreatBow.sti"
-        case 0x83: // "Omnigun_1.sti"
-            return true;
+        quint8 *data = (quint8 *)m_db_record.constData();
+
+        int sti_idx = FORMAT_LE16(data+0x3f);
+
+        switch (sti_idx)
+        {
+            case 0x0b: // "LongBow.sti"
+            case 0x0c: // "Crossbow.sti"
+            case 0x0d: // "Sling.sti"
+            case 0x25: // "GreatBow.sti"
+            case 0x83: // "Omnigun_1.sti"
+                return true;
+        }
     }
     return false;
 }
 
 bool item::compatibleAmmunition( item ammo ) const
 {
-    quint8 *ranged_data = (quint8 *)m_db_record.constData();
-    quint8 *ammo_data   = (quint8 *)ammo.m_db_record.constData();
-
-    int ranged_sti_idx = FORMAT_LE16(ranged_data+0x3f);
-    int ammo_sti_idx   = FORMAT_LE16(ammo_data+0x3f);
-
-    switch (ranged_sti_idx)
+    if (m_id != 0xffffffff)
     {
-        case 0x0b: // "LongBow.sti"
-        case 0x25: // "GreatBow.sti"
-            if (ammo_sti_idx != 0x16) // "Arrow.sti"
-                return false;
-            return true;
+        quint8 *ranged_data = (quint8 *)m_db_record.constData();
+        quint8 *ammo_data   = (quint8 *)ammo.m_db_record.constData();
 
-        case 0x0d: // "Sling.sti"
-            if (ammo_sti_idx != 0x17) // "SlingShot.sti"
-                return false;
-            return true;
+        int ranged_sti_idx = FORMAT_LE16(ranged_data+0x3f);
+        int ammo_sti_idx   = FORMAT_LE16(ammo_data+0x3f);
 
-        case 0x0c: // "Crossbow.sti"
-            if (ammo_sti_idx != 0x53) // "Quarrel.sti"
-                return false;
-            return true;
-
-        case 0x68: // "QuestionMark.sti"
-        case 0x6E: // "QuestionMark.sti"
-        case 0x72: // "Musket.sti"
+        switch (ranged_sti_idx)
         {
-            item::type t = getType();
+            case 0x0b: // "LongBow.sti"
+            case 0x25: // "GreatBow.sti"
+                if (ammo_sti_idx != 0x16) // "Arrow.sti"
+                    return false;
+                return true;
 
-            if ((t == ShortWeapon)    ||
-                (t == ExtendedWeapon) ||
-                (t == ThrownWeapon)   ||
-                (t == RangedWeapon))
-            {
-                if (getRange() != ammo.getRange())
+            case 0x0d: // "Sling.sti"
+                if (ammo_sti_idx != 0x17) // "SlingShot.sti"
                     return false;
-            }
-            if (ranged_sti_idx == 0x72) // "Musket.sti"
-            {
-                if (ammo_sti_idx != 0x71) // "PowderShot.sti"
+                return true;
+
+            case 0x0c: // "Crossbow.sti"
+                if (ammo_sti_idx != 0x53) // "Quarrel.sti"
                     return false;
-            }
-            else // the 2 question mark weapons
+                return true;
+
+            case 0x68: // "QuestionMark.sti"
+            case 0x6E: // "QuestionMark.sti"
+            case 0x72: // "Musket.sti"
             {
-                if (ammo_sti_idx != 0x84) // "QuestionMark.sti"
-                    return false;
+                item::type t = getType();
+
+                if ((t == ShortWeapon)    ||
+                    (t == ExtendedWeapon) ||
+                    (t == ThrownWeapon)   ||
+                    (t == RangedWeapon))
+                {
+                    if (getRange() != ammo.getRange())
+                        return false;
+                }
+                if (ranged_sti_idx == 0x72) // "Musket.sti"
+                {
+                    if (ammo_sti_idx != 0x71) // "PowderShot.sti"
+                        return false;
+                }
+                else // the 2 question mark weapons
+                {
+                    if (ammo_sti_idx != 0x84) // "QuestionMark.sti"
+                        return false;
+                }
+                return true;
             }
-            return true;
+
+            case 0x83: // "Omnigun_1.sti"
+                // As you can see the omnigun ids are hard-coded so you'll mess up any mod
+                // that tries to allocate other items in this range, or move the omnigun
+                // somewhere else
+                switch (m_id)
+                {
+                    case 0x262:
+                    case 0x261:
+                    case 0x260:
+                    case 0x25f:
+                    case 0x25e:
+                        if ((ammo_sti_idx == 0x16) || // "Arrow.sti"
+                            (ammo_sti_idx == 0x53))   // "Quarrell.sti"
+                        {
+                            return true;
+                        }
+                        // don't break
+
+                    case 0x25d:
+                    case 0x25c:
+                    case 0x25b:
+                    case 0x25a:
+                        if ((ammo_sti_idx == 0x15) || // "Shuriken.sti"
+                            (ammo_sti_idx == 0x72) || // "Shuriken2.sti"
+                           ((ammo_sti_idx == 0x00) && // "Dagger.sti"
+                            (ammo.getType() == item::type::ThrownWeapon)))
+                        {
+                            return true;
+                        }
+                        // don't break
+
+                    case 0x259:
+                    case 0x258:
+                        if  (ammo_sti_idx == 0x70)    // "Dart.sti"
+                            return true;
+                        // don't break
+
+                    case 0x257:
+                        if ((ammo_sti_idx == 0x17) || // "SlingShot.sti"
+                            (ammo_sti_idx == 0x71))   // "PowderShot.sti"
+                        {
+                            return true;
+                        }
+                        return false;
+                }
+                return true;
         }
-
-        case 0x83: // "Omnigun_1.sti"
-            // As you can see the omnigun ids are hard-coded so you'll mess up any mod
-            // that tries to allocate other items in this range, or move the omnigun
-            // somewhere else
-            switch (m_id)
-            {
-                case 0x262:
-                case 0x261:
-                case 0x260:
-                case 0x25f:
-                case 0x25e:
-                    if ((ammo_sti_idx == 0x16) || // "Arrow.sti"
-                        (ammo_sti_idx == 0x53))   // "Quarrell.sti"
-                    {
-                        return true;
-                    }
-                    // don't break
-
-                case 0x25d:
-                case 0x25c:
-                case 0x25b:
-                case 0x25a:
-                    if ((ammo_sti_idx == 0x15) || // "Shuriken.sti"
-                        (ammo_sti_idx == 0x72) || // "Shuriken2.sti"
-                       ((ammo_sti_idx == 0x00) && // "Dagger.sti"
-                        (ammo.getType() == item::type::ThrownWeapon)))
-                    {
-                        return true;
-                    }
-                    // don't break
-
-                case 0x259:
-                case 0x258:
-                    if  (ammo_sti_idx == 0x70)    // "Dart.sti"
-                        return true;
-                    // don't break
-
-                case 0x257:
-                    if ((ammo_sti_idx == 0x17) || // "SlingShot.sti"
-                        (ammo_sti_idx == 0x71))   // "PowderShot.sti"
-                    {
-                        return true;
-                    }
-                    return false;
-            }
-            return true;
     }
     return false;
 }
@@ -330,18 +364,24 @@ bool item::isCriticalItem() const
 */
 bool item::needs2Hands() const
 {
-    quint8 *data = (quint8 *)m_db_record.constData();
+    if (m_id != 0xffffffff)
+    {
+        quint8 *data = (quint8 *)m_db_record.constData();
 
-    if (data[0x41] & 4)
-        return true;
+        if (data[0x41] & 4)
+            return true;
+    }
     return false;
 }
 bool item::canSecondary() const
 {
-    quint8 *data = (quint8 *)m_db_record.constData();
+    if (m_id != 0xffffffff)
+    {
+        quint8 *data = (quint8 *)m_db_record.constData();
 
-    if (data[0x41] & 8)
-        return true;
+        if (data[0x41] & 8)
+            return true;
+    }
     return false;
 }
 /*
@@ -366,9 +406,13 @@ bool item::autoReplenishes() const
 // 0x0042: Spell usage type
 item::spell_usage_type item::getSpellUsageType() const
 {
-    quint8 *data = (quint8 *)m_db_record.constData();
+    if (m_id != 0xffffffff)
+    {
+        quint8 *data = (quint8 *)m_db_record.constData();
 
-    return static_cast<item::spell_usage_type>(data[0x42]);
+        return static_cast<item::spell_usage_type>(data[0x42]);
+    }
+    return item::spell_usage_type::None;
 }
 
 // 0x0043: UNKNOWN
@@ -378,9 +422,13 @@ item::spell_usage_type item::getSpellUsageType() const
 // 0x0046: Usage Skill - ie. the one which makes you better at using it and trains if you use it
 character::skill item::getSkillUsed() const
 {
-    qint8 *data = (qint8 *)m_db_record.constData();
+    if (m_id != 0xffffffff)
+    {
+        qint8 *data = (qint8 *)m_db_record.constData();
 
-    return static_cast<character::skill> (data[0x46]);
+        return static_cast<character::skill> (data[0x46]);
+    }
+    return character::skill::SKILL_NONE;
 }
 QString item::getSkillUsedString() const
 {
@@ -428,9 +476,13 @@ QString item::getSkillUsedString() const
 // 0x0047: Range
 item::range item::getRange() const
 {
-    quint8 *data = (quint8 *)m_db_record.constData();
+    if (m_id != 0xffffffff)
+    {
+        quint8 *data = (quint8 *)m_db_record.constData();
 
-    return (item::range)data[0x47];
+        return (item::range)data[0x47];
+    }
+    return item::range::Short;
 }
 QString item::getRangeString() const
 {
@@ -440,52 +492,63 @@ QString item::getRangeString() const
 // 0x0048: Initiative +/-
 int item::getInitiative() const
 {
-    // Can be negative
-    qint8 *data = (qint8 *)m_db_record.constData();
+    if (m_id != 0xffffffff)
+    {
+        // Can be negative
+        qint8 *data = (qint8 *)m_db_record.constData();
 
-    return (data[0x48]);
+        return (data[0x48]);
+    }
+    return 0;
 }
 
 // 0x0049: ToHit +/-
 int item::getToHit() const
 {
-    // Can be negative
-    qint8 *data = (qint8 *)m_db_record.constData();
+    if (m_id != 0xffffffff)
+    {
+        // Can be negative
+        qint8 *data = (qint8 *)m_db_record.constData();
 
-    return (data[0x49]);
+        return (data[0x49]);
+    }
+    return 0;
 }
 
 // 0x004a--0x004d: Damage (constant + dice)
 void item::getDamage(quint16 *min_damage, quint16 *max_damage, int *percentage) const
 {
-    quint8 *data = (quint8 *)m_db_record.constData();
-
-    quint16 c          = FORMAT_LE16(data+0x4a);
-    quint8  num_dice   = data[0x4c];
-    quint8  dice_sides = data[0x4d];
-
-    if (min_damage)
-        *min_damage = c + num_dice * 1;
-    if (max_damage)
-        *max_damage = c + num_dice * dice_sides;
-
-    // The bows store a percentage in here instead,
-    // eg +10%, +20%, +30%, and they do this by
-    // storing a 1, 2 or 3 in c, and the 0 into
-    // each of num_dice and dice_sides
-
-    if (percentage)
+    if (m_id != 0xffffffff)
     {
-        // Theoretically I guess the percentage could be negative, but
-        // haven't seen this anywhere
-        *percentage = 0;
-        if ((num_dice == 0) && (dice_sides == 0))
+        quint8 *data = (quint8 *)m_db_record.constData();
+
+        quint16 c          = FORMAT_LE16(data+0x4a);
+        quint8  num_dice   = data[0x4c];
+        quint8  dice_sides = data[0x4d];
+
+        if (min_damage)
+            *min_damage = c + num_dice * 1;
+        if (max_damage)
+            *max_damage = c + num_dice * dice_sides;
+
+        // The bows store a percentage in here instead,
+        // eg +10%, +20%, +30%, and they do this by
+        // storing a 1, 2 or 3 in c, and the 0 into
+        // each of num_dice and dice_sides
+
+        if (percentage)
         {
-            *percentage = c * 10;
-            if (min_damage)
-                *min_damage = 0;
-            if (max_damage)
-                *max_damage = 0;
+            // Theoretically I guess the percentage could be negative, but
+            // haven't seen this anywhere
+            *percentage = 0;
+            if ((num_dice == 0) && (dice_sides == 0))
+            {
+                *percentage = c * 10;
+                if (min_damage)
+                    *min_damage = 0;
+                if (max_damage)
+                    *max_damage = 0;
+            }
         }
     }
 }
@@ -493,9 +556,13 @@ void item::getDamage(quint16 *min_damage, quint16 *max_damage, int *percentage) 
 // 0x004e--0x004f: attack types supported
 item::attacks item::getAttacks() const
 {
-    quint8 *data = (quint8 *)m_db_record.constData();
+    if (m_id != 0xffffffff)
+    {
+        quint8 *data = (quint8 *)m_db_record.constData();
 
-    return (item::attacks)FORMAT_LE16(data+0x4e);
+        return (item::attacks)FORMAT_LE16(data+0x4e);
+    }
+    return item::attacks();
 }
 QString item::getAttacksString() const
 {
@@ -533,62 +600,72 @@ QString item::getAttacksString() const
 // 0x0060: Poison Strength
 item::special_attacks item::getSpecialAttack() const
 {
-    quint8 *data = (quint8 *)m_db_record.constData();
     item::special_attacks list = {};
 
-    if (data[0x50])
-        list |= special_attack::Sleep;
-    if (data[0x51])
-        list |= special_attack::Paralyze;
-    if (data[0x52])
-        list |= special_attack::Poison;
-    if (data[0x53])
-        list |= special_attack::Hex;
-    if (data[0x54])
-        list |= special_attack::Disease;
-    if (data[0x55])
-        list |= special_attack::Kill;
-    if (data[0x56])
-        list |= special_attack::KO;
-    if (data[0x57])
-        list |= special_attack::Blind;
-    if (data[0x58])
-        list |= special_attack::Frighten;
-    if (data[0x59])
-        list |= special_attack::Swallow;
-    if (data[0x5a])
-        list |= special_attack::Possess;
-    if (data[0x5b])
-        list |= special_attack::DrainHP;
-    if (data[0x5c])
-        list |= special_attack::DrainStamina;
-    if (data[0x5d])
-        list |= special_attack::DrainSP;
-    if (data[0x5e])
-        list |= special_attack::Nauseate;
-    if (data[0x5f])
-        list |= special_attack::Insane;
+    if (m_id != 0xffffffff)
+    {
+        quint8 *data = (quint8 *)m_db_record.constData();
 
+        if (data[0x50])
+            list |= special_attack::Sleep;
+        if (data[0x51])
+            list |= special_attack::Paralyze;
+        if (data[0x52])
+            list |= special_attack::Poison;
+        if (data[0x53])
+            list |= special_attack::Hex;
+        if (data[0x54])
+            list |= special_attack::Disease;
+        if (data[0x55])
+            list |= special_attack::Kill;
+        if (data[0x56])
+            list |= special_attack::KO;
+        if (data[0x57])
+            list |= special_attack::Blind;
+        if (data[0x58])
+            list |= special_attack::Frighten;
+        if (data[0x59])
+            list |= special_attack::Swallow;
+        if (data[0x5a])
+            list |= special_attack::Possess;
+        if (data[0x5b])
+            list |= special_attack::DrainHP;
+        if (data[0x5c])
+            list |= special_attack::DrainStamina;
+        if (data[0x5d])
+            list |= special_attack::DrainSP;
+        if (data[0x5e])
+            list |= special_attack::Nauseate;
+        if (data[0x5f])
+            list |= special_attack::Insane;
+    }
     return list;
 }
 int item::getPercentageChance(item::special_attack a) const
 {
-    quint8 *data = (quint8 *)m_db_record.constData();
-
-    QMetaEnum metaAttack = QMetaEnum::fromType<item::special_attack>();
-
-    for (int k=0; k<metaAttack.keyCount(); k++)
+    if (m_id != 0xffffffff)
     {
-        if (a == metaAttack.value(k))
-            return data[0x50 + k];
+        quint8 *data = (quint8 *)m_db_record.constData();
+
+        QMetaEnum metaAttack = QMetaEnum::fromType<item::special_attack>();
+
+        for (int k=0; k<metaAttack.keyCount(); k++)
+        {
+            if (a == metaAttack.value(k))
+                return data[0x50 + k];
+        }
     }
     return -1;
 }
 int item::getPoisonStrength() const
 {
-    quint8 *data = (quint8 *)m_db_record.constData();
+    if (m_id != 0xffffffff)
+    {
+        quint8 *data = (quint8 *)m_db_record.constData();
 
-    return data[0x50];
+        return data[0x50];
+    }
+    return 0;
 }
 QString item::getSpecialAttackString() const
 {
@@ -616,9 +693,13 @@ QString item::getSpecialAttackString() const
 // 0x0061: Slays (item::slays)
 item::slays item::getSlays() const
 {
-    quint8 *data = (quint8 *)m_db_record.constData();
+    if (m_id != 0xffffffff)
+    {
+        quint8 *data = (quint8 *)m_db_record.constData();
 
-    return (item::slays) data[0x61];
+        return (item::slays) data[0x61];
+    }
+    return item::slays::None;
 }
 QString item::getSlaysString() const
 {
@@ -633,24 +714,32 @@ QString item::getSlaysString() const
 // 0x0062: Armor Class
 int item::getAC() const
 {
-    // Can be negative
-    qint8 *data = (qint8 *)m_db_record.constData();
+    if (m_id != 0xffffffff)
+    {
+        // Can be negative
+        qint8 *data = (qint8 *)m_db_record.constData();
 
-    return data[0x62];
+        return data[0x62];
+    }
+    return 0;
 }
 
 // 0x0063: Contains Spell (0x00 = None)
 // 0x0064: Spell Power
 const spell item::getSpell(int *power) const
 {
-    quint8 *data = (quint8 *)m_db_record.constData();
+    if (m_id != 0xffffffff)
+    {
+        quint8 *data = (quint8 *)m_db_record.constData();
 
-    int spell_id = data[0x63];
+        int spell_id = data[0x63];
 
-    if ((spell_id != 0 /* None */) && (power != NULL))
-        *power = (int)data[0x64];
+        if ((spell_id != 0 /* None */) && (power != NULL))
+            *power = (int)data[0x64];
 
-    return spell(spell_id);
+        return spell(spell_id);
+    }
+    return spell();
 }
 // 0x0065: UNKNOWN
 
@@ -661,37 +750,49 @@ const spell item::getSpell(int *power) const
 //         has shots = 0x04
 bool item::isStackable() const
 {
-    quint8 *data = (quint8 *)m_db_record.constData();
+    if (m_id != 0xffffffff)
+    {
+        quint8 *data = (quint8 *)m_db_record.constData();
 
-    if (data[0x66] == 0x01)
-        return true;
+        if (data[0x66] == 0x01)
+            return true;
+    }
 
     return false;
 }
 bool item::hasCharges() const
 {
-    quint8 *data = (quint8 *)m_db_record.constData();
+    if (m_id != 0xffffffff)
+    {
+        quint8 *data = (quint8 *)m_db_record.constData();
 
-    if (data[0x66] == 0x02)
-        return true;
+        if (data[0x66] == 0x02)
+            return true;
+    }
 
     return false;
 }
 bool item::hasUses() const
 {
-    quint8 *data = (quint8 *)m_db_record.constData();
+    if (m_id != 0xffffffff)
+    {
+        quint8 *data = (quint8 *)m_db_record.constData();
 
-    if (data[0x66] == 0x03)
-        return true;
+        if (data[0x66] == 0x03)
+            return true;
+    }
 
     return false;
 }
 bool item::hasShots() const
 {
-    quint8 *data = (quint8 *)m_db_record.constData();
+    if (m_id != 0xffffffff)
+    {
+        quint8 *data = (quint8 *)m_db_record.constData();
 
-    if (data[0x66] == 0x04)
-        return true;
+        if (data[0x66] == 0x04)
+            return true;
+    }
 
     return false;
 }
@@ -699,53 +800,73 @@ bool item::hasShots() const
 // 0x0067-0x006a: charges for spell in item (constant + dice) - found quantity
 int item::getMaxCharges() const
 {
-    quint8 *data = (quint8 *)m_db_record.constData();
+    if (m_id != 0xffffffff)
+    {
+        quint8 *data = (quint8 *)m_db_record.constData();
 
-    quint16 c          = FORMAT_LE16(data+0x67);
-    quint8  num_dice   = data[0x69];
-    quint8  dice_sides = data[0x6a];
+        quint16 c          = FORMAT_LE16(data+0x67);
+        quint8  num_dice   = data[0x69];
+        quint8  dice_sides = data[0x6a];
 
-    //min_charges = c + num_dice * 1;
-    //max_charges = c + num_dice * dice_sides;
+        //min_charges = c + num_dice * 1;
+        //max_charges = c + num_dice * dice_sides;
 
-    // We only want the maximum
-    return (c + num_dice * dice_sides);
+        // We only want the maximum
+        return (c + num_dice * dice_sides);
+    }
+    return 0;
 }
 
 
 // 0x006b: Max in stack
 quint8 item::getMaxStackSize() const
 {
-    quint8 *data = (quint8 *)m_db_record.constData();
+    if (m_id != 0xffffffff)
+    {
+        quint8 *data = (quint8 *)m_db_record.constData();
 
-    return data[0x6b];
+        return data[0x6b];
+    }
+    return 0;
 }
 
 // 0x006c: HP Regen
 int item::getHPRegen() const
 {
-    // Can be negative
-    qint8 *data = (qint8 *)m_db_record.constData();
+    if (m_id != 0xffffffff)
+    {
+        // Can be negative
+        qint8 *data = (qint8 *)m_db_record.constData();
 
-    return (int)data[0x6c];
+        return (int)data[0x6c];
+    }
+    return 0;
 }
 
 // 0x006d: Stamina Regen
 int item::getStaminaRegen() const
 {
-    // Can be negative
-    qint8 *data = (qint8 *)m_db_record.constData();
+    if (m_id != 0xffffffff)
+    {
+        // Can be negative
+        qint8 *data = (qint8 *)m_db_record.constData();
 
-    return (int)data[0x6d];
+        return (int)data[0x6d];
+    }
+    return 0;
 }
 
 // 0x006e: Spell Points Regen
 int item::getSPRegen() const
 {
-    // Can be negative
-    qint8 *data = (qint8 *)m_db_record.constData();
+    if (m_id != 0xffffffff)
+    {
+        // Can be negative
+        qint8 *data = (qint8 *)m_db_record.constData();
 
-    return (int)data[0x6e];
+        return (int)data[0x6e];
+    }
+    return 0;
 }
 
 // 0x006f: Fire Resistance Percent
@@ -756,40 +877,49 @@ int item::getSPRegen() const
 // 0x0074: Divine Resistance Percent
 bool item::getResistance(int *fire, int *water, int *air, int *earth, int *mental, int *divine) const
 {
-    qint8 *data = (qint8 *)m_db_record.constData();
-
-    if ((data[0x6f] == 0) &&
-        (data[0x70] == 0) &&
-        (data[0x71] == 0) &&
-        (data[0x72] == 0) &&
-        (data[0x73] == 0) &&
-        (data[0x74] == 0))
+    if (m_id != 0xffffffff)
     {
-        return false;
+        qint8 *data = (qint8 *)m_db_record.constData();
+
+        if ((data[0x6f] == 0) &&
+            (data[0x70] == 0) &&
+            (data[0x71] == 0) &&
+            (data[0x72] == 0) &&
+            (data[0x73] == 0) &&
+            (data[0x74] == 0))
+        {
+            return false;
+        }
+
+        if (fire)
+            *fire = data[0x6f];
+        if (water)
+            *water = data[0x70];
+        if (air)
+            *air = data[0x71];
+        if (earth)
+            *earth = data[0x72];
+        if (mental)
+            *mental = data[0x73];
+        if (divine)
+            *divine = data[0x74];
+
+        return true;
     }
 
-    if (fire)
-        *fire = data[0x6f];
-    if (water)
-        *water = data[0x70];
-    if (air)
-        *air = data[0x71];
-    if (earth)
-        *earth = data[0x72];
-    if (mental)
-        *mental = data[0x73];
-    if (divine)
-        *divine = data[0x74];
-
-    return true;
+    return false;
 }
 
 // 0x0075: Armor Weight Class
 item::weight item::getArmorWeightClass() const
 {
-    quint8 *data = (quint8 *)m_db_record.constData();
+    if (m_id != 0xffffffff)
+    {
+        quint8 *data = (quint8 *)m_db_record.constData();
 
-    return (item::weight) data[0x75];
+        return (item::weight) data[0x75];
+    }
+    return item::weight::None;
 }
 QString item::getArmorWeightClassString() const
 {
@@ -805,9 +935,13 @@ QString item::getArmorWeightClassString() const
 // 0x0076: usable by professions
 character::professions item::getUsableProfessions() const
 {
-    quint8 *data = (quint8 *)m_db_record.constData();
+    if (m_id != 0xffffffff)
+    {
+        quint8 *data = (quint8 *)m_db_record.constData();
 
-    return (character::professions) FORMAT_LE16(data + 0x76);
+        return (character::professions) FORMAT_LE16(data + 0x76);
+    }
+    return character::professions();
 }
 
 // 0x0077: UNKNOWN
@@ -815,9 +949,13 @@ character::professions item::getUsableProfessions() const
 // 0x0078: usable by races
 character::races item::getUsableRaces() const
 {
-    quint8 *data = (quint8 *)m_db_record.constData();
+    if (m_id != 0xffffffff)
+    {
+        quint8 *data = (quint8 *)m_db_record.constData();
 
-    return (character::races) FORMAT_LE16(data + 0x78);
+        return (character::races) FORMAT_LE16(data + 0x78);
+    }
+    return character::races();
 }
 
 // 0x0079: UNKNOWN
@@ -827,19 +965,26 @@ character::races item::getUsableRaces() const
 // 0x007c: usable by gender
 character::genders item::getUsableGenders() const
 {
-    quint8 *data = (quint8 *)m_db_record.constData();
+    if (m_id != 0xffffffff)
+    {
+        quint8 *data = (quint8 *)m_db_record.constData();
 
-    return (character::genders) data[0x7c];
+        return (character::genders) data[0x7c];
+    }
+    return character::genders();
 }
 
 // 0x007d--0x007e: requires attrib (STR INT PIE VIT DEX SPD SEN) at level %d
 // 0x007f--0x0080: requires attrib (STR INT PIE VIT DEX SPD SEN) at level %d
 void item::getRequiredAttrib(int idx, character::attribute *attrib, qint32 *value) const
 {
-    qint8   *data = (qint8 *)m_db_record.constData();
+    if (m_id != 0xffffffff)
+    {
+        qint8   *data = (qint8 *)m_db_record.constData();
 
-    *attrib = static_cast<character::attribute> (data[0x7d + 2 * idx]);
-    *value  = (qint32)data[0x7e + 2 * idx];
+        *attrib = static_cast<character::attribute> (data[0x7d + 2 * idx]);
+        *value  = (qint32)data[0x7e + 2 * idx];
+    }
 }
 
 QString item::getRequiredAttribsString() const
@@ -870,10 +1015,13 @@ QString item::getRequiredAttribsString() const
 // 0x0083--0x0084: requires skill (character::skill) at level %d
 void item::getRequiredSkill(int idx, character::skill *skill, qint32 *value) const
 {
-    qint8   *data = (qint8 *)m_db_record.constData();
+    if (m_id != 0xffffffff)
+    {
+        qint8   *data = (qint8 *)m_db_record.constData();
 
-    *skill = static_cast<character::skill> (data[0x81 + 2 * idx]);
-    *value = (qint32)data[0x82 + 2 * idx];
+        *skill = static_cast<character::skill> (data[0x81 + 2 * idx]);
+        *value = (qint32)data[0x82 + 2 * idx];
+    }
 }
 
 QString item::getRequiredSkillsString() const
@@ -1029,49 +1177,63 @@ QString item::getRequiredSkillsString() const
 //   20:  Artifacts 120;  Identify 7
 void item::getIdentificationRequirement(int *artifacts, int *spell) const
 {
-    quint8 *data = (quint8 *)m_db_record.constData();
-
-    int id = (int)data[0x0085];
-
-    if (artifacts != NULL)
+    if (m_id != 0xffffffff)
     {
-        if (id == 1)
-            *artifacts = 1;
-        else
-            *artifacts = 6 * id;
-    }
+        quint8 *data = (quint8 *)m_db_record.constData();
 
-    if (spell != NULL)
-    {
-        *spell = (id + 2) / 3;
-        if (*spell == 0)
-            *spell = 1;
+        int id = (int)data[0x0085];
+
+        if (artifacts != NULL)
+        {
+            if (id == 1)
+                *artifacts = 1;
+            else
+                *artifacts = 6 * id;
+        }
+
+        if (spell != NULL)
+        {
+            *spell = (id + 2) / 3;
+            if (*spell == 0)
+                *spell = 1;
+        }
     }
 }
 
 // 0x0086--0x0089: Price
 quint32 item::getPrice() const
 {
-    quint8 *data = (quint8 *)m_db_record.constData();
+    if (m_id != 0xffffffff)
+    {
+        quint8 *data = (quint8 *)m_db_record.constData();
 
-    return FORMAT_LE32(data+0x86);
+        return FORMAT_LE32(data+0x86);
+    }
+    return 0;
 }
 
 // 0x008a--0x008b: Weight in pounds
 double item::getWeight() const
 {
-    quint8 *data = (quint8 *)m_db_record.constData();
+    if (m_id != 0xffffffff)
+    {
+        quint8 *data = (quint8 *)m_db_record.constData();
 
-    return (double)(FORMAT_LE16(data+0x8a)) / 10.0;
+        return (double)(FORMAT_LE16(data+0x8a)) / 10.0;
+    }
+    return 0.0;
 }
 
 // 0x008c: cursed = 0x01, normal = 0x00 - no other values used
 bool item::isCursed() const
 {
-    quint8 *data = (quint8 *)m_db_record.constData();
+    if (m_id != 0xffffffff)
+    {
+        quint8 *data = (quint8 *)m_db_record.constData();
 
-    if (data[0x8c] == 1)
-        return true;
+        if (data[0x8c] == 1)
+            return true;
+    }
     return false;
 }
 
@@ -1080,10 +1242,14 @@ bool item::isCursed() const
 // 0x00ad: bonus number of swings
 int item::getBonusSwings() const
 {
-    // Can be negative
-    qint8 *data = (qint8 *)m_db_record.constData();
+    if (m_id != 0xffffffff)
+    {
+        // Can be negative
+        qint8 *data = (qint8 *)m_db_record.constData();
 
-    return (int) data[0xad];
+        return (int) data[0xad];
+    }
+    return 0;
 }
 
 // 0x00ae--0x00b0: UNKNOWN
@@ -1091,29 +1257,37 @@ int item::getBonusSwings() const
 // 0x00b1--0x00b2: skill (character::skill) bonus/penalty +/-
 character::skill item::getSkillBonus( int *bonus ) const
 {
-    qint8 *data = (qint8 *)m_db_record.constData();
+    if (m_id != 0xffffffff)
+    {
+        qint8 *data = (qint8 *)m_db_record.constData();
 
-    // Can be negative - we can't cast the data pointer above
-    // because it interferes with the static cast below if it
-    // isn't unsigned
-    if (bonus)
-        *bonus = (int)data[0xb2];
+        // Can be negative - we can't cast the data pointer above
+        // because it interferes with the static cast below if it
+        // isn't unsigned
+        if (bonus)
+            *bonus = (int)data[0xb2];
 
-    return static_cast<character::skill>(data[0xb1]);
+        return static_cast<character::skill>(data[0xb1]);
+    }
+    return character::skill::SKILL_NONE;
 }
 
 // 0x00b3--0x00b4: attrib (STR INT PIE VIT DEX SPD SEN) bonus/penalty +/-
 character::attribute item::getAttributeBonus( int *bonus ) const
 {
-    qint8 *data = (qint8 *)m_db_record.constData();
+    if (m_id != 0xffffffff)
+    {
+        qint8 *data = (qint8 *)m_db_record.constData();
 
-    // Can be negative - we can't cast the data pointer above
-    // because it interferes with the static cast below if it
-    // isn't unsigned
-    if (bonus)
-        *bonus = (int)data[0xb4];
+        // Can be negative - we can't cast the data pointer above
+        // because it interferes with the static cast below if it
+        // isn't unsigned
+        if (bonus)
+            *bonus = (int)data[0xb4];
 
-    return static_cast<character::attribute>(data[0xb3]);
+        return static_cast<character::attribute>(data[0xb3]);
+    }
+    return character::attribute::ATTRIBUTE_NONE;
 }
 
 quint32 item::getId() const

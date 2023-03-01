@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2023 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -225,6 +225,22 @@ const QString StringList::getString( int idx ) const
                 break;
             case Stackable:
                 s = QObject::tr("Stackable");
+                break;
+
+            case OpenNavigator:
+                s = QObject::tr("Open Navigator");
+                break;
+            case Position:
+                s = QObject::tr("Position");
+                break;
+            case Heading:
+                s = QObject::tr("Heading");
+                break;
+            case MapWarning:
+                s = QObject::tr("Current position can only be changed to maps already visited.");
+                break;
+            case PortalEnabled:
+                s = QObject::tr("Portal Enabled");
                 break;
         }
     }

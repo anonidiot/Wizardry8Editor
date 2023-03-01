@@ -48,7 +48,8 @@
 // They may not work on other versions
 #define ENG_WIZARDRY_124_EXE_SIZE   3580513
 
-int apply_pickpocket_patch( quint8 *data );
+int apply_pickpocket_v2_patch( quint8 *data );
+int apply_greedy_pickpocket_patch( quint8 *data );
 int apply_levelsensor_patch( quint8 *data );
 int apply_chestreset_patch( quint8 *data );
 int apply_hacksav_patch( quint8 *data );
@@ -60,9 +61,13 @@ struct patch
     int         (*function)(quint8 *);
 };
 
+// The scroll list is going to sort the patches, but patches will always be applied in the order listed here
+// The greedy pickpocket patch for instance needs to be applied after pickpocket restore, in case the v1 of
+// that patch had to be reversed
 struct patch known_patches[] =
 {
-    { "Pickpocket restore",     "Removes the XP-based random set-seed functionality, which restores the more random pickpocket behaviour from the 1.0 version of the game. Pickpocketing can be significantly easier. Doesn't affect the more limited number of items pickpocketable from a single character also introduced in 1.24.", &apply_pickpocket_patch },
+    { "Pickpocket restore (v2)",     "Removes the XP-based random set-seed functionality, which restores the more random pickpocket behaviour from the 1.0 version of the game. Pickpocketing can be significantly easier. Doesn't affect the more limited number of items pickpocketable from a single character also introduced in 1.24.", &apply_pickpocket_v2_patch },
+    { "Greedy Pickpocket",      "Removes the escalating difficulty of pickpocketing more and more items from a character to match the 1.0 version behaviour. With patience and much saving around 40 items can be stolen from an individual NPC. Doesn't alter the item seed based on XP.", &apply_greedy_pickpocket_patch },
     { "Disable Level Sensor on Treasure",     "Disables the level sensor check on treasure chests and item drops from monsters, but retains it for random attack encounters.", &apply_levelsensor_patch },
     { "Randomise Chests on first Open",     "Determine treasure chest contents when first opened, not when level first entered.", &apply_chestreset_patch },
     { "NEW Savegame support",   "Patches the game so it can recognise SAV game files without ANY level info (such as the ones produced by this editor when creating a NEW file). Such games only need the patch to load the first time, if they are resaved afterwards they become a regular save game and can be played in unpatched versions of the game also.", &apply_hacksav_patch }
@@ -282,6 +287,9 @@ void DialogPatchExe::patchAway(bool)
     if (saveFile.isEmpty())
         return;
 
+    if (! saveFile.endsWith(".EXE", Qt::CaseInsensitive))
+        saveFile += ".EXE";
+
     QFile dst(saveFile);
 
     if (! dst.open(QFile::WriteOnly))
@@ -297,15 +305,26 @@ void DialogPatchExe::patchAway(bool)
         int num_items = sizeof(known_patches) / sizeof(struct patch);
         for (int k=0; k<num_items; k++)
         {
-            if (patches->item(k)->checkState() == Qt::Checked)
-            {
-                int patch_id = patches->item(k)->data( Qt::UserRole ).toInt();
+            bool apply = false;
 
-                int rv = known_patches[ patch_id ].function( (quint8 *) data.data() );
+            for (int j=0; j<num_items; j++)
+            {
+                if (k == patches->item(j)->data( Qt::UserRole ).toInt())
+                {
+                    if (patches->item(j)->checkState() == Qt::Checked)
+                    {
+                        apply = true;
+                    }
+                    break;
+                }
+            }
+            if (apply)
+            {
+                int rv = known_patches[ k ].function( (quint8 *) data.data() );
                 if (rv != 0)
                 {
                     QMessageBox::warning(this, tr("Patch Application Error"),
-                        tr("A failure occured applying the '%1' patch. This exe may already be patched for this.").arg( tr(known_patches[ patch_id ].name) ));
+                        tr("A failure occured applying the '%1' patch. This exe may already be patched for this.").arg( tr(known_patches[ k ].name) ));
 
                     dst.close();
                     dst.remove();
@@ -323,11 +342,42 @@ void DialogPatchExe::patchAway(bool)
     close();
 }
 
-int apply_pickpocket_patch( quint8 *data )
+int apply_pickpocket_v2_patch( quint8 *data )
 {
-    // Yes this is an overly simplistic test for patch application
-    if (data[0x10bcdd] == 0x83)
-        return -1; // Patch already applied
+    // Test for a change made in the Version 1 patch we want to revert
+    if (data[0x0010be7b] == 0x3c)
+    {
+        // Reverse the changes from Version 1 we're not keeping
+        struct patch_detail p[] =
+        {
+            // Moved into Greedy pickpocket patch now; if Greedy patch is
+            // being applied in the same batch, it will redo this AFTER we
+            // revert it here.
+            { 0x0010be3d,   4, "\x3c\x64\x7d\x08" },
+            { 0x0010c0ea,   4, "\x3c\x64\x7d\x08" },
+
+            // These byte ranges were restoring the logic from v1.0 of Wizardry, but
+            // I think doing that was actually reversing 2 bugfixes corrected in v1.24:
+            // one for giving a "failed" message instead of being so heavy on the
+            // "nothing left to steal", and one to stop a 2nd level of item indirection
+            // that isn't necessary, and restricts the actual items available.
+
+            { 0x0010be7b,   1, "\xcf" },
+            { 0x0010be89,   6, "\x8b\x44\x24\x28\x85\xc0" },
+            { 0x0010be97,   2, "\x75\x22" },
+            { 0x0010bebb,   2, "\x8b\x44" },
+            { 0x0010bebe,  16, "\x30\x50\xe8\x4b\x5d\x0d\x00\x83\xc4\x04\x5f\x5e\x5d\xb0\x02\x5b" },
+            { 0x0010becf,   5, "\x4c\x24\x24\x64\x89" },
+        };
+
+        for (unsigned long j=0; j < sizeof(p) / sizeof(p[0]); j++)
+        {
+            for (int k=0; k < p[j].cnt; k++)
+            {
+                data[ p[j].offset + k ] = p[j].bytes[k];
+            }
+        }
+    }
 
     memset( data + 0x0010bcec, 0x90, 120 );
     memset( data + 0x0010c04c, 0x90, 125 );
@@ -336,13 +386,30 @@ int apply_pickpocket_patch( quint8 *data )
     {
         { 0x0010bcdd,  11, "\x83\xc4\x04\x89\x6c\x24\x3c\xc7\x44\x24\x14" },
         { 0x0010bcea,   2, "\xff\xff" },
+    };
+
+    for (unsigned long j=0; j < sizeof(p) / sizeof(p[0]); j++)
+    {
+        for (int k=0; k < p[j].cnt; k++)
+        {
+            data[ p[j].offset + k ] = p[j].bytes[k];
+        }
+    }
+    return 0;
+}
+
+int apply_greedy_pickpocket_patch( quint8 *data )
+{
+    if ((data[0x16d0a8] == 0x90) && (data[0x16d0a9] == 0x90))
+        return -1; // Patch already applied
+
+    struct patch_detail p[] =
+    {
+        { 0x0016d0a8,   2, "\x90\x90" },
+
+        // These bits used to be part of the v1 Pickpocket patch.
+        // It is more appropriate here to be enabled if Greed is active
         { 0x0010be3d,   4, "\x90\x90\x90\x90" },
-        { 0x0010be7b,   1, "\x3c" },
-        { 0x0010be89,   6, "\x90\x90\x90\x90\x90\x90" },
-        { 0x0010be97,   2, "\x90\x90" },
-        { 0x0010bebb,   2, "\x3b\x74" },
-        { 0x0010bebe,  16, "\x28\x7d\x09\x8b\x54\x24\x30\x8d\x04\xb2\xeb\x04\x8b\x44\x24\x30" },
-        { 0x0010becf,   5, "\x30\xeb\x7c\x90\x90" },
         { 0x0010c0ea,   4, "\x90\x90\x90\x90" },
     };
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2023 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -37,9 +37,6 @@ class QMenu;
 class QWidget;
 QT_END_NAMESPACE
 
-class WindowDroppedItems;
-class WindowItemsList;
-class WindowFactEditor;
 class RIFFFile;
 class party;
 class character;
@@ -103,8 +100,10 @@ private slots:
     void droppedItems();
     void findItems();
     void factEditor();
+    void currentPosition();
     void patchExe();
     void about();
+    void aboutUrho3D();
 
 private:
     QByteArray makeSnapshot( wiz7_end clip_id );
@@ -132,16 +131,18 @@ private:
     QAction *droppedItemsAct;
     QAction *findItemsAct;
     QAction *factEditorAct;
+    QAction *currPosAct;
     QAction *patchAct;
     QAction *aboutAct;
     QAction *aboutQtAct;
+    QAction *aboutUrhoAct;
     QLabel *infoLabel;
 
     QWidget   *m_contentWidget;
 
-    WindowDroppedItems *m_droppedItems;
-    WindowItemsList    *m_findItems;
-    WindowFactEditor   *m_factEditor;
+    QWidget   *m_droppedItems;
+    QWidget   *m_findItems;
+    QWidget   *m_factEditor;
 
     RIFFFile  *m_loadedGame;
     party     *m_party;

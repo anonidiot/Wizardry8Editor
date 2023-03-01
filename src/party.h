@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2023 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -73,6 +73,9 @@ public:
     quint32    getGold() const;
     void       setGold(quint32 gold);
 
+    QVector<qint32> getVisitedMaps();
+    void            setVisitedMaps(QVector<qint32> maps);
+
     void       resetCharacterColors();
     void       divvyUpPartyWeight();
     double     getLoad() const;
@@ -80,6 +83,13 @@ public:
     void       deleteItem(int idx);
     item       getItem(int idx) const;
     int        getItemCount() const;
+
+    qint32     getMapId() const;
+    void       getPosition(float *x, float *y, float *z) const;
+    float      getHeading() const;
+    void       setMapId(qint32 mapId);
+    void       setPosition(float x, float y, float z);
+    void       setHeading(float heading);
 
     void       setFilter(quint32 filter);
 
@@ -105,6 +115,12 @@ private:
     QByteArray        m_data;
 
     quint32           m_gold;
+
+    QVector<qint32>   m_maps;
+
+    qint32            m_mapId;
+    float             m_position[3];
+    float             m_heading;
 
     QList<item>       m_items;
     quint32           m_filter;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2023 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,6 +23,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <QBitmap>
 #include <QByteArray>
 #include <QMouseEvent>
 #include <QPainter>
@@ -106,6 +107,40 @@ WImage::WImage(QString file, int image_idx, int crop_left, int crop_top, int cro
     }
 
     m_crop = QRect( crop_left, crop_top, crop_width, crop_height );
+}
+
+WImage::WImage(QString file, int image_idx, QColor transparentColor, double extraScale, QWidget* parent, Qt::WindowFlags)
+    : QWidget(parent),
+    Wizardry8Scalable(1.0),
+    m_xScale(1.0),
+    m_yScale(1.0),
+    m_mouseInLabel(false),
+    m_stiImages(NULL),
+    m_crop()
+{
+    // Base class variables can't be initialized in the defaults bit above
+    m_extraScale = extraScale;
+
+    if (Wizardry8Scalable *w = dynamic_cast<Wizardry8Scalable *>(parent))
+    {
+        Wizardry8Scalable::setScale( w->getScale() * extraScale );
+    }
+
+    if (file.endsWith(".PNG", Qt::CaseInsensitive))
+    {
+        setImageFile( file, "PNG" );
+    }
+    else if (file.endsWith(".TGA", Qt::CaseInsensitive))
+    {
+        setTargaFile( file );
+    }
+    else
+    {
+        setStiFile( file, image_idx );
+    }
+
+    QBitmap mask = m_pixmap.createMaskFromColor( transparentColor, Qt::MaskInColor );
+    m_pixmap.setMask( mask );
 }
 
 WImage::WImage(QPixmap &pix, QWidget* parent, Qt::WindowFlags)

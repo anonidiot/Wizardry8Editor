@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 Anonymous Idiot
+ * Copyright (C) 2023 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,48 +23,37 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef COMMON_H__
-#define COMMON_H__
+#ifndef SLFDESERIALIZER_H__
+#define SLFDESERIALIZER_H__
 
-#include <QtGlobal>
+#include "Urho3D/IO/Deserializer.h"
+#include "SLFFile.h"
 
-#include <assert.h>
-
-#if Q_ASSERT_IS_BROKEN
- #include <assert.h>
- #undef Q_ASSERT
- #define Q_ASSERT assert
-#endif
-
-union itof
+class SLFDeserializer : public Urho3D::Deserializer
 {
-    float  a;
-    qint32 b;
+public:
+    SLFDeserializer(SLFFile &slf);
+    ~SLFDeserializer();
+
+    /// Read bytes from the stream. Return number of bytes actually read.
+    unsigned Read(void* dest, unsigned size) override;
+    /// Set position from the beginning of the stream. Return actual new position.
+    unsigned Seek(unsigned position) override;
+    /// Change the file name. Used by the resource system.
+    /// @property
+    virtual void SetName(const Urho3D::String& name) { name_ = name; }
+    /// Return the file name.
+    const Urho3D::String& GetName() const override { return name_; }
+    /// Return a checksum of the file contents using the SDBM hash algorithm.
+    unsigned GetChecksum() override;
+
+protected:
+    /// File name.
+   Urho3D::String    name_;
+
+private:
+    SLFFile         &slf_;
+    unsigned         checksum_;
+    bool             checksumDone_;
 };
-
-#define FORMAT_8(X)      ((*(X+0)<<0))
-#define FORMAT_LE16(X)   ((*(X+0)<<0) | (*(X+1)<<8))
-#define FORMAT_LE32(X)   ((*(X+0)<<0) | (*(X+1)<<8) | (*(X+2)<<16) | (*(X+3)<<24))
-// This is a GCC specific macro
-#define FORMAT_FLOAT(X)  ({ union itof z; z.b = FORMAT_LE32(X); z.a; })
-
-#define ASSIGN_LE8(X,V)  { *(X+0) = ((V & 0xff) >>  0); }
-#define ASSIGN_LE16(X,V) { *(X+0) = ((V & 0x00ff) >>  0); \
-                           *(X+1) = ((V & 0xff00) >>  8); }
-#define ASSIGN_LE32(X,V) { *(X+0) = ((V & 0x000000ff) >>  0); \
-                           *(X+1) = ((V & 0x0000ff00) >>  8); \
-                           *(X+2) = ((V & 0x00ff0000) >> 16); \
-                           *(X+3) = ((V & 0xff000000) >> 24); }
-#define ASSIGN_FLOAT(X,V)  do { union itof z; z.a = (V); ASSIGN_LE32(X,z.b); } while (0)
-
-// In QImage
-#if QT_VERSION < QT_VERSION_CHECK(5, 10, 0)
- #define sizeInBytes byteCount
-#endif
-
-// In QList
-#if QT_VERSION < QT_VERSION_CHECK(5, 13, 0)
- #define swapItemsAt swap
-#endif
-
-#endif /* COMMON_H__ */
+#endif /* SLFDESERIALIZER_H__ */

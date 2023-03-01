@@ -1,3 +1,14 @@
+0.1.6
+FEATURE: Integrate Urho3D Engine to support position navigation
+FEATURE: New dialogbox about Urho3D engine
+FEATURE: Allow current party position to be changed either numerically or
+using a level/map navigator
+FEATURE: Ditto for the individual character portal locations
+FEATURE: Greedy Pickpocket patch to allow the same huge number of pickpockets
+as in the 1.0 game.
+BUGFIX:  Allow primary attributes to range up to 125 also.
+BUGFIX:  Fix occasional core dump on adding a new item.
+
 0.1.5
 FEATURE: Patch to randomise treasure chests on first open, not seed them at
 level entry

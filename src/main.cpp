@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2023 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -50,6 +50,8 @@
 #include "main.h"
 #include "bspatch.h"
 #include "facts.h"
+
+#include <Urho3D/IO/File.h>
 
 StringList *wiz8Strings = NULL;
 
@@ -143,6 +145,90 @@ bool setupWizardryPath(bool reset)
         if (wizardry_path.isEmpty())
             return false;
     }
+}
+
+    void *_open(const char *pathname, Urho3D::FileMode /* mode */)
+    {
+        QIODevice::OpenMode qt_mode = QIODevice::ReadOnly;
+
+        /* -- deliberately disabled to force ReadOnly mode for QT resources
+        switch (mode)
+        {
+            case FILE_READ:      qt_mode = QIODevice::ReadOnly;  break;
+            case FILE_WRITE:     qt_mode = QIODevice::WriteOnly; break;
+            case FILE_READWRITE: qt_mode = QIODevice::ReadWrite; break;
+        }
+        */
+
+        QFile *f = new QFile(pathname);
+
+        if (f->open( qt_mode ))
+            return (void *)f;
+
+        delete f;
+        return NULL;
+    }
+    int  _close(void *handle)
+    {
+        delete ((QFile *)handle);
+        return 0;
+    }
+    int  _size(void *handle)
+    {
+        return (int) ((QFile *)handle)->size();
+    }
+    int  _flush(void *handle)
+    {
+        return (int) ((QFile *)handle)->flush();
+    }
+    int  _seek(void *handle, long offset, int whence)
+    {
+        qint64 o = offset;
+
+        if (whence == SEEK_CUR)
+            o += ((QFile *)handle)->pos();
+        else if (whence == SEEK_END)
+            o += ((QFile *)handle)->size();
+
+        return (int) ((QFile *)handle)->seek( o );
+    }
+    long _tell(void *handle)
+    {
+        return (int) ((QFile *)handle)->pos();
+    }
+    size_t _read(void *ptr, size_t size, size_t nmemb, void *handle)
+    {
+        qint64 to_read = size * nmemb;
+        qint64 actual  = ((QFile *)handle)->read((char *)ptr, to_read);
+
+        return (int)(actual / size);
+    }
+    size_t _write(const void * /* ptr */, size_t /* size */, size_t /* nmemb */, void * /* handle */)
+    {
+        /* -- deliberately disabled to force ReadOnly mode for QT resources
+        qint64 to_write = size * nmemb;
+        qint64 actual  = ((QFile *)handle)->write(ptr, to_read);
+
+        return (int)(actual / size);
+        */
+        return -1;
+    }
+
+void registerQFileWithUrho3D(void)
+{
+    struct Urho3D::external_file_ops qfile_ops;
+
+    strcpy( qfile_ops._filePrefix, ":/" );
+    qfile_ops._open   = _open;
+    qfile_ops._close  = _close;
+    qfile_ops._size   = _size;
+    qfile_ops._flush  = _flush;
+    qfile_ops._seek   = _seek;
+    qfile_ops._tell   = _tell;
+    qfile_ops._read   = _read;
+    qfile_ops._write  = _write;
+
+    Urho3D::File::RegisterExternalFileType( qfile_ops );
 }
 
 int main(int argc, char *argv[])
@@ -256,6 +342,8 @@ int main(int argc, char *argv[])
         cursors.close();
     }
 #endif
+
+    registerQFileWithUrho3D();
 
     if (fileToOpen.isEmpty() || !QFile::exists( fileToOpen ))
     {
@@ -432,4 +520,23 @@ bool testFact(QString fact_name)
         return s_facts.testFact( fact_name );
     }
     return false;
+}
+
+void  setBoolSetting(char *setting, bool value)
+{
+    QSettings settings;
+
+    settings.setValue(setting, value);
+}
+
+bool  getBoolSetting(char *setting)
+{
+    QSettings settings;
+
+    QVariant v = settings.value(setting);
+
+    if (v.isNull())
+        return false;
+
+    return v.toBool();
 }
