@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,6 +32,7 @@
 #include "WindowItemsList.h"
 
 #include "SLFFile.h"
+#include "STI.h"
 #include "main.h"
 
 #include <QListWidgetItem>
@@ -264,7 +265,7 @@ void WindowItemsList::populateColumns()
         QStringList headers;
         for (int k=0; k < cols.size(); k++)
         {
-            headers << ::getStringTable()->getString( cols[k] );
+            headers << ::getBaseStringTable()->getString( cols[k] );
         }
 
         q->setColumnCount( cols.size() );
@@ -422,7 +423,7 @@ void WindowItemsList::populateDDLProfessions(WDDL *ddl)
         if (ic.open(QFile::ReadOnly))
         {
             QByteArray array = ic.readAll();
-            STItoQImage c( array );
+            STI c( array );
 
             for (int k=0; k<metaProf.keyCount(); k++)
             {
@@ -450,7 +451,7 @@ void WindowItemsList::populateDDLProfessions(WDDL *ddl)
                     case character::profession::Mage:      imIdx = 26; break;
                 }
 
-                QListWidgetItem *prof = new QListWidgetItem( ::getStringTable()->getString( StringList::LISTProfessions + k ));
+                QListWidgetItem *prof = new QListWidgetItem( ::getBaseStringTable()->getString( StringList::LISTProfessions + k ));
                 prof->setData( Qt::DecorationRole, QPixmap::fromImage( c.getImage( imIdx ) ) );
                 prof->setData( Qt::UserRole, p );
 
@@ -473,7 +474,7 @@ void WindowItemsList::populateDDLRaces(WDDL *ddl)
         if (ic.open(QFile::ReadOnly))
         {
             QByteArray array = ic.readAll();
-            STItoQImage c( array );
+            STI c( array );
 
             for (int k=0; k<metaRace.keyCount(); k++)
             {
@@ -502,7 +503,7 @@ void WindowItemsList::populateDDLRaces(WDDL *ddl)
                     case character::race::Android:   imIdx = 28; break;
                 }
 
-                QListWidgetItem *race = new QListWidgetItem( ::getStringTable()->getString( StringList::LISTRaces + k ));
+                QListWidgetItem *race = new QListWidgetItem( ::getBaseStringTable()->getString( StringList::LISTRaces + k ));
                 race->setData( Qt::DecorationRole, QPixmap::fromImage( c.getImage( imIdx ) ) );
                 race->setData( Qt::UserRole, r );
 
@@ -525,7 +526,7 @@ void WindowItemsList::populateDDLGenders(WDDL *ddl)
         if (ic.open(QFile::ReadOnly))
         {
             QByteArray array = ic.readAll();
-            STItoQImage c( array );
+            STI c( array );
 
             for (int k=0; k<metaGender.keyCount(); k++)
             {
@@ -540,7 +541,7 @@ void WindowItemsList::populateDDLGenders(WDDL *ddl)
                     case character::gender::Female:   imIdx =  2; break;
                 }
 
-                QListWidgetItem *gender = new QListWidgetItem( ::getStringTable()->getString( StringList::LISTGenders + k ));
+                QListWidgetItem *gender = new QListWidgetItem( ::getBaseStringTable()->getString( StringList::LISTGenders + k ));
                 gender->setData( Qt::DecorationRole, QPixmap::fromImage( c.getImage( imIdx ) ) );
                 gender->setData( Qt::UserRole, g );
 
@@ -718,7 +719,7 @@ QString WindowItemsList::lookupItemProperty( item *i, DialogChooseColumns::colum
 
         case DialogChooseColumns::Type:
         {
-            prop = ::getStringTable()->getString( StringList::LISTItemTypes + i->getType() );
+            prop = ::getBaseStringTable()->getString( StringList::LISTItemTypes + i->getType() );
             break;
         }
 
@@ -730,44 +731,44 @@ QString WindowItemsList::lookupItemProperty( item *i, DialogChooseColumns::colum
                 case item::type::ExtendedWeapon:
                 case item::type::ThrownWeapon:
                 case item::type::RangedWeapon:
-                    prop = ::getStringTable()->getString( StringList::PrimaryWeapon );
+                    prop = ::getBaseStringTable()->getString( StringList::PrimaryWeapon );
                     if (i->canSecondary())
                     {
-                        prop += ", " + ::getStringTable()->getString( StringList::SecondaryWeapon );
+                        prop += ", " + ::getBaseStringTable()->getString( StringList::SecondaryWeapon );
                     }
                     break;
 
                 case item::type::Ammunition: // should have secondary set - but don't
                 case item::type::Shield: // should have secondary set - but don't
-                    prop = ::getStringTable()->getString( StringList::SecondaryWeapon );
+                    prop = ::getBaseStringTable()->getString( StringList::SecondaryWeapon );
                     break;
 
                 case item::type::TorsoArmor:
-                    prop = ::getStringTable()->getString( StringList::Torso );
+                    prop = ::getBaseStringTable()->getString( StringList::Torso );
                     break;
 
                 case item::type::LegArmor:
-                    prop = ::getStringTable()->getString( StringList::Legs );
+                    prop = ::getBaseStringTable()->getString( StringList::Legs );
                     break;
 
                 case item::type::HeadGear:
-                    prop = ::getStringTable()->getString( StringList::Head );
+                    prop = ::getBaseStringTable()->getString( StringList::Head );
                     break;
 
                 case item::type::Gloves:
-                    prop = ::getStringTable()->getString( StringList::Hands );
+                    prop = ::getBaseStringTable()->getString( StringList::Hands );
                     break;
 
                 case item::type::Shoes:
-                    prop = ::getStringTable()->getString( StringList::Feet );
+                    prop = ::getBaseStringTable()->getString( StringList::Feet );
                     break;
 
                 case item::type::MiscEquipment:
-                    prop = ::getStringTable()->getString( StringList::MiscItem1 ) + ", " + ::getStringTable()->getString( StringList::MiscItem2 );
+                    prop = ::getBaseStringTable()->getString( StringList::MiscItem1 ) + ", " + ::getBaseStringTable()->getString( StringList::MiscItem2 );
                     break;
 
                 case item::type::Cloak:
-                    prop = ::getStringTable()->getString( StringList::Cloak );
+                    prop = ::getBaseStringTable()->getString( StringList::Cloak );
                     break;
 
                 default:
@@ -995,7 +996,7 @@ QString WindowItemsList::lookupItemProperty( item *i, DialogChooseColumns::colum
 
             if ((a != character::attribute::ATTRIBUTE_NONE) && (bonus != 0))
             {
-                QString attribStr = ::getStringTable()->getString( StringList::LISTPrimaryAttributes + static_cast<int>(a) );
+                QString attribStr = ::getBaseStringTable()->getString( StringList::LISTPrimaryAttributes + static_cast<int>(a) );
 
                 if (bonus > 0)
                 {
@@ -1016,7 +1017,7 @@ QString WindowItemsList::lookupItemProperty( item *i, DialogChooseColumns::colum
 
             if ((sk != character::skill::SKILL_NONE) && (bonus != 0))
             {
-                QString skillStr = ::getStringTable()->getString( StringList::LISTSkills + static_cast<int>(sk) );
+                QString skillStr = ::getBaseStringTable()->getString( StringList::LISTSkills + static_cast<int>(sk) );
 
                 if (bonus > 0)
                 {
@@ -1095,7 +1096,7 @@ QString WindowItemsList::lookupItemProperty( item *i, DialogChooseColumns::colum
 
             if ((a != character::attribute::ATTRIBUTE_NONE) && (bonus != 0))
             {
-                QString attribStr = ::getStringTable()->getString( StringList::LISTPrimaryAttributes + static_cast<int>(a) );
+                QString attribStr = ::getBaseStringTable()->getString( StringList::LISTPrimaryAttributes + static_cast<int>(a) );
 
                 if (bonus > 0)
                 {
@@ -1111,7 +1112,7 @@ QString WindowItemsList::lookupItemProperty( item *i, DialogChooseColumns::colum
 
             if ((sk != character::skill::SKILL_NONE) && (bonus != 0))
             {
-                QString skillStr = ::getStringTable()->getString( StringList::LISTSkills + static_cast<int>(sk) );
+                QString skillStr = ::getBaseStringTable()->getString( StringList::LISTSkills + static_cast<int>(sk) );
 
                 if (bonus > 0)
                 {

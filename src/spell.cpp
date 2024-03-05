@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,8 +31,11 @@
 #include "character.h"
 #include "constants.h"
 #include "common.h"
+#include "Localisation.h"
 
 #include <QDebug>
+#include <QSettings>
+#include <QTextCodec>
 
 spell::spell(quint32 id) :
     m_id(id)
@@ -45,33 +48,16 @@ spell::spell(quint32 id) :
 // 0x019c: Spell name (maximum length unknown)
 QString spell::getName() const
 {
-    // Don't make any assumptions about the endianness of the host being LE
-    // ie. can't just do:
-    // quint16 *data = (quint16 *)m_db_record.constData();
-    // return QString::fromUtf16(data);
+    Localisation *loc = Localisation::getLocalisation();
 
-    QString name = "";
-
-    quint8 *data = (quint8 *)m_db_record.constData();
-    for (int k=0; k<0x84; k+=2)
-    {
-        quint16 c = FORMAT_LE16(data+0x19c+k);
-
-        if (c == 0)
-            break;
-
-        name += QChar(c);
-    }
-
-    if (name.compare("None") == 0)
-        return QString();
-
-    return name;
+    return loc->getSpellName( m_id );
 }
 
 QString spell::getDesc() const
 {
-    return m_helper->getSpellDesc( m_id );
+    Localisation *loc = Localisation::getLocalisation();
+
+    return loc->getSpellDesc( m_id );
 }
 
 // 0x014a--0x014d: Spell cost
@@ -180,7 +166,7 @@ item::range spell::getRange() const
 
 QString spell::getRangeString() const
 {
-    return ::getStringTable()->getString( StringList::LISTRanges + static_cast<int>(getRange() ) );
+    return ::getBaseStringTable()->getString( StringList::LISTRanges + static_cast<int>(getRange() ) );
 }
 
 // 0x0234--0x0237: Spell realm
@@ -207,7 +193,7 @@ QString spell::getTargetString() const
     if (t == AdventuringTraps)
         t = Adventuring;
 
-    return ::getStringTable()->getString( StringList::LISTTargets + static_cast<int>( t ) );
+    return ::getBaseStringTable()->getString( StringList::LISTTargets + static_cast<int>( t ) );
 }
 
 // 0x023c--0x023f: Spell usability
@@ -225,15 +211,15 @@ QString spell::getUsabilityString() const
     switch (u)
     {
         case spell::usable::AnyTime:
-            return ::getStringTable()->getString( StringList::Anytime );
+            return ::getBaseStringTable()->getString( StringList::Anytime );
 
         case spell::usable::Combat:
-            return ::getStringTable()->getString( StringList::Combat );
+            return ::getBaseStringTable()->getString( StringList::Combat );
 
         case spell::usable::NonCombat:
         case spell::usable::NonCombatNPCInteraction:
         case spell::usable::NonCombatTraps:
-            return ::getStringTable()->getString( StringList::NonCombat );
+            return ::getBaseStringTable()->getString( StringList::NonCombat );
     }
     return "";
 }

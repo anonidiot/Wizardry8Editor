@@ -32,7 +32,6 @@
 #include "item.h"
 
 class QButtonGroup;
-class STItoQImage;
 
 class DialogItemInfo : public Dialog
 {

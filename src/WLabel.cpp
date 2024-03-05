@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -55,7 +55,9 @@ WLabel::WLabel(QString text, Qt::Alignment alignment, int pointSize, int weight,
 WLabel::WLabel(int stringNum, QString fontName, Qt::Alignment alignment, int pointSize, int weight, QWidget* parent, Qt::WindowFlags flags)
     : WLabel("", fontName, alignment, pointSize, weight, parent, flags)
 {
-    setText( ::getStringTable()->getString( stringNum ) );
+    m_stringNum = stringNum;
+    resetText();
+    m_stringNum = stringNum;
 }
 
 WLabel::WLabel(QString text, QString fontName, Qt::Alignment alignment, int pointSize, int weight, QWidget* parent, Qt::WindowFlags)
@@ -64,7 +66,8 @@ WLabel::WLabel(QString text, QString fontName, Qt::Alignment alignment, int poin
     m_fontName(fontName),
     m_fontSize(pointSize),
     m_fontWeight(weight),
-    m_mouseInLabel(false)
+    m_mouseInLabel(false),
+    m_stringNum(-1)
 {
     setAlignment( alignment );
     setText( text );
@@ -79,6 +82,22 @@ WLabel::WLabel(QString text, QString fontName, Qt::Alignment alignment, int poin
 
 WLabel::~WLabel()
 {
+}
+
+void WLabel::setText(QString str)
+{
+    m_stringNum = -1;
+    QLabel::setText( str );
+}
+
+void WLabel::resetText()
+{
+    if (m_stringNum != -1)
+    {
+        int memory = m_stringNum;
+        setText( ::getBaseStringTable()->getString( m_stringNum ) );
+        m_stringNum = memory;
+    }
 }
 
 void WLabel::setFontSize(int pointSize, int weight)

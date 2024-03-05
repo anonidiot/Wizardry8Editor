@@ -33,7 +33,6 @@
 
 #include "spell.h"
 
-class STItoQImage;
 
 class DialogSpellInfo : public Dialog
 {

@@ -30,7 +30,7 @@
 #include "WStatBar.h"
 
 #include "SLFFile.h"
-#include "STItoQImage.h"
+#include "STI.h"
 
 // Keep these around globally to save constantly loading them, because they're
 // used a lot
@@ -95,7 +95,7 @@ void WStatBar::loadPixmaps()
     if (imgs.open(QFile::ReadOnly))
     {
         QByteArray  stiData  = imgs.readAll();
-        STItoQImage stiImages( stiData );
+        STI stiImages( stiData );
 
         s_blueBar = new QPixmap( QPixmap::fromImage( stiImages.getImage( 0 )) );
         s_cyanBar = new QPixmap( QPixmap::fromImage( stiImages.getImage( 1 )) );

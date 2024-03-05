@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,7 +27,6 @@
 #include "Window3DNavigator.h"
 
 #include "SLFFile.h"
-#include "STItoQImage.h"
 #include "Level.h"
 #include "common.h"
 #include "main.h"
@@ -42,7 +41,6 @@
 #include "WImage.h"
 #include "WLabel.h"
 #include "WLineEdit.h"
-#include "WListWidget.h"
 
 typedef enum
 {
@@ -107,7 +105,7 @@ DialogCurrentPosition::DialogCurrentPosition(int mapId, const float *position, f
         { NO_ID,              QRect( 100, 103,  30,  14 ),    new WLabel( "Z:",                           Qt::AlignLeft,   10, QFont::Thin, this ),  -1,  NULL },
         { VAL_POS_Z,          QRect( 144, 103,  70,  14 ),    new WLineEdit( "",                          Qt::AlignRight,  10, QFont::Thin, this ),  -1,  SLOT(zChanged(const QString &)) },
 
-        { NO_ID,              QRect(  44, 131, 100,  14 ),    new WLabel(    ::getStringTable()->getString( StringList::Heading + StringList::APPEND_COLON ),  Qt::AlignLeft, 10, QFont::Thin, this ),  -1,  NULL },
+        { NO_ID,              QRect(  44, 131, 100,  14 ),    new WLabel(    ::getBaseStringTable()->getString( StringList::Heading + StringList::APPEND_COLON ),  Qt::AlignLeft, 10, QFont::Thin, this ),  -1,  NULL },
         { VAL_HEADING,        QRect( 144, 131,  70,  14 ),    new WLineEdit( "",                          Qt::AlignRight,  10, QFont::Thin, this ),  -1,  SLOT(headingChanged(const QString &)) },
 
         { NO_ID,              QRect( 239,  75,  -1,  -1 ),    new WButton(   "MAIN INTERFACE/ICONS_STANDARD.STI",          35, false, 1.0,  this ),  -1,  SLOT(openNavigator(bool)) },
@@ -116,7 +114,7 @@ DialogCurrentPosition::DialogCurrentPosition(int mapId, const float *position, f
 
         { NO_ID,              QRect(  34, 156, 150,  50 ),    new WLabel(    StringList::MapWarning,      Qt::AlignLeft, 10, QFont::Thin, this ),  -1,  NULL },
 
-        { NO_ID,              QRect(  10,  32,  50,  14 ),    new WLabel(    ::getStringTable()->getString( StringList::Map + StringList::APPEND_COLON ),  Qt::AlignRight, 10, QFont::Thin, this ),  -1,  NULL },
+        { NO_ID,              QRect(  10,  32,  50,  14 ),    new WLabel(    ::getBaseStringTable()->getString( StringList::Map + StringList::APPEND_COLON ),  Qt::AlignRight, 10, QFont::Thin, this ),  -1,  NULL },
         { DDL_MAP,            QRect(  76,  25,  -1,  -1 ),    new WDDL(      "Lucida Calligraphy",        Qt::AlignLeft,  9, QFont::Thin,   this ),  -1,  SLOT(ddlChanged(int)) },
     };
 

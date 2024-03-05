@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -40,16 +40,18 @@
 class SLFFile
 {
 public:
-    SLFFile(const QString &folder, const QString &slfFile, const QString &name);
-    SLFFile(const QString &slfFile, const QString &name);
-    SLFFile(const QString &name) : SLFFile(QString("DATA.SLF"), name) {};
+    SLFFile(const QString &folder, const QString &slfFile, const QString &name, bool force_base=false);
+    SLFFile(const QString &slfFile, const QString &name, bool force_base=false);
+    SLFFile(const QString &name, bool force_base=false) : SLFFile(QString("DATA.SLF"), name, force_base) {};
+    SLFFile(QFile *slfFile);
     ~SLFFile();
 
     static QPixmap    getPixmapFromSlf( QString slfFile, int idx );
 
     bool       isGood();
+    bool       isFromPatch();
 
-    void       setFileName(const QString &name);
+    void       setFileName(const QString &name, bool force_base);
     QString    fileName();
     bool       open(QFile::OpenMode flags);
     void       close();
@@ -70,25 +72,36 @@ public:
     qint32     readLELong();
     quint32    readLEULong();
     float      readFloat();
+    QByteArray readLine();
 
     qint64     pos();
 
+    // Be very careful using this method. It was intended to be used only
+    // with the QFile format constructor. Using it with the others could
+    // cause unexpected results.
+    void       seekToFile( QString filename );
+
+    static bool isSlf(QFile &file);
+
     static void setWizardryPath(QString path);
+    static void setParallelWorld(QString world);
     static QString &getWizardryPath();
+    static QString &getParallelWorldPath();
+
+    static void flushFromCache(const QString &name);
 
 protected:
-    void init(const QString &name);
-    bool isSlf(QFile &file);
+    void init(const QString &name, bool force_base);
     bool containsFile(QFile &file, const QString &filename);
 
 private:
     void seekToFile();
 
-    QDir       m_wizardryPath;
     QString    m_subfolder;
     QString    m_slf;
 
     bool       m_in_slf;
+    bool       m_in_patch;
     QString    m_filename;
     QFile     *m_storage;
     quint32    m_dataOffset;     /** offset in SLF file that actual data for file starts at */

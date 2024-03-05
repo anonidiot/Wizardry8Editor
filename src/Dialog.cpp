@@ -23,24 +23,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <QByteArray>
-#include <QResizeEvent>
-
 #include "Dialog.h"
 #include "main.h"
 
-#include "WButton.h"
-#include "WCheckBox.h"
-#include "WImage.h"
-#include "WItem.h"
 #include "WLabel.h"
-#include "WLineEdit.h"
-#include "WScrollBar.h"
-
-#include "SLFFile.h"
-#include "STItoQImage.h"
-
-#include <QDebug>
 
 Dialog::Dialog(QWidget *parent) :
     QDialog(parent),

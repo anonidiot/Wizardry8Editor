@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,6 +27,7 @@
 #include "SLFFile.h"
 #include "main.h"
 
+#include <QCryptographicHash>
 #include <QDirIterator>
 #include <QFile>
 #include <QListWidgetItem>
@@ -43,34 +44,80 @@
 
 #include <QDebug>
 
-// These patches were developed for the version of Wizardry 8 v1.24 that
-// came with the MD5SUM of cdf6a691d899fa192e05ceb4a3cc1e67
-// They may not work on other versions
-#define ENG_WIZARDRY_124_EXE_SIZE   3580513
+// v 1.2.4 version patches
 
-int apply_pickpocket_v2_patch( quint8 *data );
 int apply_greedy_pickpocket_patch( quint8 *data );
 int apply_levelsensor_patch( quint8 *data );
 int apply_chestreset_patch( quint8 *data );
 int apply_hacksav_patch( quint8 *data );
 
+// v 1.2.8 build 6200 versions of some of these patches.
+// Our modified SAV file format is _not_ supported under v1.2.8.
+// due to the changes 1.2.8 itself makes to the file format
+// (or more exactly the code hooks it implements for this
+//  purpose which are modifying the same code area as us)
+
+int apply_greedy_pickpocket_patch_6200( quint8 *data );
+int apply_levelsensor_patch_6200( quint8 *data );
+int apply_chestreset_patch_6200( quint8 *data );
+
 struct patch
 {
-    const char *name;
-    const char *description;
-    int         (*function)(quint8 *);
+    DialogPatchExe::wizardry_ver    game_ver;
+    const char                     *name;
+    const char                     *description;
+    int                             (*function)(quint8 *);
 };
 
-// The scroll list is going to sort the patches, but patches will always be applied in the order listed here
-// The greedy pickpocket patch for instance needs to be applied after pickpocket restore, in case the v1 of
-// that patch had to be reversed
 struct patch known_patches[] =
 {
-    { "Pickpocket restore (v2)",     "Removes the XP-based random set-seed functionality, which restores the more random pickpocket behaviour from the 1.0 version of the game. Pickpocketing can be significantly easier. Doesn't affect the more limited number of items pickpocketable from a single character also introduced in 1.24.", &apply_pickpocket_v2_patch },
-    { "Greedy Pickpocket",      "Removes the escalating difficulty of pickpocketing more and more items from a character to match the 1.0 version behaviour. With patience and much saving around 40 items can be stolen from an individual NPC. Doesn't alter the item seed based on XP.", &apply_greedy_pickpocket_patch },
-    { "Disable Level Sensor on Treasure",     "Disables the level sensor check on treasure chests and item drops from monsters, but retains it for random attack encounters.", &apply_levelsensor_patch },
-    { "Randomise Chests on first Open",     "Determine treasure chest contents when first opened, not when level first entered.", &apply_chestreset_patch },
-    { "NEW Savegame support",   "Patches the game so it can recognise SAV game files without ANY level info (such as the ones produced by this editor when creating a NEW file). Such games only need the patch to load the first time, if they are resaved afterwards they become a regular save game and can be played in unpatched versions of the game also.", &apply_hacksav_patch }
+    { DialogPatchExe::wizardry_ver::WIZ_VER_1_2_4,
+      "Greedy Pickpocket (v3)",
+      "Removes the escalating difficulty of pickpocketing more and more items from a character to match the"
+      "1.0 version behaviour. With patience and much saving around 40 items can be stolen from an individual"
+      "NPC. Also removes the XP based seed on the item retrieved, so it randomises for each attempt.",
+      &apply_greedy_pickpocket_patch },
+
+    { DialogPatchExe::wizardry_ver::WIZ_VER_1_2_4,
+      "Disable Level Sensor on Treasure",
+      "Disables the level sensor check on treasure chests and item drops from monsters, but retains it for"
+      "random attack encounters.",
+      &apply_levelsensor_patch },
+
+    { DialogPatchExe::wizardry_ver::WIZ_VER_1_2_4,
+      "Randomise Chests on first Open",
+      "Determine treasure chest contents when first opened, not when level first entered.",
+      &apply_chestreset_patch },
+
+    { DialogPatchExe::wizardry_ver::WIZ_VER_1_2_4,
+      "NEW Savegame support",
+      "Patches the game so it can recognise SAV game files without ANY level info (such as the ones produced"
+      "by this editor when creating a NEW file). Such games only need the patch to load the first time, if"
+      "they are resaved afterwards they become a regular save game and can be played in unpatched versions"
+      "of the game also.",
+      &apply_hacksav_patch },
+
+    // I don't intend to keep updating these for every single build of v1.2.8
+    // Someone has already made a request to have these patches integrated as
+    // an option into the standard 1.2.8, and that's a better place for them.
+
+    { DialogPatchExe::wizardry_ver::WIZ_VER_1_2_8_BUILD_6200,
+      "Greedy Pickpocket (v3)",
+      "Removes the escalating difficulty of pickpocketing more and more items from a character to match the"
+      "1.0 version behaviour. With patience and much saving around 40 items can be stolen from an individual"
+      "NPC. Also removes the XP based seed on the item retrieved, so it randomises for each attempt.",
+      &apply_greedy_pickpocket_patch_6200 },
+
+    { DialogPatchExe::wizardry_ver::WIZ_VER_1_2_8_BUILD_6200,
+      "Disable Level Sensor on Treasure",
+      "Disables the level sensor check on treasure chests and item drops from monsters, but retains it for"
+      "random attack encounters.",
+      &apply_levelsensor_patch_6200 },
+
+    { DialogPatchExe::wizardry_ver::WIZ_VER_1_2_8_BUILD_6200,
+      "Randomise Chests on first Open",
+      "Determine treasure chest contents when first opened, not when level first entered.",
+      &apply_chestreset_patch_6200 }
 };
 
 struct patch_detail
@@ -84,6 +131,8 @@ struct patch_detail
 typedef enum
 {
     NO_ID,
+
+    PATCH_LIST_LBL,
 
     PATCHES_SCROLLLIST,
     PATCHES_SCROLLBAR,
@@ -106,11 +155,11 @@ DialogPatchExe::DialogPatchExe(QWidget *parent)
     {
         { NO_ID,              QRect(   0,   0,  -1,  -1 ),    new WImage(    bgImg,                                                          this ),  -1,  NULL },
 
-        { NO_ID,              QRect(  10,  32,  70,  12 ),    new WLabel( tr("Patches:"), Qt::AlignRight, 10, QFont::Thin,                   this ),  -1,  NULL },
+        { PATCH_LIST_LBL,     QRect(  10,  22, 350,  12 ),    new WLabel( tr("Patches:"), Qt::AlignLeft,  10, QFont::Thin,                   this ),  -1,  NULL },
 
-        { PATCHES_SCROLLBAR,  QRect( 354,  30,  15, 115 ),    new WScrollBar( Qt::Orientation::Vertical,                                     this ),  -1,  NULL },
-        { PATCHES_SCROLLLIST, QRect(  88,  29, 252, 116 ),    new WListWidget(                                                               this ),  -1,  NULL },
-        { PATCHES_DESC,       QRect(  88, 155, 252, 100 ),    new WLabel(    "",          Qt::AlignLeft,   9, QFont::Thin,                   this ),  -1,  NULL },
+        { PATCHES_SCROLLBAR,  QRect( 354,  42,  15, 115 ),    new WScrollBar( Qt::Orientation::Vertical,                                     this ),  -1,  NULL },
+        { PATCHES_SCROLLLIST, QRect(  88,  41, 252, 116 ),    new WListWidget(                                                               this ),  -1,  NULL },
+        { PATCHES_DESC,       QRect(  88, 167, 252, 100 ),    new WLabel(    "",          Qt::AlignLeft,   9, QFont::Thin,                   this ),  -1,  NULL },
 
         { NO_ID,              QRect( 312, 268,  -1,  -1 ),    new WButton(   "DIALOGS/DIALOGCONFIRMATION.STI",               0, true, 1.0,   this ),  -1,  SLOT(patchAway(bool)) },
         { NO_ID,              QRect( 344, 268,  -1,  -1 ),    new WButton(   "DIALOGS/DIALOGCONFIRMATION.STI",               4, true, 1.0,   this ),  -1,  SLOT(close()) },
@@ -120,6 +169,25 @@ DialogPatchExe::DialogPatchExe(QWidget *parent)
 
     m_widgets = Screen::widgetInit( patchesScrn, num_widgets, this );
 
+    char *exePath = NULL;
+    QString err = identifyWizardryExeVersion( "", &m_myWizVer, NULL, &exePath );
+
+    if (! err.isEmpty() )
+    {
+        QMessageBox::warning(this, tr("Patch Application Error"), err );
+    }
+    else
+    {
+        if (WLabel *lbl = qobject_cast<WLabel *>(m_widgets[ PATCH_LIST_LBL ] ))
+        {
+            lbl->setText( tr("Patches available for Wizardry EXE v%1:").arg( getVersionStr(m_myWizVer) ) );
+        }        
+    }
+    if (exePath)
+    {
+        m_exePath = exePath;
+        free( exePath );
+    }
 
     // The patch list
     if (WListWidget *patches = qobject_cast<WListWidget *>(m_widgets[ PATCHES_SCROLLLIST ] ))
@@ -143,6 +211,14 @@ DialogPatchExe::DialogPatchExe(QWidget *parent)
     }
 
     updateList();
+    if (WListWidget *patches = qobject_cast<WListWidget *>(m_widgets[ PATCHES_SCROLLLIST ] ))
+    {
+        if (patches->count() == 0)
+        {
+            QMessageBox::warning(this, tr("Patch Application Error"),
+                tr("There are no patches for the version of Wizardry you have installed."));
+        }
+    }
 
     this->setMinimumSize( bgImgSize * m_scale );
     this->setMaximumSize( bgImgSize * m_scale );
@@ -203,12 +279,15 @@ void DialogPatchExe::updateList()
         int num_items = sizeof(known_patches) / sizeof(struct patch);
         for (int k=0; k<num_items; k++)
         {
-            QListWidgetItem *newPatch = new QListWidgetItem( tr(known_patches[k].name) );
-            newPatch->setData( Qt::UserRole, k );
-            newPatch->setFlags(newPatch->flags() | Qt::ItemIsUserCheckable); // set checkable flag
-            newPatch->setCheckState( Qt::Unchecked );
+            if (known_patches[k].game_ver == m_myWizVer)
+            {
+                QListWidgetItem *newPatch = new QListWidgetItem( tr(known_patches[k].name) );
+                newPatch->setData( Qt::UserRole, k );
+                newPatch->setFlags(newPatch->flags() | Qt::ItemIsUserCheckable); // set checkable flag
+                newPatch->setCheckState( Qt::Unchecked );
 
-            patches->addItem( newPatch );
+                patches->addItem( newPatch );
+            }
         }
         patches->sortItems(Qt::AscendingOrder);
 
@@ -235,54 +314,87 @@ void DialogPatchExe::patchHighlighted(int)
     }
 }
 
-void DialogPatchExe::patchAway(bool)
+QString DialogPatchExe::getVersionStr(wizardry_ver ver)
 {
-    QString &wizardryPath = SLFFile::getWizardryPath();
-    QString  wizardryExe  = "Wiz8.exe";
-
-    QFile   *src = NULL;
-
-    // For the benefit of case sensitive filesystems actually check all combinations of
-    // casing of the filename, and don't assume a particular format
-    QDir        path    = QDir(wizardryPath);
-
-    QDirIterator it( path, QDirIterator::Subdirectories);
-    while (it.hasNext())
+    switch (ver)
     {
-        QString file = it.next();
+        case WIZ_VER_1_0:
+            return "1.0 (Original)";
 
-        if (file.compare( path.absoluteFilePath( wizardryExe ), Qt::CaseInsensitive ) == 0)
-        {
-            src = new QFile(file);
+        case WIZ_VER_1_2_4:
+            return "1.2.4 (Original)";
+
+        case WIZ_VER_1_2_4_PATCHED:
+            return "1.2.4 (Patched)";
+
+        case WIZ_VER_1_2_8_BUILD_6200:
+            return "1.2.8 (Build 6200)";
+
+        case WIZ_VER_1_2_8_BUILD_6200_PATCHED:
+            return "1.2.8 (Build 6200 - Patched)";
+
+        case WIZ_VER_1_2_8_UNKNOWN:
+            return "1.2.8 (Unknown)";
+
+        default:
             break;
-        }
     }
 
-    if (!src)
+    return "UNKNOWN";
+}
+
+quint64 DialogPatchExe::getExpectedExeSize(wizardry_ver ver)
+{
+    switch (ver)
+    {
+        case WIZ_VER_1_0:
+            return 2641920;
+
+        case WIZ_VER_1_2_4:
+        case WIZ_VER_1_2_4_PATCHED:
+            return 3580513;
+
+        case WIZ_VER_1_2_8_BUILD_6200:
+        case WIZ_VER_1_2_8_BUILD_6200_PATCHED:
+            return 3299840;
+
+        default:
+        case WIZ_VER_1_2_8_UNKNOWN:
+            break;
+    }
+
+    return 0;
+}
+
+void DialogPatchExe::patchAway(bool)
+{
+    if (m_exePath.isEmpty())
     {
         QMessageBox::warning(this, tr("Patch Application Error"),
             tr("The Wizardry executable can't be located."));
         return;
     }
-    if (src->open(QFile::ReadOnly))
+
+    QFile   src(m_exePath);
+ 
+    if (src.open(QFile::ReadOnly))
     {
-        if (src->size() != ENG_WIZARDRY_124_EXE_SIZE)
+        if (src.size() != getExpectedExeSize(m_myWizVer))
         {
-            src->close();
-            delete src;
+            src.close();
             QMessageBox::warning(this, tr("Patch Application Error"),
-                tr("The Wizardry executable isn't the correct size for the 1.24 version (%1 bytes).").arg(ENG_WIZARDRY_124_EXE_SIZE));
+                tr("The Wizardry executable isn't the correct size for the %1 version (%2 bytes).").arg(getVersionStr(m_myWizVer)).arg(getExpectedExeSize(m_myWizVer)));
             return;
         }
     }
 
-    QByteArray data = src->readAll();
+    QByteArray data = src.readAll();
 
-    src->close();
-    delete src;
+    src.close();
 
     // Show a file dialog and ask where they want to save it -
 
+    QString &wizardryPath = SLFFile::getWizardryPath();
     QString saveFile = ::getSaveFileName(NULL, tr("Save File"), wizardryPath, tr("Exes (*.exe)"));
     if (saveFile.isEmpty())
         return;
@@ -302,34 +414,16 @@ void DialogPatchExe::patchAway(bool)
     // Apply checked patches
     if (WListWidget *patches = qobject_cast<WListWidget *>(m_widgets[ PATCHES_SCROLLLIST ] ))
     {
-        int num_items = sizeof(known_patches) / sizeof(struct patch);
-        for (int k=0; k<num_items; k++)
+        int num_items = patches->count();
+        for (int j=0; j<num_items; j++)
         {
-            bool apply = false;
+            int idx = patches->item(j)->data( Qt::UserRole ).toInt();
 
-            for (int j=0; j<num_items; j++)
+            if (patches->item(j)->checkState() == Qt::Checked)
             {
-                if (k == patches->item(j)->data( Qt::UserRole ).toInt())
-                {
-                    if (patches->item(j)->checkState() == Qt::Checked)
-                    {
-                        apply = true;
-                    }
-                    break;
-                }
-            }
-            if (apply)
-            {
-                int rv = known_patches[ k ].function( (quint8 *) data.data() );
-                if (rv != 0)
-                {
-                    QMessageBox::warning(this, tr("Patch Application Error"),
-                        tr("A failure occured applying the '%1' patch. This exe may already be patched for this.").arg( tr(known_patches[ k ].name) ));
-
-                    dst.close();
-                    dst.remove();
-                    return;
-                }
+                // If already patched, just patch again. All these patches can safely
+                // be applied over the top of themselves again and again
+                known_patches[ idx ].function( (quint8 *) data.data() );
             }
         }
     }
@@ -342,50 +436,25 @@ void DialogPatchExe::patchAway(bool)
     close();
 }
 
-int apply_pickpocket_v2_patch( quint8 *data )
+// Combined the old pickpocket v2 patch into this and labelled it v3.
+// Together they restore the 1.0 behaviour, and are better taken together
+// or omitted together.
+int apply_greedy_pickpocket_patch( quint8 *data )
 {
-    // Test for a change made in the Version 1 patch we want to revert
-    if (data[0x0010be7b] == 0x3c)
-    {
-        // Reverse the changes from Version 1 we're not keeping
-        struct patch_detail p[] =
-        {
-            // Moved into Greedy pickpocket patch now; if Greedy patch is
-            // being applied in the same batch, it will redo this AFTER we
-            // revert it here.
-            { 0x0010be3d,   4, "\x3c\x64\x7d\x08" },
-            { 0x0010c0ea,   4, "\x3c\x64\x7d\x08" },
-
-            // These byte ranges were restoring the logic from v1.0 of Wizardry, but
-            // I think doing that was actually reversing 2 bugfixes corrected in v1.24:
-            // one for giving a "failed" message instead of being so heavy on the
-            // "nothing left to steal", and one to stop a 2nd level of item indirection
-            // that isn't necessary, and restricts the actual items available.
-
-            { 0x0010be7b,   1, "\xcf" },
-            { 0x0010be89,   6, "\x8b\x44\x24\x28\x85\xc0" },
-            { 0x0010be97,   2, "\x75\x22" },
-            { 0x0010bebb,   2, "\x8b\x44" },
-            { 0x0010bebe,  16, "\x30\x50\xe8\x4b\x5d\x0d\x00\x83\xc4\x04\x5f\x5e\x5d\xb0\x02\x5b" },
-            { 0x0010becf,   5, "\x4c\x24\x24\x64\x89" },
-        };
-
-        for (unsigned long j=0; j < sizeof(p) / sizeof(p[0]); j++)
-        {
-            for (int k=0; k < p[j].cnt; k++)
-            {
-                data[ p[j].offset + k ] = p[j].bytes[k];
-            }
-        }
-    }
-
-    memset( data + 0x0010bcec, 0x90, 120 );
-    memset( data + 0x0010c04c, 0x90, 125 );
+    memset( data + 0x0010bcec, 0x90, 120 );                                  // 0x0050bcec
+    memset( data + 0x0010c04c, 0x90, 125 );                                  // 0x0050c04c
 
     struct patch_detail p[] =
     {
-        { 0x0010bcdd,  11, "\x83\xc4\x04\x89\x6c\x24\x3c\xc7\x44\x24\x14" },
-        { 0x0010bcea,   2, "\xff\xff" },
+        { 0x0010bcdd,  11, "\x83\xc4\x04\x89\x6c\x24\x3c\xc7\x44\x24\x14" }, // 0x0050bcdd
+        { 0x0010bcea,   2, "\xff\xff" },                                     // 0x0050bcea
+
+        { 0x0016d0a8,   2, "\x90\x90" },
+
+        // These bits used to be part of the v1 Pickpocket patch.
+        // It is more appropriate here to be enabled if Greed is active
+        { 0x0010be3d,   4, "\x90\x90\x90\x90" },                             // 0x0050be3d
+        { 0x0010c0ea,   4, "\x90\x90\x90\x90" },                             // 0x0050c0ea
     };
 
     for (unsigned long j=0; j < sizeof(p) / sizeof(p[0]); j++)
@@ -398,19 +467,35 @@ int apply_pickpocket_v2_patch( quint8 *data )
     return 0;
 }
 
-int apply_greedy_pickpocket_patch( quint8 *data )
+/*
+ * Wizardry 1.2.8 hotfixes the same function we want to modify here at
+ * runtime (ie. self modifies its own code).
+ * The instruction at 0x50be03 is altered to zero a different struct field
+ * and a code jump to bypass the end of the function and complete with new
+ * code of their own outside of the segment map (likely runtime allocated)
+ * is performed at 0x50be74.
+ * An altered version of the 1.2.4 patch was made here to attempt to not
+ * interfere with this, but still achieve the greedy effect. It could,
+ * however, be breaking the functionality Wizardry 1.2.8 is patching it for.
+ * Going forwards, it is better that 1.2.8 implements this itself if
+ * people want it, rather than risk this interfering with it. And it saves
+ * the trouble of constantly needing to redo it for every build number.
+ */
+int apply_greedy_pickpocket_patch_6200( quint8 *data )
 {
-    if ((data[0x16d0a8] == 0x90) && (data[0x16d0a9] == 0x90))
-        return -1; // Patch already applied
+    memset( data + 0x0010b75c, 0x90, 125 );                                  // 0x0050c15c
 
     struct patch_detail p[] =
     {
-        { 0x0016d0a8,   2, "\x90\x90" },
+        { 0x0010b3ed,  11, "\x83\xc4\x04\x89\x6c\x24\x3c\xc7\x44\x24\x14" }, // 0x0050bded
+        { 0x0010b3fa,   4, "\xff\xff\xeb\x75" },                             // 0x0050bdfa
+
+        { 0x0016c7e8,   2, "\x90\x90" },                                     // 0x0056d1e8
 
         // These bits used to be part of the v1 Pickpocket patch.
         // It is more appropriate here to be enabled if Greed is active
-        { 0x0010be3d,   4, "\x90\x90\x90\x90" },
-        { 0x0010c0ea,   4, "\x90\x90\x90\x90" },
+        { 0x0010b54d,   4, "\x90\x90\x90\x90" },                             // 0x0050bf4d
+        { 0x0010b7fa,   4, "\x90\x90\x90\x90" },                             // 0x0050c1fa
     };
 
     for (unsigned long j=0; j < sizeof(p) / sizeof(p[0]); j++)
@@ -425,10 +510,6 @@ int apply_greedy_pickpocket_patch( quint8 *data )
 
 int apply_levelsensor_patch( quint8 *data )
 {
-    // Yes this is an overly simplistic test for patch application
-    if (data[0x0f8a40] == 0x32)
-        return -1; // Patch already applied
-
     struct patch_detail p[] =
     {
         { 0x000f8a40,   6, "\x32\xc9\x90\x90\x90\x90" },
@@ -445,12 +526,26 @@ int apply_levelsensor_patch( quint8 *data )
     return 0;
 }
 
+int apply_levelsensor_patch_6200( quint8 *data )
+{
+    struct patch_detail p[] =
+    {
+        { 0x000f8150,   6, "\x32\xc9\x90\x90\x90\x90" }, // Patches instruction at 0x004f8b50
+        { 0x000f8227,   6, "\x32\xc0\x90\x90\x90\x90" }, // Patches instruction at 0x004f8c27
+    };
+
+    for (unsigned long j=0; j < sizeof(p) / sizeof(p[0]); j++)
+    {
+        for (int k=0; k < p[j].cnt; k++)
+        {
+            data[ p[j].offset + k ] = p[j].bytes[k];
+        }
+    }
+    return 0;
+}
+
 int apply_chestreset_patch( quint8 *data )
 {
-    // Yes this is an overly simplistic test for patch application
-    if (data[0x045585] == 0x90)
-        return -1; // Patch already applied
-
     struct patch_detail p[] =
     {
         { 0x00045585,   6, "\x90\x90\x90\x90\x90\x90" },
@@ -466,12 +561,25 @@ int apply_chestreset_patch( quint8 *data )
     return 0;
 }
 
+int apply_chestreset_patch_6200( quint8 *data )
+{
+    struct patch_detail p[] =
+    {
+        { 0x00044a75,   6, "\x90\x90\x90\x90\x90\x90" }, // Patches instruction at 0x00445475
+    };
+
+    for (unsigned long j=0; j < sizeof(p) / sizeof(p[0]); j++)
+    {
+        for (int k=0; k < p[j].cnt; k++)
+        {
+            data[ p[j].offset + k ] = p[j].bytes[k];
+        }
+    }
+    return 0;
+}
+
 int apply_hacksav_patch( quint8 *data )
 {
-    // Yes this is an overly simplistic test for patch application
-    if (data[0x112937] == 0x50)
-        return -1; // Patch already applied
-
     memmove( data + 0x00112968, data + 0x0011295d, 0x158 );
     memmove( data + 0x00112b72, data + 0x00112b6d,  0xaa );
 
@@ -588,4 +696,182 @@ int apply_hacksav_patch( quint8 *data )
         }
     }
     return 0;
+}
+
+QString DialogPatchExe::identifyWizardryExeVersion( QString exeFile, wizardry_ver *ver, char *md5Hash, char **exePath )
+{
+    if (exePath != NULL)
+    {
+        *exePath = NULL;
+    }
+    if (ver != NULL)
+    {
+        *ver = WIZ_VER_UNKNOWN;
+    }
+
+    QString &wizardryPath = SLFFile::getWizardryPath();
+
+    QFile   *src = NULL;
+
+    if (! exeFile.isEmpty())
+    {
+        src = new QFile( exeFile );
+    }
+    else
+    {
+        // Fan Patch 1.2.8 doesn't replace the original executable, but instead installs
+        // its own, Wiz8_v128.exe. We need to check for that first up, otherwise it will
+        // make a wrong version determination based on the original, unused executable.
+        // If we fail to find that we then search for the original, Wiz8.exe.
+        QStringList  wizardryExe;
+
+        wizardryExe << "Wiz8_v128.exe" << "Wiz8.exe";
+
+        for (int i = 0; !src && (i < wizardryExe.size()); i++)
+        {
+            // For the benefit of case sensitive filesystems actually check all combinations of
+            // casing of the filename, and don't assume a particular format
+            QDir        path    = QDir(wizardryPath);
+
+            QDirIterator it( path, QDirIterator::Subdirectories);
+            while (it.hasNext())
+            {
+                QString file = it.next();
+
+                if (file.compare( path.absoluteFilePath( wizardryExe.at(i) ), Qt::CaseInsensitive ) == 0)
+                {
+                    src = new QFile(file);
+                    if ((ver != NULL) && (wizardryExe.at(i) == "Wiz8_v128.exe"))
+                    {
+                        *ver = WIZ_VER_1_2_8_UNKNOWN;
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    if (!src)
+    {
+        return QString( "The Wizardry executable can't be located." );
+    }
+    if (exePath != NULL)
+    {
+        QByteArray ba = src->fileName().toLatin1();
+
+        *exePath = strdup( ba.data() );
+    }
+    if (src->open(QFile::ReadOnly))
+    {
+        QByteArray machineType = src->read(2);
+
+        // Wizardry EXEs should be original format 16-bit MZ executables
+        if ((machineType[0] != 'M') &&
+            (machineType[1] != 'Z'))
+        {
+            src->close();
+            delete src;
+
+            return QString( "Not correct type of Wizardry executable!" );
+        }
+        if (ver != NULL)
+        {
+            // ver is either WIZ_VER_UNKNOWN or WIZ_VER_1_2_8_UNKNOWN at this point
+            // See if we can identify a specific version by making an initial guess,
+            // applying patches for that guess and seeing if it matches the final
+            // expected MD5 for a particular version.
+
+            src->reset();
+            QByteArray exeData = src->readAll();
+
+            QByteArray hashData  = QCryptographicHash::hash(exeData, QCryptographicHash::Md5);
+            QByteArray md5before = hashData.toHex();
+
+            wizardry_ver patch_ver = WIZ_VER_UNKNOWN;
+
+            if (src->size() == getExpectedExeSize(WIZ_VER_1_0))
+            {
+                patch_ver = WIZ_VER_1_0;
+            }
+            else if (src->size() == getExpectedExeSize(WIZ_VER_1_2_4))
+            {
+                patch_ver = WIZ_VER_1_2_4;
+            }
+            else if (src->size() == getExpectedExeSize(WIZ_VER_1_2_8_BUILD_6200))
+            {
+                patch_ver = WIZ_VER_1_2_8_BUILD_6200;
+            }
+            else if (*ver == WIZ_VER_1_2_8_UNKNOWN)
+            {
+                // Wizardry 1.2.8 fan patches are different sizes for every release
+                patch_ver = WIZ_VER_1_2_8_UNKNOWN;
+            }
+
+            int num_items = sizeof(known_patches) / sizeof(struct patch);
+            for (int k=0; k<num_items; k++)
+            {
+                if (known_patches[k].game_ver == patch_ver)
+                {
+                    // Ignore any already patched errors
+                    known_patches[ k ].function( (quint8 *) exeData.data() );
+                }
+            }
+            hashData = QCryptographicHash::hash(exeData, QCryptographicHash::Md5);
+            QByteArray md5after = hashData.toHex();
+
+            if (md5Hash)
+            {
+                strcpy( md5Hash, md5after.data() );
+            }
+
+            // Not presently any patches for the 1.0 exe, so should
+            // match the pristine MD5
+            if (md5after == "73ad900ac38e38bdc93d25627ea66035")
+            {
+                Q_ASSERT(md5before == "73ad900ac38e38bdc93d25627ea66035");
+                *ver = WIZ_VER_1_0;
+            }
+            else if (md5after == "1a3b555563966d3a96dfcd8ce990b2e6")
+            {
+                if (md5before == "cdf6a691d899fa192e05ceb4a3cc1e67")
+                {
+                    *ver = WIZ_VER_1_2_4;
+                    if (md5Hash)
+                    {
+                        strcpy( md5Hash, md5before.data() );
+                    }
+                }
+                else
+                {
+                    *ver = WIZ_VER_1_2_4_PATCHED;
+                }
+            }
+            else if (md5after == "5a8404639ef0cb1ef43fc50a3bf11147")
+            {
+                if (md5before == "a80aaed35cd3c2d71620d23d7394aa54")
+                {
+                    *ver = WIZ_VER_1_2_8_BUILD_6200;
+                    if (md5Hash)
+                    {
+                        strcpy( md5Hash, md5before.data() );
+                    }
+                }
+                else
+                {
+                    *ver = WIZ_VER_1_2_8_BUILD_6200_PATCHED;
+                }
+            }
+        }
+
+        src->close();
+    }
+    else
+    {
+        delete src;
+
+        return QString( "The Wizardry executable can't be opened." );
+    }
+    delete src;
+
+    return "";
 }

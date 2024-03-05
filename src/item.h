@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 20222024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,8 +30,6 @@
 #include <QMutex>
 #include <QByteArray>
 #include <QPixmap>
-
-#include <STItoQImage.h>
 
 #include "character.h"
 #include "SLFFile.h"
@@ -187,6 +185,8 @@ public:
     };
 
     item(quint32 id = 0xffffffff, quint8 cnt=0, quint8 charges=0, quint8 identified=1, quint8 uncursed=0, bool equipped=false);
+    item(const quint8 *item_ptr, bool equipped=false);
+
     item(const item &other) : QObject()
     {
         m_id         = other.m_id;
@@ -194,6 +194,10 @@ public:
         m_charges    = other.m_charges;
         m_identified = other.m_identified;
         m_uncursed   = other.m_uncursed;
+        m_unknown[0] = other.m_unknown[0];
+        m_unknown[1] = other.m_unknown[1];
+        m_unknown[2] = other.m_unknown[2];
+        m_unknown[3] = other.m_unknown[3];
         m_db_record  = other.m_db_record;
 
         // Warning: this field needs manual update
@@ -209,6 +213,10 @@ public:
         m_charges    = other.m_charges;
         m_identified = other.m_identified;
         m_uncursed   = other.m_uncursed;
+        m_unknown[0] = other.m_unknown[0];
+        m_unknown[1] = other.m_unknown[1];
+        m_unknown[2] = other.m_unknown[2];
+        m_unknown[3] = other.m_unknown[3];
         m_db_record  = other.m_db_record;
 
         // Warning: this field needs manual update
@@ -331,6 +339,7 @@ public:
     bool            isIdentified() const;
     bool            isUncursed() const;
     bool            isEquipped() const;
+    quint8          getUnknown(int idx) const { return m_unknown[idx]; }
 
 private:
     quint32         m_id;
@@ -339,6 +348,7 @@ private:
     quint8          m_identified;
     quint8          m_uncursed;
     bool            m_equipped;
+    quint8          m_unknown[4];
     QByteArray      m_db_record;
 
     dbHelper     *m_helper;

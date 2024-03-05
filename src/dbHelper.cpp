@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,6 +25,10 @@
 
 #include "common.h"
 #include "dbHelper.h"
+#include "Localisation.h"
+
+#include <QSettings>
+#include <QTextCodec>
 
 #define  ITEM_START_OFFSET 0x0004
 #define  ITEM_RECORD_SIZE  0x010d
@@ -148,18 +152,9 @@ QString dbHelper::getItemDesc(quint32 item_id)
     // by 1 as well
     qint32 str_len = m_itemdesc_db->readLEULong();
 
-    QString desc = "";
-    while (str_len-- > 0)
-    {
-        QChar c = QChar( m_itemdesc_db->readLEUShort() );
+    QByteArray desc = m_itemdesc_db->read( str_len*2 );
 
-        // don't add a trailing null to the string
-        if (c.isNull() && (str_len == 0))
-            break;
-
-        desc += c;
-    }
-    return desc;
+    return Localisation::decode( desc.constData(), str_len*2, true );
 }
 
 QByteArray dbHelper::getItemRecord(quint32 item_id)
@@ -189,18 +184,9 @@ QString dbHelper::getSpellDesc(quint32 spell_id)
     // by 1 as well
     qint32 str_len = m_spelldesc_db->readLEULong();
 
-    QString desc = "";
-    while (str_len-- > 0)
-    {
-        QChar c = QChar( m_spelldesc_db->readLEUShort() );
+    QByteArray desc = m_spelldesc_db->read( str_len*2 );
 
-        // don't add a trailing null to the string
-        if (c.isNull() && (str_len == 0))
-            break;
-
-        desc += c;
-    }
-    return desc;
+    return Localisation::decode( desc.constData(), str_len*2, true );
 }
 
 QByteArray dbHelper::getSpellRecord(quint32 spell_id)

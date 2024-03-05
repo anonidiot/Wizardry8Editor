@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -358,21 +358,21 @@ void ScreenSkills::info(bool checked)
 
             character::skill      skill = static_cast<character::skill>(m_widgets.key( w ) - LBL_SKILLS);
 
-            html  = QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getStringTable()->getString( StringList::Description + StringList::APPEND_COLON ))
-                            .arg(::getStringTable()->getString( StringList::DESCSkills + skill ));
+            html  = QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getBaseStringTable()->getString( StringList::Description + StringList::APPEND_COLON ))
+                            .arg(::getBaseStringTable()->getString( StringList::DESCSkills + skill ));
 
             character::lkupControllingAttribs( skill, &attrib1, &attrib2 );
 
-            html += QString( "<p><font color=\"#916448\">%1</font> " ).arg(::getStringTable()->getString( StringList::ControllingAttribs + StringList::APPEND_COLON ));
-            html += ::getStringTable()->getString( StringList::LISTPrimaryAttributes + attrib1 );
+            html += QString( "<p><font color=\"#916448\">%1</font> " ).arg(::getBaseStringTable()->getString( StringList::ControllingAttribs + StringList::APPEND_COLON ));
+            html += ::getBaseStringTable()->getString( StringList::LISTPrimaryAttributes + attrib1 );
             if (attrib1 != attrib2)
             {
-                html += ", " + ::getStringTable()->getString( StringList::LISTPrimaryAttributes + attrib2 );
+                html += ", " + ::getBaseStringTable()->getString( StringList::LISTPrimaryAttributes + attrib2 );
             }
 
             if (skill == m_char->getProfessionalSkill())
             {
-                QString s = QString("<p><font color=\"#ffff00\">%1</font>").arg( ::getStringTable()->getString( StringList::SkillPrimary ));
+                QString s = QString("<p><font color=\"#ffff00\">%1</font>").arg( ::getBaseStringTable()->getString( StringList::SkillPrimary ));
 
                 // This Wizardry string has a printf style format string we want to replace
                 s.replace("%d%%", "25%");
@@ -381,7 +381,7 @@ void ScreenSkills::info(bool checked)
             }
             if (! m_char->getTrainableSkills().contains( skill ))
             {
-                html += QString("<p><font color=\"#ffff00\">%1</font>").arg( ::getStringTable()->getString( StringList::SkillClosed ));
+                html += QString("<p><font color=\"#ffff00\">%1</font>").arg( ::getBaseStringTable()->getString( StringList::SkillClosed ));
             }
             // See if we're the best in the party
             int  me   = m_char->getSkill( skill, character::atIdx::Base );
@@ -402,7 +402,7 @@ void ScreenSkills::info(bool checked)
             }
             if (best)
             {
-                html += QString("<p><font color=\"#ffff00\">%1</font>").arg( ::getStringTable()->getString( StringList::BestInParty ));
+                html += QString("<p><font color=\"#ffff00\">%1</font>").arg( ::getBaseStringTable()->getString( StringList::BestInParty ));
             }
 
             new DialogInfo( StringList::LISTSkills + skill, html, this );

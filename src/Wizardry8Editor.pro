@@ -1,4 +1,4 @@
-VERSION=0.1.6
+VERSION=0.2.0
 
 # "These comments are in quotes because the apostrophes mix up the"
 # "syntax highlighting otherwise."
@@ -102,13 +102,15 @@ SOURCES += main.cpp \
            WScrollBar.cpp \
            WSpinBox.cpp \
            WStatBar.cpp \
+           Localisation.cpp \
            MainWindow.cpp \
            RIFFFile.cpp \
            SLFFile.cpp \
            SLFDeserializer.cpp \
-           STItoQImage.cpp \
+           STI.cpp \
            TGAtoQImage.cpp \
            StringList.cpp \
+           PortraitsDb.cpp \
            Dialog.cpp \
            DialogAbout.cpp \
            DialogAboutUrho3D.cpp \
@@ -120,8 +122,10 @@ SOURCES += main.cpp \
            DialogInfo.cpp \
            DialogItemInfo.cpp \
            DialogSpellInfo.cpp \
+           DialogParallelWorlds.cpp \
            DialogPatchExe.cpp \
            DialogNewFile.cpp \
+           ReplacePortrait.cpp \
            Screen.cpp \
            ScreenCommon.cpp \
            ScreenItems.cpp \
@@ -160,13 +164,15 @@ HEADERS += Wizardry8Style.h \
            WScrollBar.h \
            WSpinBox.h \
            WStatBar.h \
+           Localisation.h \
            MainWindow.h \
            RIFFFile.h \
            SLFFile.h \
            SLFDeserializer.h \
-           STItoQImage.h \
+           STI.h \
            TGAtoQImage.h \
            StringList.h \
+           PortraitsDb.h \
            Dialog.h \
            DialogAbout.h \
            DialogAboutUrho3D.h \
@@ -178,8 +184,10 @@ HEADERS += Wizardry8Style.h \
            DialogInfo.h \
            DialogItemInfo.h \
            DialogSpellInfo.h \
+           DialogParallelWorlds.h \
            DialogPatchExe.h \
            DialogNewFile.h \
+           ReplacePortrait.h \
            Screen.h \
            ScreenCommon.h \
            ScreenItems.h \

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -50,19 +50,28 @@ public:
 
     character *      currentChar() const { return m_party->m_chars[m_charIdx]; }
 
+    void             resetLanguage();
+
     void             updateChars(party *p);
 
     void             setVisible(bool visible) override;
 
+    static int       getInternalPortraitCount();
+    static QPixmap   getPortraitFromFilePath( QString portraitPath );
     static QPixmap   getSmallPortrait(int portraitIndex);
     static QPixmap   getMediumPortrait(int portraitIndex);
     static QPixmap   getLargePortrait(int portraitIndex);
+    static bool      isCustomPortrait(int portraitIndex);
+    static QString   getSmallPortraitName(int portraitIndex);
+    static QString   getMediumPortraitName(int portraitIndex);
+    static QString   getLargePortraitName(int portraitIndex);
     static QPixmap   getStatue( character::race r, character::gender g );
 
 signals:
     void partyEmpty();
     void partyViable();
     void exit();
+    void languageReset();
 
 public slots:
     void charswap(bool checked);    // new character in party selected

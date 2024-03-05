@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -49,6 +49,8 @@ public:
     void setFont(QString fontname, int pointSize, int weight = -1);
     void setFontSize(int pointSize, int weight = -1);
     void setScale(double scale) override;
+    void setText(QString str);
+    void resetText();
 
     void     setData( QVariant v ) { m_data = v; }
     QVariant data()                { return m_data; }
@@ -72,6 +74,8 @@ private:
     int      m_fontWeight;
 
     bool     m_mouseInLabel;
+
+    int      m_stringNum;
 };
 
 #endif // WLABEL_H__

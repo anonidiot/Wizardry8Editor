@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,6 +24,7 @@
  */
 
 #include <QApplication>
+#include <QByteArray>
 #include <QCoreApplication>
 #include <QDir>
 #include <QDirIterator>
@@ -32,7 +33,9 @@
 #include <QFontDatabase>
 #include <QMessageBox>
 #include <QSettings>
+#include <QStringList>
 #include <QStyleFactory>
+#include <QTextCodec>
 
 #include <QtGui/QImage>
 #include <QtWidgets/QLabel>
@@ -41,11 +44,14 @@
 #include <QDebug>
 
 #include "SLFFile.h"
-#include "STItoQImage.h"
+#include "STI.h"
 
 #include "Wizardry8Style.h"
 
 #include "DialogBegin.h"
+#include "DialogPatchExe.h"
+#include "DialogParallelWorlds.h"
+#include "Localisation.h"
 #include "MainWindow.h"
 #include "main.h"
 #include "bspatch.h"
@@ -54,12 +60,54 @@
 #include <Urho3D/IO/File.h>
 
 StringList *wiz8Strings = NULL;
+StringList *wiz8BaseStrings = NULL;
 
 // We can't initialise these before the application,
 // so they have to be pointers instead of objects
 QPixmap *arrowCursor      = NULL;
 QPixmap *whatsThisCursor  = NULL;
 QPixmap *closedHandCursor = NULL;
+
+static DialogPatchExe::wizardry_ver   s_app_version     = DialogPatchExe::wizardry_ver::WIZ_VER_UNKNOWN;
+static QStringList                    s_parallel_worlds;
+static QString                        s_parallel_world;
+
+// This setting is to prevent a foreign language mod (eg. Gray Tiefing)
+// completely overrunning the entire interface and making everything
+// unintelligible when not desired. But since some of this stuff is a
+// module's prerogrative to intentionally change, it needs to be
+// configurable.
+// We ended up in this situation because even when localisation strings
+// exist, they don't necessarily cover _every_single_string_.
+// So it's choice 1 of whether or not to apply localisation at all,
+// choice 2 of which language to use for localisation if you do use it,
+// and choice 3, regardless of whether you use localisation or not, over
+// whether to ignore the bulk of the strings coming out of the module,
+// and instead use the ones from the default DATA.SLF so that the interface
+// still stays in the language you are used to even when you are looking
+// at foreign mods.
+static bool                           s_ignore_most_mod_strings = false;
+
+bool getIgnoreModStrings()
+{
+    return s_ignore_most_mod_strings;
+}
+
+void setIgnoreModStrings(bool value)
+{
+    s_ignore_most_mod_strings = value;
+}
+
+const StringList *getBaseStringTable()
+{
+    // If module specific strings have been disabled - or, in the case of the
+    // parallel worlds dialog, they haven't been loaded yet, use base strings only
+    if (s_ignore_most_mod_strings || !wiz8Strings)
+       return (const StringList *)wiz8BaseStrings;
+
+    // Else get them from the mod/parallel world the same as everything else
+    return getStringTable();
+}
 
 const StringList *getStringTable()
 {
@@ -100,6 +148,18 @@ int makeFont(QString bitmapFont, QString otfFont, QString patchfile)
         qWarning() << "Couldn't open SLF font" << bitmapFont << "to patch";
     }
     return rv;
+}
+
+void setupLanguageCode(bool reset)
+{
+    QSettings settings;
+
+    QVariant codepage = settings.value( "Codepage" );
+
+    if (codepage.isNull() || reset)
+    {
+        settings.setValue( "Codepage", "Windows-1251" );
+    }
 }
 
 bool setupWizardryPath(bool reset)
@@ -145,6 +205,185 @@ bool setupWizardryPath(bool reset)
         if (wizardry_path.isEmpty())
             return false;
     }
+}
+
+bool isWizardry128()
+{
+    if (s_app_version >= DialogPatchExe::wizardry_ver::WIZ_VER_1_2_8_UNKNOWN)
+        return true;
+
+    return false;
+}
+
+bool isParallelWorlds()
+{
+    if (s_parallel_worlds.size() > 0)
+        return true;
+
+    return false;
+}
+
+// return value:
+//    true = exit app
+//    false = keep going
+bool identifyWizardryVersion( bool techIdentify, QString customExe )
+{
+    QString                       errorStr;
+    char                         *exePath;
+    char                          md5Hash[33];
+    DialogPatchExe::wizardry_ver  ver;
+
+    bool     rv = false;
+
+    errorStr = DialogPatchExe::identifyWizardryExeVersion( customExe, &ver, md5Hash, &exePath );
+
+    if (techIdentify)
+    {
+        rv = true;
+
+#if defined( Q_OS_WIN )
+        if (errorStr.isEmpty())
+        {
+            QMessageBox m( QMessageBox::NoIcon, QCoreApplication::applicationName(), QString(), QMessageBox::Ok );
+
+            m.setText( QString("Wizardry Exe identified as %1\n\n"
+                           "Modified MD5Hash: %2\n"
+                           "Path to EXE: %3\n").arg(DialogPatchExe::getVersionStr(ver)).arg(md5Hash).arg(exePath));
+            m.exec();
+        }
+        else
+        {
+            QMessageBox::critical(NULL, "ERROR", errorStr);
+        }
+#else
+        if (errorStr.isEmpty())
+        {
+            QByteArray v = DialogPatchExe::getVersionStr(ver).toLatin1();
+
+            printf("Wizardry Executable at location: %s\n", exePath);
+            printf("Identified as: %s\n", v.data());
+            printf("Modified MD5Hash: %s\n", md5Hash);
+        }
+        else
+        {
+            QByteArray err = errorStr.toLatin1();
+
+            if (exePath)
+            {
+                printf("Wizardry Executable at location: %s\n", exePath);
+            }
+            fprintf(stderr, "%s\n", err.data());
+        }
+#endif
+    }
+    else
+    {
+        if (! errorStr.isEmpty())
+        {
+            QMessageBox::critical(NULL, "ERROR", errorStr);
+            
+            rv = true;
+        }
+        else
+        {
+            s_app_version = ver;
+            s_parallel_worlds.clear();
+
+            if (isWizardry128()) // this will work now s_app_version is set
+            {
+                // Parallel worlds could be active.
+                // Check the directory structure out, but also probe WIZ8.INI to find out
+
+                QString     &wizardryPath    = SLFFile::getWizardryPath();
+                QDir         path            = QDir(wizardryPath);
+                QFile       *iniFile         = NULL;
+                QStringList  filter;
+
+                // folder structure first
+
+                filter << "ParallelWorld";
+                QStringList entries = path.entryList(filter, QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot );
+
+                if (entries.size() == 1)
+                {
+                    QDir    parworlds = path;
+
+                    parworlds.cd( entries.at(0) );
+
+                    filter.clear();
+                    s_parallel_worlds = parworlds.entryList(filter, QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot );
+                }
+
+                // now the ini file
+
+                QDirIterator it( path, QDirIterator::Subdirectories);
+                while (it.hasNext())
+                {
+                    QString file = it.next();
+
+                    if (file.compare( path.absoluteFilePath( "Wiz8.ini" ), Qt::CaseInsensitive ) == 0)
+                    {
+                        iniFile = new QFile(file);
+                        break;
+                    }
+                }
+
+                if (iniFile)
+                {
+                    bool    parallel_worlds = false;
+
+                    // INI File is text file without character set header bytes,
+                    // but will contain Cyrillic characters in the High ASCII range
+                    // Charset appears to be windows-1251 but not explicitly stated
+
+                    QTextCodec *codec = QTextCodec::codecForName("Windows-1251");
+                    if (iniFile->open(QIODevice::ReadOnly))
+                    {
+                        QTextStream in( iniFile );
+
+                        while (!in.atEnd())
+                        {
+                            QByteArray line = iniFile->readLine();
+                            QString utfLine = codec->toUnicode( line );
+
+                            // INI files usually don't have whitespace around the =, but lets
+                            // not force the assumption because there are exceptions
+
+                            // (BTW: The reason we're not using QSettings to read the ini file
+                            //  is because this code should work on linux also.)
+                            if (utfLine.startsWith( "ParallelWorldExists" ))
+                            {
+                                int equals = utfLine.indexOf( '=' );
+
+                                if (utfLine.mid( equals+1 ).trimmed() == "1")
+                                {
+                                    parallel_worlds = true;
+                                }
+                            }
+                            else if (utfLine.startsWith( "ParallelWorld" ))
+                            {
+                                int equals = utfLine.indexOf( '=' );
+
+                                s_parallel_world = utfLine.mid( equals+1 ).trimmed();
+                            }
+                        }
+                        iniFile->close();
+                    }
+                    delete iniFile;
+
+                    // ini file says the directory structure we found is unused, so clear it
+                    if (parallel_worlds == false)
+                    {
+                        s_parallel_worlds.clear();
+                    }
+                }
+            }
+        }
+    }
+
+    free(exePath);
+
+    return rv;
 }
 
     void *_open(const char *pathname, Urho3D::FileMode /* mode */)
@@ -249,7 +488,8 @@ int main(int argc, char *argv[])
 
     QString fileToOpen;
 
-    bool reset = false;
+    bool reset    = false;
+    bool identify = false;
     for (int k=1; k<argc; k++)
     {
         if ((strcmp( argv[k], "--help" ) == 0) ||   // usual unix help option
@@ -261,16 +501,21 @@ int main(int argc, char *argv[])
             m.setText( QString("Edits Wizardry 8 Save game files.\n\n"
                            "%1 [--resetWizardryPath] [<save game file>]\n\n"
                            "--resetWizardryPath\n"
-                           "     Forget existing stored Wizardry folder location and prompt again.\n").arg(argv[0]));
+                           "     Forget existing stored Wizardry folder location and prompt again.\n"
+                           "--identifyExeVersion\n"
+                           "     Display identifiying information for the Wizardry EXE in use.\n").arg(argv[0]));
             m.exec();
 #else
-            printf("%s usage:\n  %s [--resetWizardryPath] [<save game file>]\n", argv[0], argv[0]);
-            printf("\n  --resetWizardryPath       Forget existing stored Wizardry folder location and prompt again.\n");
+            printf("%s usage:\n  %s [<options>] [<save game file>]\n\n", argv[0], argv[0]);
+            printf("  --resetWizardryPath         Forget existing stored Wizardry folder location and prompt again.\n");
+            printf("  --identifyExeVersion [exe]  Print out identification information for the Wizardry EXE in use.\n");
 #endif
             return 0;
         }
         else if (strcmp( argv[k], "--resetWizardryPath" ) == 0)
             reset = true;
+        else if (strcmp( argv[k], "--identifyExeVersion" ) == 0)
+            identify = true;
         else if ((strncmp( argv[k], "-", 1) != 0) && fileToOpen.isEmpty())
         {
             fileToOpen = QString( argv[k] );
@@ -282,6 +527,58 @@ int main(int argc, char *argv[])
 
     if (false == setupWizardryPath( reset ))
         return 0;
+
+    // There are numerous text sections throughout Wizardry objects
+    // that _look_ (if you are looking at the English version at least)
+    // like they are intended to be Unicode text sections - based on
+    // the fact they are all low-ASCII and have intervening '\0' bytes.
+
+    // But, the Russian language mod Gray Tiefing clearly isn't using
+    // it that way. And I suspect it's the same elsewhere.
+
+    // Setup a default codepage to use for converting text instead of
+    // expecting unicode all the time.
+    setupLanguageCode( false );
+
+    if (identify)
+    {
+        identifyWizardryVersion( true, fileToOpen );
+
+        // exit application without error
+        return 0;
+    }
+
+    // exit app with error if all not as expected
+    if (identifyWizardryVersion( false, "" ))
+        return -1;
+
+    if (isWizardry128() && isParallelWorlds())
+    {
+        // Wizardry 1.2.8 with Parallel Worlds active changes everything, in respect to how
+        // to locate SLFs.
+
+        // What we need to do next is to present a dialog asking the user which Parallel
+        // World they are using. Unfortunately if we do that at this point the incorrect
+        // app style will be used because the SLF paths and everything that depends on
+        // them like the fonts haven't been setup yet.
+
+        // So instead we set the initial parallel world to the empty string which forces
+        // a parallel world structure but only uses files from the base tree (ie. DATA.SLF
+        // only). This is enough for us to load fonts and the STIs needed to do a dialog.
+
+        SLFFile::setParallelWorld( "" );
+
+        // (After the dialog has closed and a real selection has been made the application
+        // of the correct parallel world in SLFFile::setParallelWorld resets the entire
+        // path cache because all the locations have now changed. Provided there's nothing
+        // on screen at the time, and no Urho3D rendering has occurred yet this is ok.
+        // Otherwise it makes for unexpected results. BTW: the fact that the Urho3D engine's
+        // own cache is affected by this is the reason we only let the Parallel World be
+        // setup at app launch.)
+
+        // The changes to the SLF search order as a result of parallel worlds being active
+        // are explained in the SLF file.
+    }
 
     // OTF version looks nicer, except on Windows XP which doesn't kern it properly
 
@@ -326,14 +623,38 @@ int main(int argc, char *argv[])
 
     // This gets used a lot by everything, so just process the table once
     // at startup and store it for app lifetime
-    wiz8Strings = new StringList( "Strings/stringdata.dat" );
+    wiz8BaseStrings = new StringList( "Strings/stringdata.dat", true );
+
+    if (isWizardry128() && isParallelWorlds())
+    {
+        // Far enough. If we proceed any further initialising cursors and strings etc.
+        // we have to redo it all after choosing a world.
+
+        DialogParallelWorlds d( s_parallel_worlds, s_parallel_world );
+
+        if (d.exec() != QDialog::Accepted)
+            return -1;
+
+        s_parallel_world = d.getWorld();
+
+        SLFFile::setParallelWorld( s_parallel_world );
+        qDebug() << s_parallel_world << SLFFile::getParallelWorldPath() << Localisation::getModuleName();
+
+        s_ignore_most_mod_strings = d.getIgnoreModStrings();
+    }
+
+    wiz8Strings     = new StringList( "Strings/stringdata.dat" );
+
+    Localisation *loc = Localisation::getLocalisation();
+
+    loc->setLocalisationActive( true );
 
 #ifndef USE_STANDARD_CURSORS
     SLFFile cursors( "CURSORS/2D-CURSORS.STI" );
     if (cursors.open(QFile::ReadOnly))
     {
         QByteArray array = cursors.readAll();
-        STItoQImage c( array );
+        STI c( array );
 
         arrowCursor      = new QPixmap( QPixmap::fromImage( c.getImage(  0 ) ) );
         whatsThisCursor  = new QPixmap( QPixmap::fromImage( c.getImage( 13 ) ) );
@@ -347,12 +668,24 @@ int main(int argc, char *argv[])
 
     if (fileToOpen.isEmpty() || !QFile::exists( fileToOpen ))
     {
-        DialogBegin d;
+        // If we are using Wizardry 1.2.8 there is no choice -
+        // you have to open an existing game as there is no
+        // support for new games. Otherwise display a dialog
+        // and use the user's choice.
 
-        if (d.exec() != QDialog::Accepted)
-            return -1;
+        int  action = DialogBegin::Action::OpenFile;
 
-        switch (d.getAction())
+        if (! isWizardry128())
+        {
+            DialogBegin d;
+
+            if (d.exec() != QDialog::Accepted)
+                return -1;
+
+            action = d.getAction();
+        }
+
+        switch (action)
         {
             default:
                 return -1;
@@ -364,17 +697,34 @@ int main(int argc, char *argv[])
             }
             case DialogBegin::Action::OpenFile:
             {
-                QString &wizardryPath = SLFFile::getWizardryPath();
+                QString Path;
 
-                fileToOpen = ::getOpenFileName(NULL, QObject::tr("Open File"), wizardryPath + "/Saves", QObject::tr("Saved Games (*.sav)"));
+                if (isParallelWorlds())
+                {
+                    Path = SLFFile::getParallelWorldPath();
+                }
+                else
+                {
+                    Path = SLFFile::getWizardryPath();
+                }
+
+                fileToOpen = ::getOpenFileName(NULL, QObject::tr("Open File"), Path + "/Saves", QObject::tr("Saved Games (*.sav)"));
                 break;
             }
         }
     }
 
-    MainWindow w( fileToOpen );
+    if (fileToOpen.isEmpty() && isWizardry128())
+    {
+        QMessageBox::warning(NULL, QObject::tr("Not Supported"),
+            QObject::tr("You are using a Wizardry 1.2.8 executable.\nNew and Reset games are not supported\nby this editor for that version.\n\nYou need to open an existing game file."));
+    }
+    else
+    {
+        MainWindow w( fileToOpen );
 
-    a.exec();
+        a.exec();
+    }
 
 #ifndef USE_STANDARD_CURSORS
     delete arrowCursor;
@@ -383,6 +733,7 @@ int main(int argc, char *argv[])
 #endif
 
     delete wiz8Strings;
+    delete wiz8BaseStrings;
 
     return 0;
 }
@@ -439,7 +790,6 @@ QString getOpenFileName(QWidget *parent, const QString &caption, const QString &
     {
         s = QStyleFactory::create(style);
 
-//        qDebug() << style;
         if (s)
         {
             dialog.setStyle( s );
@@ -475,7 +825,6 @@ QString getSaveFileName(QWidget *parent, const QString &caption, const QString &
     {
         s = QStyleFactory::create(style);
 
-//        qDebug() << style;
         if (s)
         {
             dialog.setStyle( s );

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2024 Anonymous Idiot
+ * Copyright (C) 2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,33 +23,14 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <QPixmap>
-#include <QWidget>
+#ifndef REPLACEPORTRAIT_H
+#define REPLACEPORTRAIT_H
 
-#include "StringList.h"
+#include <QImage>
 
-class facts;
+void    replacePortrait( int portraigIdx, QString filename);
+void    rebuildPatchFile(int portraitIdx, const QImage &replace);
+QImage  quantise( QImage src, int n_colors );
 
-#define ORIGINAL_DIM_X   640
-#define ORIGINAL_DIM_Y   480
+#endif
 
-const StringList     *getStringTable();
-const StringList     *getBaseStringTable();
-
-bool                  getIgnoreModStrings();
-void                  setIgnoreModStrings(bool value);
-
-void                  setFacts(facts f);
-bool                  testFact(int fact_id);
-bool                  testFact(QString fact_name);
-
-void                  setAppScale(double scale);
-double                getAppScale();
-
-QPixmap               getCursor(int id);
-
-bool                  isWizardry128();
-bool                  isParallelWorlds();
-
-QString getOpenFileName(QWidget *parent, const QString &caption, const QString &directory, const QString &filter);
-QString getSaveFileName(QWidget *parent, const QString &caption, const QString &directory, const QString &filter);

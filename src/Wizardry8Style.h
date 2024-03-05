@@ -29,7 +29,7 @@
 #include <QProxyStyle>
 #include <QPalette>
 
-class STItoQImage;
+class STI;
 class QSpinBox;
 class QLineEdit;
 
@@ -70,12 +70,12 @@ public:
 private:
     mutable QPalette     m_standardPalette;
 
-    STItoQImage *m_up_arrow;
-    STItoQImage *m_down_arrow;
-    STItoQImage *m_sbslider;
-    STItoQImage *m_slider;
-    STItoQImage *m_cb;
-    STItoQImage *m_spinner;
+    STI *m_up_arrow;
+    STI *m_down_arrow;
+    STI *m_sbslider;
+    STI *m_slider;
+    STI *m_cb;
+    STI *m_spinner;
 };
 
 class SpinBoxExtra : public QObject

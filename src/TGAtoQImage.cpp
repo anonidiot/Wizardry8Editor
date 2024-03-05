@@ -73,7 +73,7 @@ void TGAtoQImage::parseTGA( QByteArray tga )
 
     quint32  offset = 18 + idStrLen + (paletteEnd - paletteStart);
 
-    // It isn't too hard to adapt the RL encoding in STItoQImage to
+    // It isn't too hard to adapt the RL encoding in STI to
     // work here for the RL formats too, but I just don't need it.
     switch (picTypeCode)
     {

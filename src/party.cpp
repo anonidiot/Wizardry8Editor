@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -200,7 +200,9 @@ QByteArray party::serialize()
 
     for (int chr_id = 0; chr_id < m_chars.size(); chr_id++)
     {
-        if (m_chars[chr_id]->isNull())
+        if (m_chars[chr_id]->isNull() ||
+            (m_chars[chr_id]->getCondition( character::condition::Dead ) != 0) ||
+            (m_chars[chr_id]->getCondition( character::condition::Missing ) != 0))
         {
             for (int posn = 0; posn < FORMATION_SIZE; posn++)
             {
@@ -280,11 +282,11 @@ QByteArray party::serialize()
             ASSIGN_LE8( cdata+0x21 + k*12 +  4, m_items[k].getCount());
             ASSIGN_LE8( cdata+0x21 + k*12 +  5, m_items[k].getCharges());
             ASSIGN_LE8( cdata+0x21 + k*12 +  6, m_items[k].isIdentified());
-            ASSIGN_LE8( cdata+0x21 + k*12 +  7, 0);
-            ASSIGN_LE8( cdata+0x21 + k*12 +  8, 0);
-            ASSIGN_LE8( cdata+0x21 + k*12 +  9, 0);
+            ASSIGN_LE8( cdata+0x21 + k*12 +  7, m_items[k].getUnknown(0));
+            ASSIGN_LE8( cdata+0x21 + k*12 +  8, m_items[k].getUnknown(1));
+            ASSIGN_LE8( cdata+0x21 + k*12 +  9, m_items[k].getUnknown(2));
             ASSIGN_LE8( cdata+0x21 + k*12 + 10, m_items[k].isUncursed());
-            ASSIGN_LE8( cdata+0x21 + k*12 + 11, 0);
+            ASSIGN_LE8( cdata+0x21 + k*12 + 11, m_items[k].getUnknown(3));
         }
         else
         {
@@ -394,25 +396,11 @@ QByteArray party::serialize()
 bool party::appendItem(const quint8 *cdata)
 {
     quint32   id      = FORMAT_LE32(cdata);
-    quint8    cnt     = FORMAT_8(cdata+4);
-    quint8    charges = FORMAT_8(cdata+5);
-
-    quint8    identified = FORMAT_8(cdata+6);  // 0=unidentified, 1=identified, TODO: other values?
-    quint8    uncursed   = FORMAT_8(cdata+10); // 0=object in default state, 1=magically uncursed, TODO: other values?
-
-
-    // FIXME: Don't know what these other ones are for, but they're doing something
-    /*
-    quint8    c   = FORMAT_8(cdata+7);
-    quint8    d   = FORMAT_8(cdata+8);
-    quint8    e   = FORMAT_8(cdata+9);
-    quint8    g   = FORMAT_8(cdata+11);
-    */
 
     if (id == 0xffffffff)
         return false;
 
-    m_items << item( id, cnt, charges, identified, uncursed, false );
+    m_items << item( cdata, false );
     return true;
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -97,6 +97,9 @@ private slots:
     void cut();
     void copy();
     void paste();
+    void ignoreModStrings();
+    void enableLocalisation();
+    void changeLocalisation();
     void droppedItems();
     void findItems();
     void factEditor();
@@ -128,6 +131,8 @@ private:
     QAction *cutAct;
     QAction *copyAct;
     QAction *pasteAct;
+    QAction *ignoreStringsAct;
+    QAction *localisationAct;
     QAction *droppedItemsAct;
     QAction *findItemsAct;
     QAction *factEditorAct;
@@ -136,6 +141,9 @@ private:
     QAction *aboutAct;
     QAction *aboutQtAct;
     QAction *aboutUrhoAct;
+
+    QActionGroup *m_loc_langs;
+
     QLabel *infoLabel;
 
     QWidget   *m_contentWidget;

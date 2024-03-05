@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,17 +27,64 @@
 #include <QPixmap>
 
 #include "SLFFile.h"
-#include "STItoQImage.h"
+#include "STI.h"
 #include "common.h"
 
 #include <QDebug>
 
 static QString                   s_wizardryPath;
+static QString                   s_worldPath;
 static QMap<QString, QString>    s_cache;
+static bool                      s_parallelWorlds = false;
+static QString                   s_world;
 
 void SLFFile::setWizardryPath(QString path)
 {
     s_wizardryPath = path;
+}
+
+// Current design only expects the parallel world to be set at app init.
+// Initially we expect an empty string, which provides for minimal support
+// to draw a "Select Parallel World to use" dialog. And after that we expect
+// to be intialised with the actual world.
+// The main thing this simplifies is the Urho3D engine usage of the SLF file.
+// But it also affects all graphics etc. shown in all windows open etc. If we
+// do want to reset the world, we're pretty much doing an app reset.
+void SLFFile::setParallelWorld(QString world)
+{
+    // radically changes method for locating files
+    s_parallelWorlds = true;
+    s_world = world;
+
+    if (!s_world.isEmpty())
+    {
+        QDir        wizPath( s_wizardryPath );
+        QStringList filter;
+
+        filter << "ParallelWorld";
+        QStringList entries = wizPath.entryList(filter, QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot );
+
+        if (entries.size() == 1)
+        {
+            QDir    parworlds = wizPath;
+
+            parworlds.cd( entries.at(0) );
+
+            filter.clear();
+            filter << s_world;
+            entries = parworlds.entryList(filter, QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot );
+
+            if (entries.size() == 1)
+            {
+                parworlds.cd( entries.at(0) );
+
+                s_worldPath = parworlds.absolutePath();
+            }
+        }
+    }
+
+    // flush the entire path cache because everything is different now
+    s_cache.clear();
 }
 
 QString &SLFFile::getWizardryPath()
@@ -45,58 +92,88 @@ QString &SLFFile::getWizardryPath()
     return s_wizardryPath;
 }
 
-SLFFile::SLFFile(const QString &folder, const QString &slfFile, const QString &name) :
-    m_wizardryPath(s_wizardryPath),
+QString &SLFFile::getParallelWorldPath()
+{
+    return s_worldPath;
+}
+
+SLFFile::SLFFile(const QString &folder, const QString &slfFile, const QString &name, bool force_base) :
     m_subfolder(folder),
     m_slf(slfFile),
     m_storage(NULL),
     m_dataOffset(0xffffffff),
     m_dataLen(-1)
 {
-    init( name );
+    init( name, force_base );
 }
 
-SLFFile::SLFFile(const QString &slfFile, const QString &name) :
-    m_wizardryPath(s_wizardryPath),
+SLFFile::SLFFile(const QString &slfFile, const QString &name, bool force_base) :
     m_subfolder("DATA"),
     m_slf(slfFile),
     m_storage(NULL),
     m_dataOffset(0xffffffff),
     m_dataLen(-1)
 {
-    init( name );
+    init( name, force_base );
 }
 
-void SLFFile::init(const QString &name )
+// Special constructor for a SLF file we've explicitly had to locate manually because
+// it doesn't obey conventional placement rules (eg. FanPatch.dat).
+// The file handle should not be used by the caller afterwards. It will be deleted
+// when the SLFFile is deleted, as per usual.
+SLFFile::SLFFile(QFile *slfFile) :
+    m_subfolder(""),
+    m_slf(""),
+    m_in_slf(true),
+    m_in_patch(false),
+    m_filename(""),
+    m_storage(slfFile),
+    m_dataOffset(0xffffffff),
+    m_dataLen(-1)
+{
+}
+
+void SLFFile::flushFromCache(const QString &name)
+{
+    QString filename = QString(name).replace("\\", "/").toUpper();
+
+    s_cache.remove( "B" + filename );
+    s_cache.remove( "G" + filename );
+}
+
+void SLFFile::init(const QString &name, bool force_base )
 {
     // The cache only serves to help us avoid the directory parsing multiple times
     // if we encounter the same SLF file we've already found before - helps speed
     // up the load of Screens that can sometimes reuse the same slf file multiple
     // times for repeating widgets.
 
-    m_filename = QString(name).replace("\\", "/");
+    m_filename = QString(name).replace("\\", "/").toUpper();
 
-    if (s_cache.contains( m_filename ))
+    QString key = (force_base ? "B" : "G") + m_filename; // Base-restricted or Global (everywhere)
+
+    if (s_cache.contains( key ))
     {
-        QString memory = s_cache.value( m_filename );
+        QString memory = s_cache.value( key );
 
         // empty strings in cache mean it wasn't found when search was conducted
         if (!memory.isEmpty())
         {
             m_in_slf   = (memory.at(0).digitValue() == 1);
-            m_storage  = new QFile( memory.mid(1) ); // fortunately we use absolute paths when we open our files so CWD irrelevent
+            m_in_patch = (memory.at(1).digitValue() == 1);
+            m_storage  = new QFile( memory.mid(2) ); // fortunately we use absolute paths when we open our files so CWD irrelevent
         }
     }
     else
     {
-        setFileName( name );
+        setFileName( name, force_base );
         if (isGood())
         {
-            s_cache.insert( m_filename, QString("%1%2").arg( m_in_slf ? "1" : "0" ).arg( m_storage->fileName() ) );
+            s_cache.insert( key, QString("%1%2%3").arg( m_in_slf ? "1" : "0" ).arg( m_in_patch ? "1" : "0" ).arg( m_storage->fileName() ) );
         }
         else
         {
-            s_cache.insert( m_filename, QString() );
+            s_cache.insert( key, QString() );
         }
     }
 }
@@ -111,7 +188,7 @@ QPixmap SLFFile::getPixmapFromSlf( QString slfFile, int idx )
         if (slf.open(QFile::ReadOnly))
         {
             QByteArray array = slf.readAll();
-            STItoQImage c( array );
+            STI c( array );
 
             img = QPixmap::fromImage( c.getImage( idx ) );
 
@@ -121,111 +198,161 @@ QPixmap SLFFile::getPixmapFromSlf( QString slfFile, int idx )
     return img;
 }
 
-void SLFFile::setFileName(const QString &name)
+void SLFFile::setFileName(const QString &name, bool force_base)
 {
     QStringList filter;
 
-    if (! m_wizardryPath.exists())
+    m_filename = QString(name).replace("\\", "/").toUpper();
+    // Non-parallel worlds Order of precedence:
+    // 1. file in the filesystem
+    // 2. inside a Patch file
+    // 3. inside main file
+
+    // Parallel worlds Order of precedence:
+    // 1. file in the specific world filesystem
+    // 2. inside main file - WHICH HAS BEEN RELOCATED TO s_wizardryPath
+    // Patches and files in base path are ignored.
+    // Portraits have their own special additional rules:
+    // TODO: determine precedent order for portraits
+
+    // 1. File in the filesystem - either in wizardrypath/subfolder or
+    //    wizardrypath/ParallelWorlds/world/subfolder
+
+
+    QDir         cwd = s_wizardryPath;
+    QStringList  entries;
+
+    bool         skip_mod = force_base;
+
+    if (s_parallelWorlds)
     {
-        qCritical() << "Wizardry path" << m_wizardryPath << "doesn't exist!";
-        return;
+        if (s_world.isEmpty())
+        {
+            // intentional edge case for it _not_ to match any files in any world -
+            // used to perform a basic init before the initial Parallel World selection
+            // dialog, so that interface elements can be loaded from DATA.SLF to render
+            // that dialog.
+            skip_mod = true;
+        }
+        else
+        {
+            cwd = s_worldPath;
+        }
     }
-
-    m_filename = QString(name).replace("\\", "/");
-    // Order of precedence: 1) file in the filesystem, 2) inside a Patch file, 3) inside main file
-
-    // 1) File in the filesystem -- complicating factor is that Wizardry
-    //    uses case insensitive filenames, but this could be on a case-sensitive OS (eg linux)
 
     // Find the m_subfolder subfolder ("DATA" by default) - which we don't know the casing of yet
 
     filter.clear();
     filter << m_subfolder;
 
-    QStringList entries = m_wizardryPath.entryList(filter, QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot );
+    // If we're in parallel worlds configuration but no parallel world is set yet, then
+    // skip the search through an as yet unknown world.
+    // Also skip if we have been explicitly asked to in the constructor.
 
-    if (entries.size() == 1)
+    if (!skip_mod)
     {
-        QDir    data_subfolder = m_wizardryPath;
+        entries = cwd.entryList(filter, QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot );
 
-        data_subfolder.cd( entries.at(0) );
-
-        QDirIterator it( data_subfolder, QDirIterator::Subdirectories);
-        while (it.hasNext())
+        if (entries.size() == 1)
         {
-            QString file = it.next();
+            cwd.cd( entries.at(0) );
 
-            if (file.compare( data_subfolder.absoluteFilePath( m_filename ), Qt::CaseInsensitive ) == 0)
+            QDirIterator it( cwd, QDirIterator::Subdirectories);
+
+            while (it.hasNext())
             {
-//                qDebug() << "Found" << m_filename << "in filesystem file" << file;
-                m_storage = new QFile(file);
-                m_in_slf = false;
-                return;
+                QString file = it.next();
+
+                if (file.compare( cwd.absoluteFilePath( m_filename ), Qt::CaseInsensitive ) == 0)
+                {
+//                    qDebug() << "Found" << m_filename << "in filesystem file" << file;
+                    m_storage = new QFile(file);
+                    m_in_slf = false;
+                    m_in_patch = false;
+                    return;
+                }
             }
         }
     }
 
-    // 2) inside patch file
+    // 2) inside patch file - only if not parallel worlds
 
-    // Find the PATCHES subfolder - which we don't know the casing of yet
-
-    filter.clear();
-    filter << "PATCHES";
-
-    entries = m_wizardryPath.entryList(filter, QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot );
-    if (entries.size() == 1)
+    if (! s_parallelWorlds)
     {
-        QDir    patches_subfolder = m_wizardryPath;
-
-        patches_subfolder.cd( entries.at(0) );
+        cwd = s_wizardryPath;
+        // Find the PATCHES subfolder - which we don't know the casing of yet
 
         filter.clear();
-        filter << "PATCH.*";
+        filter << "PATCHES";
 
-        // We sort in reversed order so that later numbered patches can override earlier ones
-        entries = patches_subfolder.entryList(filter, QDir::Files | QDir::NoSymLinks | QDir::NoDotAndDotDot, QDir::Name | QDir::IgnoreCase | QDir::Reversed );
-
-        for (int k=0; k<entries.size(); k++)
+        entries = cwd.entryList(filter, QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot );
+        if (entries.size() == 1)
         {
-            // Patches have to end with 3 digits - the filter above isn't flexible enough
-            // to let us enforce that (don't want to be processing patches that have been
-            // disabled in place, eg. PATCH.010.BAK
+            cwd.cd( entries.at(0) );
 
-            QString suffix = entries.at(k).mid(6);
+            filter.clear();
+            filter << "PATCH.*";
 
-            if ((suffix.length() == 3) &&
-                (suffix.at(0).isDigit()) &&
-                (suffix.at(1).isDigit()) &&
-                (suffix.at(2).isDigit()))
+            // We sort in reversed order so that later numbered patches can override earlier ones
+            entries = cwd.entryList(filter, QDir::Files | QDir::NoSymLinks | QDir::NoDotAndDotDot, QDir::Name | QDir::IgnoreCase | QDir::Reversed );
+
+            for (int k=0; k<entries.size(); k++)
             {
-                QFile *probe = new QFile( patches_subfolder.absoluteFilePath( entries.at(k) ) );
+                // Patches have to end with 3 digits - the filter above isn't flexible enough
+                // to let us enforce that (don't want to be processing patches that have been
+                // disabled in place, eg. PATCH.010.BAK
 
-                if (isSlf(*probe) && containsFile(*probe, m_filename))
+                QString suffix = entries.at(k).mid(6);
+
+                if ((suffix.length() == 3) &&
+                    (suffix.at(0).isDigit()) &&
+                    (suffix.at(1).isDigit()) &&
+                    (suffix.at(2).isDigit()))
                 {
-//                    qDebug() << "Found" << m_filename << "in SLF file" << probe->fileName();
-                    m_storage = probe;
-                    m_in_slf = true;
-                    return;
+                    QFile *probe = new QFile( cwd.absoluteFilePath( entries.at(k) ) );
+
+                    if (isSlf(*probe) && containsFile(*probe, m_filename))
+                    {
+    //                    qDebug() << "Found" << m_filename << "in SLF file" << probe->fileName();
+                        m_storage = probe;
+                        m_in_slf = true;
+                        m_in_patch = true;
+                        return;
+                    }
+                    delete probe;
                 }
-                delete probe;
             }
         }
     }
 
     // 3) inside the given SLF file (DATA.SLF by default)
+    //    If parallelworlds this will be in the base folder
+    //    otherwise it is in subfolder
 
-    filter.clear();
-    filter << m_subfolder;
+    bool    search      = false;
+    QDir    slf_homedir = s_wizardryPath;
 
-    entries = m_wizardryPath.entryList(filter, QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot );
-
-    if (entries.size() == 1)
+    if (s_parallelWorlds)
     {
-        QDir    data_subfolder = m_wizardryPath;
+        search = true;
+    }
+    else
+    {
+        filter.clear();
+        filter << m_subfolder;
 
-        data_subfolder.cd( entries.at(0) );
+        entries = slf_homedir.entryList(filter, QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot );
 
-        QDirIterator it( data_subfolder, QDirIterator::Subdirectories);
+        if (entries.size() == 1)
+        {
+            search = true;
+            slf_homedir.cd( entries.at(0) );
+        }
+    }
+
+    if (search)
+    {
+        QDirIterator it( slf_homedir );
         while (it.hasNext())
         {
             QString file = it.next();
@@ -239,6 +366,7 @@ void SLFFile::setFileName(const QString &name)
 //                    qDebug() << "Found" << m_filename << "in SLF file" << probe->fileName();
                     m_storage = probe;
                     m_in_slf = true;
+                    m_in_patch = false;
                     return;
                 }
                 delete probe;
@@ -267,6 +395,11 @@ bool SLFFile::isGood()
     if (m_storage)
         return true;
     return false;
+}
+
+bool SLFFile::isFromPatch()
+{
+    return m_in_patch;
 }
 
 bool SLFFile::open(QFile::OpenMode flags)
@@ -465,6 +598,11 @@ float SLFFile::readFloat()
     return *f;
 }
 
+QByteArray SLFFile::readLine()
+{
+    return m_storage->readLine();
+}
+
 bool SLFFile::isSlf(QFile &file)
 {
     if (file.open(QFile::ReadOnly))
@@ -513,7 +651,7 @@ bool SLFFile::containsFile(QFile &file, const QString &filename)
         // get the number of files in the archive
         file.read((char*)buf, 4);
         num_files = FORMAT_LE32(buf);
-        for (int k=(int)num_files; k >= 0; k--)
+        for (int k=(int)num_files; k > 0; k--)
         {
             file.seek( file.size() - 280 * k);
 
@@ -535,6 +673,11 @@ bool SLFFile::containsFile(QFile &file, const QString &filename)
 }
 
 void SLFFile::seekToFile()
+{
+    seekToFile( m_filename );
+}
+
+void SLFFile::seekToFile(QString filename)
 {
     // File already expected to be opened
     quint32   num_files;
@@ -558,7 +701,7 @@ void SLFFile::seekToFile()
     m_storage->read((char *)buf, 4);
     num_files = FORMAT_LE32(buf);
 
-    for (int k=(int)num_files; k >= 0; k--)
+    for (int k=(int)num_files; k > 0; k--)
     {
         m_storage->seek( m_storage->size() - 280 * k);
 
@@ -567,7 +710,7 @@ void SLFFile::seekToFile()
 
         QString archiveFile = QString::fromLatin1((char *)buf).replace("\\", "/");
 
-        if (archiveFile.compare( m_filename, Qt::CaseInsensitive ) == 0)
+        if (archiveFile.compare( filename, Qt::CaseInsensitive ) == 0)
         {
             m_storage->read((char *)buf, 8);
             m_dataOffset = FORMAT_LE32(buf);

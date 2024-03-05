@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,7 +30,8 @@
 
 WCheckBox::WCheckBox(const QString &text, QWidget* parent)
     : QCheckBox(text, parent),
-    Wizardry8Scalable(1.0)
+    Wizardry8Scalable(1.0),
+    m_stringNum(-1)
 {
     if (Wizardry8Scalable *w = dynamic_cast<Wizardry8Scalable *>(parent))
     {
@@ -41,11 +42,20 @@ WCheckBox::WCheckBox(const QString &text, QWidget* parent)
 WCheckBox::WCheckBox(int stringNum, QWidget* parent)
     : WCheckBox("", parent)
 {
-    setText( ::getStringTable()->getString( stringNum ) );
+    m_stringNum = stringNum;
+    resetText();
 }
 
 WCheckBox::~WCheckBox()
 {
+}
+
+void WCheckBox::resetText()
+{
+    if (m_stringNum != -1)
+    {
+        setText( ::getBaseStringTable()->getString( m_stringNum ) );
+    }
 }
 
 void WCheckBox::setScale(double scale)

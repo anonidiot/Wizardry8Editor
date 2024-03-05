@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,13 +24,40 @@
  */
 
 #include "StringList.h"
+#include "Localisation.h"
 #include "SLFFile.h"
 
+#include <QTextCodec>
 #include <QDebug>
 
-StringList::StringList( QString filename )
+// This app was written to use the the strings from the app where
+// possible. Then I found the Grey Tiefing mod and realised that
+// if I loaded it the entire interface now came up in Russian as
+// a result. It forced some changes in order to try to retain the
+// interface in the intended language, but support the mod's language
+// for mod specific content.
+
+// The force_base parameter allows the mod dependent localisation
+// to be ignored and strings to be retrieved from the base DATA.SLF
+// directly for all the standard text labels in the interface.
+
+// We have to be able to retrieve strings from the mod file for
+// other activities, though, so now we have to run two string
+// tables in parallel.
+
+// There is no sane 'normal' here. A mod could legitimately be
+// desiring to change the Fairy class into Smurf, for example
+// (whether that works with the game I don't know, but it would
+//  have worked with this editor at least). By ignoring the mod
+// strings for the interface we stop this from working. But if
+// we don't do this, foreign language mods will affect all the
+// text on screen, not just their own content. So depending on
+// the mod being viewed, the user may want to toggle the menu
+// option.
+StringList::StringList( QString filename, bool force_base )
 {
-    SLFFile strings( filename );
+    SLFFile strings( filename, force_base );
+
     if (strings.open(QFile::ReadOnly))
     {
         quint32 num_strings = strings.readLEULong();
@@ -65,7 +92,7 @@ QString StringList::decipher( QByteArray in )
 
         dec[k] = idiotCypher;
     }
-    return QString::fromUtf16((const ushort *)dec);
+    return Localisation::decode( (const char *)dec, in.size(), true );
 }
 
 bool StringList::isNull() const
@@ -82,6 +109,29 @@ int StringList::getNumStrings() const
 }
 
 const QString StringList::getString( int idx ) const
+{
+    int base_idx = idx & ~APPEND_COLON;
+
+    if ((base_idx > 0) && (base_idx < m_strings.size()))
+    {
+        Localisation *loc = Localisation::getLocalisation();
+
+        if (loc->isLocalisationActive())
+        {
+            QString s = loc->getString( base_idx );
+
+            if (!s.isEmpty())
+            {
+                return s + ((idx & APPEND_COLON) ? ":" : "");
+            }
+
+        }
+    }
+
+    return getUnlocalisedString( idx );
+}
+
+const QString StringList::getUnlocalisedString( int idx ) const
 {
     QString s = "";
 
@@ -108,6 +158,9 @@ const QString StringList::getString( int idx ) const
                 break;
             case Paste:
                 s = QObject::tr("Paste");
+                break;
+            case IgnoreModStringsShort:
+                s = QObject::tr("Ignore Most Module Strings.");
                 break;
 
             case DroppedItems:
@@ -149,6 +202,19 @@ const QString StringList::getString( int idx ) const
                 break;
             case W7RodanDeadHelp:
                 s = QObject::tr("Doesn't affect gameplay - just initial dialog when first meet Rodan Lewarx.");
+                break;
+
+            case Wiz128Detected:
+                s = QObject::tr("Wizardry 1.2.8 detected.");
+                break;
+            case ParallelWorldsEnabled:
+                s = QObject::tr("Parallel Worlds are enabled.");
+                break;
+            case SelectParallelWorld:
+                s = QObject::tr("Select which Parallel World to use with the editor.");
+                break;
+            case IgnoreModStrings:
+                s = QObject::tr("Ignore (most) world specific strings.");
                 break;
 
             case AddItem:
@@ -241,6 +307,16 @@ const QString StringList::getString( int idx ) const
                 break;
             case PortalEnabled:
                 s = QObject::tr("Portal Enabled");
+                break;
+
+            case PortraitInfo:
+                s = QObject::tr("The active portrait can be replaced using the popup menu on the character. Modified images are not stored in the save game file but saved in a Wizardry Patch file (PATCHES\\PATCH.010).");
+                break;
+            case PortraitModify:
+                s = QObject::tr("Customise Portrait");
+                break;
+            case PortraitReset:
+                s = QObject::tr("Reset Portrait to default");
                 break;
         }
     }

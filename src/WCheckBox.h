@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -41,6 +41,10 @@ public:
     ~WCheckBox();
 
     void setScale(double scale) override;
+    void resetText();
+
+private:
+    int m_stringNum;
 };
 
 #endif // WCHECKBOX_H__

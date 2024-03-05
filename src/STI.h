@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,8 +23,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef STI_TO_QIMAGE_H__
-#define STI_TO_QIMAGE_H__
+#ifndef STI_H__
+#define STI_H__
 
 #include <QByteArray>
 #include <QImage>
@@ -80,10 +80,10 @@ public:
     quint8             depth;
 };
 
-class STItoQImage
+class STI
 {
 public:
-    STItoQImage( QByteArray sti );
+    STI( QByteArray sti );
 
     int           getNumImages()        { return m_image.size();                                       }
     QSize         getSize(int image)    { return QSize( m_image[image].width, m_image[image].height ); }
@@ -103,12 +103,17 @@ public:
         return m_image[image].getImage();
     }
 
+    static QByteArray makeSTI( QImage image, int num_images=1, bool true256=true );
+
 private:
     void parseSTI( const quint8 *data_ptr, size_t len );
     void parse16bitSTI( quint32 flags, const quint8 *data_ptr, size_t len );
     void parseIndexedSTI( quint32 flags, const quint8 *data_ptr, size_t len );
 
+    static QByteArray make8BitSTI( QImage image, int num_images=1, bool true256=true );
+    static QByteArray make16BitSTI( QImage image );
+
     QList<image>  m_image;
 };
 
-#endif /* STI_TO_QIMAGE_H__ */
+#endif /* STI_H__ */

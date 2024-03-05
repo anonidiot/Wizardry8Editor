@@ -31,7 +31,6 @@
 #include <QPushButton>
 
 #include "Wizardry8Scalable.h"
-#include "STItoQImage.h"
 
 #include "character.h"
 #include "Screen.h"

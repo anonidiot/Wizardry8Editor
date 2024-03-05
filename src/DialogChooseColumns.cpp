@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -261,7 +261,7 @@ void DialogChooseColumns::setColumns(const QList<column> &cols)
         // First the active columns, in the order selected
         for (int k=0; k<cols.size(); k++)
         {
-            QListWidgetItem *newCol = new QListWidgetItem( ::getStringTable()->getString( cols.at(k) ) );
+            QListWidgetItem *newCol = new QListWidgetItem( ::getBaseStringTable()->getString( cols.at(k) ) );
             newCol->setData( Qt::UserRole, cols.at(k) );
             newCol->setFlags( newCol->flags() | Qt::ItemIsUserCheckable );
             newCol->setCheckState( Qt::Checked );
@@ -275,7 +275,7 @@ void DialogChooseColumns::setColumns(const QList<column> &cols)
 
             if (! cols.contains( c ))
             {
-                QListWidgetItem *newCol = new QListWidgetItem( ::getStringTable()->getString( c ) );
+                QListWidgetItem *newCol = new QListWidgetItem( ::getBaseStringTable()->getString( c ) );
                 newCol->setData( Qt::UserRole, c );
                 newCol->setFlags( newCol->flags() | Qt::ItemIsUserCheckable );
                 newCol->setCheckState( Qt::Unchecked );

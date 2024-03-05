@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -39,6 +39,22 @@ public:
     DialogPatchExe(QWidget *parent = nullptr);
     ~DialogPatchExe();
 
+    enum wizardry_ver
+    {
+        WIZ_VER_UNKNOWN,
+        WIZ_VER_1_0,
+        WIZ_VER_1_2_4,
+        WIZ_VER_1_2_4_PATCHED,
+        WIZ_VER_1_2_8_UNKNOWN,
+        WIZ_VER_1_2_8_BUILD_6200,
+        WIZ_VER_1_2_8_BUILD_6200_PATCHED
+    };
+    Q_ENUM(wizardry_ver);
+
+    static QString identifyWizardryExeVersion( QString exeFile, wizardry_ver *ver, char *md5Hash, char **exePath );
+    static quint64 getExpectedExeSize(wizardry_ver ver);
+    static QString getVersionStr(wizardry_ver ver);
+
 public slots:
     void patchHighlighted(int);
 
@@ -49,6 +65,9 @@ protected:
 
 private:
     QPixmap    makeDialogForm();
+
+    wizardry_ver    m_myWizVer;
+    QString         m_exePath;
 };
 
 #endif

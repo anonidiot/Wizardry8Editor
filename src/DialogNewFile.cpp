@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,7 +25,6 @@
 
 #include "DialogNewFile.h"
 #include "SLFFile.h"
-#include "STItoQImage.h"
 #include "main.h"
 
 #include <QApplication>
@@ -73,7 +72,7 @@ DialogNewFile::DialogNewFile(QWidget *parent)
     {
         { NO_ID,              QRect(   0,   0,  -1,  -1 ),    new WImage(    bgImg,                                                          this ),  -1,  NULL },
 
-        { NO_ID,              QRect(  10,  30,  70,  12 ),    new WLabel(    ::getStringTable()->getString( StringList::Scenario + StringList::APPEND_COLON ),  Qt::AlignRight, 10, QFont::Thin, this ),  -1,  NULL },
+        { NO_ID,              QRect(  10,  30,  70,  12 ),    new WLabel(    ::getBaseStringTable()->getString( StringList::Scenario + StringList::APPEND_COLON ),  Qt::AlignRight, 10, QFont::Thin, this ),  -1,  NULL },
 
         { CB_SC1,             QRect( 100,  30, 227,  13 ),    new WCheckBox( StringList::W7EndUmpani,                                        this ),  -1,  NULL },
         { CB_SC2,             QRect( 100,  47, 227,  13 ),    new WCheckBox( StringList::W7EndTRang,                                         this ),  -1,  NULL },
@@ -83,7 +82,7 @@ DialogNewFile::DialogNewFile(QWidget *parent)
         { CB_RODAN,           QRect(  30, 120, 300,  13 ),    new WCheckBox( StringList::W7RodanDead,                                        this ),  StringList::W7RodanDeadHelp,  NULL },
         { CB_BARLONE,         QRect(  30, 137, 300,  13 ),    new WCheckBox( StringList::W7BarloneDead,                                      this ),  StringList::W7BarloneDeadHelp,  NULL },
 
-        { LBL_WARNING,        QRect(  20, 180, 344,  70 ),    new WLabel(    ::getStringTable()->getString( StringList::WarningNewFile ),    Qt::AlignLeft, 10, QFont::Thin, this ),  -1,  NULL },
+        { LBL_WARNING,        QRect(  20, 180, 344,  70 ),    new WLabel(    ::getBaseStringTable()->getString( StringList::WarningNewFile ),    Qt::AlignLeft, 10, QFont::Thin, this ),  -1,  NULL },
         { NO_ID,              QRect( 312, 268,  -1,  -1 ),    new WButton(   "DIALOGS/DIALOGCONFIRMATION.STI",               0, true, 1.0,   this ),  -1,  SLOT(accept()) },
         { NO_ID,              QRect( 344, 268,  -1,  -1 ),    new WButton(   "DIALOGS/DIALOGCONFIRMATION.STI",               4, true, 1.0,   this ),  -1,  SLOT(reject()) },
     };
@@ -124,7 +123,7 @@ void DialogNewFile::setSaveAsResetDialog()
 
     if (QLabel *q = qobject_cast<QLabel *>(m_widgets[ LBL_WARNING ]))
     {
-        q->setText( ::getStringTable()->getString( StringList::WarningSaveReset ) );
+        q->setText( ::getBaseStringTable()->getString( StringList::WarningSaveReset ) );
     }
 }
 

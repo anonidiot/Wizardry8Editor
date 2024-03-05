@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,7 +25,7 @@
 
 #include "DialogAddItem.h"
 #include "SLFFile.h"
-#include "STItoQImage.h"
+#include "STI.h"
 #include "common.h"
 #include "main.h"
 
@@ -194,13 +194,13 @@ void DialogAddItem::init()
     {
         { NO_ID,              QRect(   0,   0,  -1,  -1 ),    new WImage(    bgImg,                                                          this ),  -1,  NULL },
 
-        { NO_ID,              QRect(  10,  32,  70,  12 ),    new WLabel(    ::getStringTable()->getString( StringList::Type + StringList::APPEND_COLON ),  Qt::AlignRight, 10, QFont::Thin, this ),  -1,  NULL },
+        { NO_ID,              QRect(  10,  32,  70,  12 ),    new WLabel(    ::getBaseStringTable()->getString( StringList::Type + StringList::APPEND_COLON ),  Qt::AlignRight, 10, QFont::Thin, this ),  -1,  NULL },
         { DDL_PREV,           QRect(  96,  25,  -1,  -1 ),    new WButton(   "CHAR GENERATION/CG_BUTTONS.STI",               0, false, 1.0,  this ),  -1,  SLOT(prevType(bool)) },
         { FRAME_TYPE,         QRect( 122,  27,  -1,  -1 ),    new WImage(                                                                    this ),  -1,  SLOT(dropDownList(bool)) },
         { I_TYPE,             QRect( 125,  30,  -1,  -1 ),    new WImage(                                                                    this ),  -1,  SLOT(dropDownList(bool)) },
         { VAL_TYPE,           QRect( 145,  30, 120,  18 ),    new WLabel(    "", "Lucida Calligraphy",       Qt::AlignLeft,  9, QFont::Thin, this ),  -1,  SLOT(dropDownList(bool)) },
         { DDL_NEXT,           QRect( 278,  25,  -1,  -1 ),    new WButton(   "CHAR GENERATION/CG_BUTTONS.STI",               5, false, 1.0,  this ),  -1,  SLOT(nextType(bool)) },
-        { NO_ID,              QRect(  10,  75,  70,  12 ),    new WLabel(    ::getStringTable()->getString( StringList::Item + StringList::APPEND_COLON ),  Qt::AlignRight, 10, QFont::Thin, this ),  -1,  NULL },
+        { NO_ID,              QRect(  10,  75,  70,  12 ),    new WLabel(    ::getBaseStringTable()->getString( StringList::Item + StringList::APPEND_COLON ),  Qt::AlignRight, 10, QFont::Thin, this ),  -1,  NULL },
 
         { LBL_MULTI,          QRect(  10, 245,  70,  12 ),    new WLabel(    "",                            Qt::AlignRight, 10, QFont::Thin, this ),  -1,  NULL },
         { VAL_MULTI,          QRect(  88, 245,  80,  12 ),    new WSpinBox(  1, 0, 255,                                                      this ),  -1,  NULL },
@@ -236,7 +236,7 @@ void DialogAddItem::init()
 
         for (int k=0; k<=item::type::Other; k++)
         {
-            QListWidgetItem *type = new QListWidgetItem( ::getStringTable()->getString( StringList::LISTItemTypes + k ));
+            QListWidgetItem *type = new QListWidgetItem( ::getBaseStringTable()->getString( StringList::LISTItemTypes + k ));
             type->setData( Qt::DecorationRole, m_typeIcon[ k ] );
             type->setData( Qt::UserRole, k );
             ddl->addItem( type );
@@ -358,7 +358,7 @@ void DialogAddItem::updateList()
 {
     if (WLabel *w = qobject_cast<WLabel *>(m_widgets[ VAL_TYPE ] ))
     {
-        w->setText( ::getStringTable()->getString( StringList::LISTItemTypes + static_cast<int>(m_type) ));
+        w->setText( ::getBaseStringTable()->getString( StringList::LISTItemTypes + static_cast<int>(m_type) ));
     }
     if (WImage *w = qobject_cast<WImage *>(m_widgets[ I_TYPE ] ))
     {
@@ -447,7 +447,7 @@ void DialogAddItem::updateMulti( const item &i )
 
         if (i.isStackable())
         {
-            w->setText( ::getStringTable()->getString( StringList::Quantity + StringList::APPEND_COLON ) );
+            w->setText( ::getBaseStringTable()->getString( StringList::Quantity + StringList::APPEND_COLON ) );
             v->setRange( 0, 255 );
             if (i.getCount() == 0)
             {
@@ -460,7 +460,7 @@ void DialogAddItem::updateMulti( const item &i )
         }
         else if (i.hasCharges())
         {
-            w->setText( ::getStringTable()->getString( StringList::Charges + StringList::APPEND_COLON ) );
+            w->setText( ::getBaseStringTable()->getString( StringList::Charges + StringList::APPEND_COLON ) );
             v->setRange( 0, i.getMaxCharges() );
             if (i.getCharges() == 0)
             {
@@ -473,7 +473,7 @@ void DialogAddItem::updateMulti( const item &i )
         }
         else if (i.hasUses())
         {
-            w->setText( ::getStringTable()->getString( StringList::Uses + StringList::APPEND_COLON ) );
+            w->setText( ::getBaseStringTable()->getString( StringList::Uses + StringList::APPEND_COLON ) );
             v->setRange( 0, i.getMaxCharges() );
             if (i.getCharges() == 0)
             {
@@ -486,7 +486,7 @@ void DialogAddItem::updateMulti( const item &i )
         }
         else if (i.hasShots())
         {
-            w->setText( ::getStringTable()->getString( StringList::Shots + StringList::APPEND_COLON ) );
+            w->setText( ::getBaseStringTable()->getString( StringList::Shots + StringList::APPEND_COLON ) );
             v->setRange( 0, i.getMaxCharges() );
             if (i.getCharges() == 0)
             {
@@ -550,7 +550,7 @@ void DialogAddItem::makeTypePixmaps()
         if (ic.open(QFile::ReadOnly))
         {
             QByteArray array = ic.readAll();
-            STItoQImage c( array );
+            STI c( array );
 
             QImage  im = c.getImage( 0 );
 
@@ -585,7 +585,7 @@ void DialogAddItem::makeTypePixmaps()
     if (imgs.open(QFile::ReadOnly))
     {
         QByteArray array = imgs.readAll();
-        STItoQImage sti_imgs( array );
+        STI sti_imgs( array );
 
         m_ddlInactive = makeWider( sti_imgs.getImage( 1 ), sti_imgs.getWidth( 1 ) + 30 );
         m_ddlActive   = makeWider( sti_imgs.getImage( 2 ), sti_imgs.getWidth( 2 ) + 30 );

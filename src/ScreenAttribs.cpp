@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -46,6 +46,7 @@
 #include "WStatBar.h"
 
 #include "SLFFile.h"
+#include "STI.h"
 
 #include "spell.h"
 #include "main.h"
@@ -331,7 +332,7 @@ void ScreenAttribs::populateDDLProfessions(WDDL *ddl)
         if (ic.open(QFile::ReadOnly))
         {
             QByteArray array = ic.readAll();
-            STItoQImage c( array );
+            STI c( array );
 
             for (int k=0; k<metaProf.keyCount(); k++)
             {
@@ -359,7 +360,7 @@ void ScreenAttribs::populateDDLProfessions(WDDL *ddl)
                     case character::profession::Mage:      imIdx = 26; break;
                 }
 
-                QListWidgetItem *prof = new QListWidgetItem( ::getStringTable()->getString( StringList::LISTProfessions + k ));
+                QListWidgetItem *prof = new QListWidgetItem( ::getBaseStringTable()->getString( StringList::LISTProfessions + k ));
                 prof->setData( Qt::DecorationRole, QPixmap::fromImage( c.getImage( imIdx ) ) );
                 prof->setData( Qt::UserRole, p );
 
@@ -382,7 +383,7 @@ void ScreenAttribs::populateDDLRaces(WDDL *ddl)
         if (ic.open(QFile::ReadOnly))
         {
             QByteArray array = ic.readAll();
-            STItoQImage c( array );
+            STI c( array );
 
             for (int k=0; k<metaRace.keyCount(); k++)
             {
@@ -411,7 +412,7 @@ void ScreenAttribs::populateDDLRaces(WDDL *ddl)
                     case character::race::Android:   imIdx = 28; break;
                 }
 
-                QListWidgetItem *race = new QListWidgetItem( ::getStringTable()->getString( StringList::LISTRaces + k ));
+                QListWidgetItem *race = new QListWidgetItem( ::getBaseStringTable()->getString( StringList::LISTRaces + k ));
                 race->setData( Qt::DecorationRole, QPixmap::fromImage( c.getImage( imIdx ) ) );
                 race->setData( Qt::UserRole, r );
 
@@ -434,7 +435,7 @@ void ScreenAttribs::populateDDLGenders(WDDL *ddl)
         if (ic.open(QFile::ReadOnly))
         {
             QByteArray array = ic.readAll();
-            STItoQImage c( array );
+            STI c( array );
 
             for (int k=0; k<metaGender.keyCount(); k++)
             {
@@ -449,7 +450,7 @@ void ScreenAttribs::populateDDLGenders(WDDL *ddl)
                     case character::gender::Female:   imIdx =  2; break;
                 }
 
-                QListWidgetItem *gender = new QListWidgetItem( ::getStringTable()->getString( StringList::LISTGenders + k ));
+                QListWidgetItem *gender = new QListWidgetItem( ::getBaseStringTable()->getString( StringList::LISTGenders + k ));
                 gender->setData( Qt::DecorationRole, QPixmap::fromImage( c.getImage( imIdx ) ) );
                 gender->setData( Qt::UserRole, g );
 
@@ -495,8 +496,8 @@ void ScreenAttribs::info(bool checked)
             QString html;
             int     attrib = m_widgets.key( w ) - LBL_ATTRIBUTES_START;
 
-            html = QString( "<p><font color=\"#916448\">%1:</font> %2" ).arg(::getStringTable()->getString( StringList::Description + StringList::APPEND_COLON ))
-                            .arg(::getStringTable()->getString( StringList::DESCPrimaryAttributes + attrib ));
+            html = QString( "<p><font color=\"#916448\">%1:</font> %2" ).arg(::getBaseStringTable()->getString( StringList::Description + StringList::APPEND_COLON ))
+                            .arg(::getBaseStringTable()->getString( StringList::DESCPrimaryAttributes + attrib ));
 
             new DialogInfo( StringList::LISTPrimaryAttributes + attrib, html, this );
         }
@@ -623,7 +624,7 @@ void ScreenAttribs::resetScreen(void *char_tag, void *party_tag)
 
         foreach (character::skill s, profSkills)
         {
-            skills->addItem( ::getStringTable()->getString( StringList::LISTSkills + static_cast<int>(s) ) );
+            skills->addItem( ::getBaseStringTable()->getString( StringList::LISTSkills + static_cast<int>(s) ) );
         }
     }
 

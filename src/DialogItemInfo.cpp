@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,7 +25,6 @@
 
 #include "DialogItemInfo.h"
 #include "SLFFile.h"
-#include "STItoQImage.h"
 #include "main.h"
 
 #include <QApplication>
@@ -247,7 +246,7 @@ DialogItemInfo::DialogItemInfo(const item &i, QWidget *parent)
         {
             q->setText( QString( tr("%1 pounds (%2 %3)") ).arg( m_item.getWeight() * m_item.getCount(), 0, 'f', 1 )
                                                     .arg( m_item.getWeight(), 0, 'f', 1 )
-                                                    .arg(::getStringTable()->getString( StringList::Each )) );
+                                                    .arg(::getBaseStringTable()->getString( StringList::Each )) );
         }
         else
         {
@@ -302,19 +301,19 @@ QString DialogItemInfo::htmlGenerateItemProps()
 
         m_item.getDamage( &min_damage, &max_damage, &percentage );
         if (percentage != 0)
-            html += QString( "<p><font color=\"#916448\">%1</font> +%2%" ).arg(::getStringTable()->getString( StringList::Damage + StringList::APPEND_COLON )).arg(percentage);
+            html += QString( "<p><font color=\"#916448\">%1</font> +%2%" ).arg(::getBaseStringTable()->getString( StringList::Damage + StringList::APPEND_COLON )).arg(percentage);
         else if (max_damage != 0)
-            html += QString( "<p><font color=\"#916448\">%1</font> %2 - %3" ).arg(::getStringTable()->getString( StringList::Damage + StringList::APPEND_COLON )).arg(min_damage).arg(max_damage);
+            html += QString( "<p><font color=\"#916448\">%1</font> %2 - %3" ).arg(::getBaseStringTable()->getString( StringList::Damage + StringList::APPEND_COLON )).arg(min_damage).arg(max_damage);
 
         if (m_item.getToHit() > 0)
-            html += QString( "<p><font color=\"#916448\">%1</font> +%2" ).arg(::getStringTable()->getString( StringList::ToHit + StringList::APPEND_COLON )).arg( m_item.getToHit() );
+            html += QString( "<p><font color=\"#916448\">%1</font> +%2" ).arg(::getBaseStringTable()->getString( StringList::ToHit + StringList::APPEND_COLON )).arg( m_item.getToHit() );
         else if (m_item.getToHit() < 0)
-            html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getStringTable()->getString( StringList::ToHit + StringList::APPEND_COLON )).arg( m_item.getToHit() );
+            html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getBaseStringTable()->getString( StringList::ToHit + StringList::APPEND_COLON )).arg( m_item.getToHit() );
 
         if (m_item.getInitiative() > 0)
-            html += QString( "<p><font color=\"#916448\">%1</font> +%2" ).arg(::getStringTable()->getString( StringList::Initiative + StringList::APPEND_COLON )).arg( m_item.getInitiative() );
+            html += QString( "<p><font color=\"#916448\">%1</font> +%2" ).arg(::getBaseStringTable()->getString( StringList::Initiative + StringList::APPEND_COLON )).arg( m_item.getInitiative() );
         else if (m_item.getInitiative() < 0)
-            html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getStringTable()->getString( StringList::Initiative + StringList::APPEND_COLON )).arg( m_item.getInitiative() );
+            html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getBaseStringTable()->getString( StringList::Initiative + StringList::APPEND_COLON )).arg( m_item.getInitiative() );
     }
 
     // Equippable Slots and Cursed Status
@@ -328,50 +327,50 @@ QString DialogItemInfo::htmlGenerateItemProps()
             case item::type::ExtendedWeapon:
             case item::type::ThrownWeapon:
             case item::type::RangedWeapon:
-                equip = ::getStringTable()->getString( StringList::PrimaryWeapon );
+                equip = ::getBaseStringTable()->getString( StringList::PrimaryWeapon );
                 if (m_item.canSecondary())
                 {
-                    equip += ", " + ::getStringTable()->getString( StringList::SecondaryWeapon );
+                    equip += ", " + ::getBaseStringTable()->getString( StringList::SecondaryWeapon );
                 }
                 break;
 
             case item::type::Ammunition:
                 // should have secondary set - but don't
-                equip = ::getStringTable()->getString( StringList::SecondaryWeapon );
+                equip = ::getBaseStringTable()->getString( StringList::SecondaryWeapon );
                 showCursed = false;
                 break;
 
             case item::type::Shield:
                 // should have secondary set - but don't
-                equip = ::getStringTable()->getString( StringList::SecondaryWeapon );
+                equip = ::getBaseStringTable()->getString( StringList::SecondaryWeapon );
                 break;
 
             case item::type::TorsoArmor:
-                equip = ::getStringTable()->getString( StringList::Torso );
+                equip = ::getBaseStringTable()->getString( StringList::Torso );
                 break;
 
             case item::type::LegArmor:
-                equip = ::getStringTable()->getString( StringList::Legs );
+                equip = ::getBaseStringTable()->getString( StringList::Legs );
                 break;
 
             case item::type::HeadGear:
-                equip = ::getStringTable()->getString( StringList::Head );
+                equip = ::getBaseStringTable()->getString( StringList::Head );
                 break;
 
             case item::type::Gloves:
-                equip = ::getStringTable()->getString( StringList::Hands );
+                equip = ::getBaseStringTable()->getString( StringList::Hands );
                 break;
 
             case item::type::Shoes:
-                equip = ::getStringTable()->getString( StringList::Feet );
+                equip = ::getBaseStringTable()->getString( StringList::Feet );
                 break;
 
             case item::type::MiscEquipment:
-                equip = ::getStringTable()->getString( StringList::MiscItem1 ) + ", " + ::getStringTable()->getString( StringList::MiscItem2 );
+                equip = ::getBaseStringTable()->getString( StringList::MiscItem1 ) + ", " + ::getBaseStringTable()->getString( StringList::MiscItem2 );
                 break;
 
             case item::type::Cloak:
-                equip = ::getStringTable()->getString( StringList::Cloak );
+                equip = ::getBaseStringTable()->getString( StringList::Cloak );
                 break;
 
             case item::type::Instrument:
@@ -394,46 +393,46 @@ QString DialogItemInfo::htmlGenerateItemProps()
         }
         if (equip.size() > 0)
         {
-            html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getStringTable()->getString( StringList::EquippableSlots + StringList::APPEND_COLON )).arg( equip );
+            html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getBaseStringTable()->getString( StringList::EquippableSlots + StringList::APPEND_COLON )).arg( equip );
         }
 
         if (showCursed)
         {
             if (! m_item.isCursed() )
             {
-                html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getStringTable()->getString( StringList::CursedStatus + StringList::APPEND_COLON )).arg(::getStringTable()->getString( StringList::NotCursed ) );
+                html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getBaseStringTable()->getString( StringList::CursedStatus + StringList::APPEND_COLON )).arg(::getBaseStringTable()->getString( StringList::NotCursed ) );
             }
             else if (m_item.isUncursed() || !m_item.isEquipped())
             {
-                html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getStringTable()->getString( StringList::CursedStatus + StringList::APPEND_COLON )).arg(::getStringTable()->getString( StringList::UncursedRemovable ));
+                html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getBaseStringTable()->getString( StringList::CursedStatus + StringList::APPEND_COLON )).arg(::getBaseStringTable()->getString( StringList::UncursedRemovable ));
             }
             else
             {
-                html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getStringTable()->getString( StringList::CursedStatus + StringList::APPEND_COLON )).arg( "<font color=\"#ec000f\">" + ::getStringTable()->getString( StringList::CursedUnremovable ) + "</font>" );
+                html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getBaseStringTable()->getString( StringList::CursedStatus + StringList::APPEND_COLON )).arg( "<font color=\"#ec000f\">" + ::getBaseStringTable()->getString( StringList::CursedUnremovable ) + "</font>" );
             }
         }
     }
 
 
     if (m_item.needs2Hands())
-        html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getStringTable()->getString( StringList::SpecialAttributes + StringList::APPEND_COLON )).arg(::getStringTable()->getString( StringList::TwoHandedWeapon ));
+        html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getBaseStringTable()->getString( StringList::SpecialAttributes + StringList::APPEND_COLON )).arg(::getBaseStringTable()->getString( StringList::TwoHandedWeapon ));
 
     QString special_attack = m_item.getSpecialAttackString();
     if (special_attack.size() > 0)
-        html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getStringTable()->getString( StringList::SpecialAttack + StringList::APPEND_COLON )).arg(special_attack);
+        html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getBaseStringTable()->getString( StringList::SpecialAttack + StringList::APPEND_COLON )).arg(special_attack);
 
     QString double_damage = m_item.getSlaysString();
     if (double_damage.size() > 0)
-        html += QString( "<p><font color=\"#916448\">%1l</font> %2" ).arg(::getStringTable()->getString( StringList::DoubleDamageV + StringList::APPEND_COLON )).arg(double_damage);
+        html += QString( "<p><font color=\"#916448\">%1l</font> %2" ).arg(::getBaseStringTable()->getString( StringList::DoubleDamageV + StringList::APPEND_COLON )).arg(double_damage);
 
     if (m_item.getAC() > 0)
-        html += QString( "<p><font color=\"#916448\">%1</font> +%2" ).arg(::getStringTable()->getString( StringList::AC + StringList::APPEND_COLON )).arg( m_item.getAC() );
+        html += QString( "<p><font color=\"#916448\">%1</font> +%2" ).arg(::getBaseStringTable()->getString( StringList::AC + StringList::APPEND_COLON )).arg( m_item.getAC() );
     else if (m_item.getAC() < 0)
-        html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getStringTable()->getString( StringList::AC + StringList::APPEND_COLON )).arg( m_item.getAC() );
+        html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getBaseStringTable()->getString( StringList::AC + StringList::APPEND_COLON )).arg( m_item.getAC() );
 
     QString armor_weight = m_item.getArmorWeightClassString();
     if (armor_weight.size() > 0)
-        html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getStringTable()->getString( StringList::ArmorWeightClass + StringList::APPEND_COLON )).arg(armor_weight);
+        html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getBaseStringTable()->getString( StringList::ArmorWeightClass + StringList::APPEND_COLON )).arg(armor_weight);
 
     // _EVERY_ item has an attack range on it: Short, Extended, Thrown or Long, but
     // for most of them it doesn't make sense to have it. They all get lumped in the
@@ -441,24 +440,24 @@ QString DialogItemInfo::htmlGenerateItemProps()
     // ShortWeapon before showing it.
     if ((m_item.getRange() != item::range::Short) || (m_item.getType() == item::type::ShortWeapon))
     {
-        html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getStringTable()->getString( StringList::AttackRange + StringList::APPEND_COLON )).arg(m_item.getRangeString());
+        html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getBaseStringTable()->getString( StringList::AttackRange + StringList::APPEND_COLON )).arg(m_item.getRangeString());
     }
 
     QString skill = m_item.getSkillUsedString();
     if (skill.size() > 0)
-        html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getStringTable()->getString( StringList::Skills + StringList::APPEND_COLON )).arg(skill);
+        html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getBaseStringTable()->getString( StringList::Skills + StringList::APPEND_COLON )).arg(skill);
 
     QString attacks = m_item.getAttacksString();
     if (attacks.size() > 0)
-        html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getStringTable()->getString( StringList::AttackModes + StringList::APPEND_COLON )).arg(attacks);
+        html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getBaseStringTable()->getString( StringList::AttackModes + StringList::APPEND_COLON )).arg(attacks);
 
 #define EXTRA_FIELDS
 #ifdef EXTRA_FIELDS
     int swings = m_item.getBonusSwings();
     if (swings > 0)
-        html += QString( "<p><font color=\"#916448\">%1</font> +%2" ).arg(::getStringTable()->getString( StringList::BonusSwings + StringList::APPEND_COLON )).arg( swings);
+        html += QString( "<p><font color=\"#916448\">%1</font> +%2" ).arg(::getBaseStringTable()->getString( StringList::BonusSwings + StringList::APPEND_COLON )).arg( swings);
     else if (swings < 0)
-        html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getStringTable()->getString( StringList::SwingPenalty + StringList::APPEND_COLON )).arg( swings);
+        html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getBaseStringTable()->getString( StringList::SwingPenalty + StringList::APPEND_COLON )).arg( swings);
 #endif
 
     // Spell and Spell level or power
@@ -471,37 +470,37 @@ QString DialogItemInfo::htmlGenerateItemProps()
             if (m_item.getType() == item::type::Spellbook)
             {
                 // Don't show a power level because spellbooks don't actually "cast" the spell
-                html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getStringTable()->getString( StringList::Spell + StringList::APPEND_COLON )).arg(spell_name);
+                html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getBaseStringTable()->getString( StringList::Spell + StringList::APPEND_COLON )).arg(spell_name);
 
-                html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getStringTable()->getString( StringList::SpellCasterLevel + StringList::APPEND_COLON )).arg( s.getLevel() );
+                html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getBaseStringTable()->getString( StringList::SpellCasterLevel + StringList::APPEND_COLON )).arg( s.getLevel() );
             }
             else
             {
-                html += QString( "<p><font color=\"#916448\">%1</font> %2 (Pwr %3)" ).arg(::getStringTable()->getString( StringList::Spell + StringList::APPEND_COLON )).arg(spell_name).arg(power);
+                html += QString( "<p><font color=\"#916448\">%1</font> %2 (Pwr %3)" ).arg(::getBaseStringTable()->getString( StringList::Spell + StringList::APPEND_COLON )).arg(spell_name).arg(power);
             }
         }
     }
 
     if (m_item.hasCharges())
-        html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getStringTable()->getString( StringList::Charges + StringList::APPEND_COLON )).arg(m_item.getCharges());
+        html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getBaseStringTable()->getString( StringList::Charges + StringList::APPEND_COLON )).arg(m_item.getCharges());
 
     int regen = m_item.getHPRegen();
     if (regen < 0)
-        html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getStringTable()->getString( StringList::HPDrain + StringList::APPEND_COLON )).arg(regen);
+        html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getBaseStringTable()->getString( StringList::HPDrain + StringList::APPEND_COLON )).arg(regen);
     else if (regen > 0)
-        html += QString( "<p><font color=\"#916448\">%1</font> +%2" ).arg(::getStringTable()->getString( StringList::HPRegeneration + StringList::APPEND_COLON )).arg(regen);
+        html += QString( "<p><font color=\"#916448\">%1</font> +%2" ).arg(::getBaseStringTable()->getString( StringList::HPRegeneration + StringList::APPEND_COLON )).arg(regen);
 
     regen = m_item.getStaminaRegen();
     if (regen < 0)
-        html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getStringTable()->getString( StringList::StaminaDrain + StringList::APPEND_COLON )).arg(regen);
+        html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getBaseStringTable()->getString( StringList::StaminaDrain + StringList::APPEND_COLON )).arg(regen);
     else if (regen > 0)
-        html += QString( "<p><font color=\"#916448\">%1</font> +%2" ).arg(::getStringTable()->getString( StringList::StaminaRegeneration + StringList::APPEND_COLON )).arg(regen);
+        html += QString( "<p><font color=\"#916448\">%1</font> +%2" ).arg(::getBaseStringTable()->getString( StringList::StaminaRegeneration + StringList::APPEND_COLON )).arg(regen);
 
     regen = m_item.getSPRegen();
     if (regen < 0)
-        html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getStringTable()->getString( StringList::SPDrain + StringList::APPEND_COLON )).arg(regen);
+        html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getBaseStringTable()->getString( StringList::SPDrain + StringList::APPEND_COLON )).arg(regen);
     else if (regen > 0)
-        html += QString( "<p><font color=\"#916448\">%1</font> +%2" ).arg(::getStringTable()->getString( StringList::SPRegeneration + StringList::APPEND_COLON )).arg(regen);
+        html += QString( "<p><font color=\"#916448\">%1</font> +%2" ).arg(::getBaseStringTable()->getString( StringList::SPRegeneration + StringList::APPEND_COLON )).arg(regen);
 
     // Attribute Bonus / Attribute Penalty
     {
@@ -510,15 +509,15 @@ QString DialogItemInfo::htmlGenerateItemProps()
 
         if ((a != character::attribute::ATTRIBUTE_NONE) && (bonus != 0))
         {
-            QString attribStr = ::getStringTable()->getString( StringList::LISTPrimaryAttributes + static_cast<int>(a) );
+            QString attribStr = ::getBaseStringTable()->getString( StringList::LISTPrimaryAttributes + static_cast<int>(a) );
 
             if (bonus > 0)
             {
-                html += QString( "<p><font color=\"#916448\">%1</font> %2 +%3" ).arg(::getStringTable()->getString( StringList::AttributeBonus + StringList::APPEND_COLON )).arg( attribStr ).arg( bonus );
+                html += QString( "<p><font color=\"#916448\">%1</font> %2 +%3" ).arg(::getBaseStringTable()->getString( StringList::AttributeBonus + StringList::APPEND_COLON )).arg( attribStr ).arg( bonus );
             }
             else
             {
-                html += QString( "<p><font color=\"#916448\">%1</font> %2 %3" ).arg(::getStringTable()->getString( StringList::AttributePenalty + StringList::APPEND_COLON )).arg( attribStr ).arg( bonus );
+                html += QString( "<p><font color=\"#916448\">%1</font> %2 %3" ).arg(::getBaseStringTable()->getString( StringList::AttributePenalty + StringList::APPEND_COLON )).arg( attribStr ).arg( bonus );
             }
         }
     }
@@ -530,15 +529,15 @@ QString DialogItemInfo::htmlGenerateItemProps()
 
         if ((s != character::skill::SKILL_NONE) && (bonus != 0))
         {
-            QString skillStr = ::getStringTable()->getString( StringList::LISTSkills + static_cast<int>(s) );
+            QString skillStr = ::getBaseStringTable()->getString( StringList::LISTSkills + static_cast<int>(s) );
 
             if (bonus > 0)
             {
-                html += QString( "<p><font color=\"#916448\">%1</font> %2 +%3" ).arg(::getStringTable()->getString( StringList::SkillBonusDup + StringList::APPEND_COLON )).arg( skillStr ).arg( bonus );
+                html += QString( "<p><font color=\"#916448\">%1</font> %2 +%3" ).arg(::getBaseStringTable()->getString( StringList::SkillBonusDup + StringList::APPEND_COLON )).arg( skillStr ).arg( bonus );
             }
             else
             {
-                html += QString( "<p><font color=\"#916448\">%1</font> %2 %3" ).arg(::getStringTable()->getString( StringList::SkillPenalty + StringList::APPEND_COLON )).arg( skillStr ).arg( bonus );
+                html += QString( "<p><font color=\"#916448\">%1</font> %2 %3" ).arg(::getBaseStringTable()->getString( StringList::SkillPenalty + StringList::APPEND_COLON )).arg( skillStr ).arg( bonus );
             }
         }
     }
@@ -560,14 +559,14 @@ QString DialogItemInfo::htmlGenerateItemProps()
             if (m) list += QString( tr(", %1% vs Mental") ).arg(m);
             if (d) list += QString( tr(", %1% vs Divine") ).arg(d);
 
-            html += QString( "<p><font color=\"#916448\">%1</font> " ).arg(::getStringTable()->getString( StringList::Resistances + StringList::APPEND_COLON )) + list.mid(2);
+            html += QString( "<p><font color=\"#916448\">%1</font> " ).arg(::getBaseStringTable()->getString( StringList::Resistances + StringList::APPEND_COLON )) + list.mid(2);
         }
     }
 
     if (m_item.getUsableGenders() == character::gender::Male)
-        html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getStringTable()->getString( StringList::Sex + StringList::APPEND_COLON )).arg(::getStringTable()->getString( StringList::MaleOnly ));
+        html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getBaseStringTable()->getString( StringList::Sex + StringList::APPEND_COLON )).arg(::getBaseStringTable()->getString( StringList::MaleOnly ));
     else if (m_item.getUsableGenders() == character::gender::Female)
-        html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getStringTable()->getString( StringList::Sex + StringList::APPEND_COLON )).arg(::getStringTable()->getString( StringList::FemaleOnly ));
+        html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getBaseStringTable()->getString( StringList::Sex + StringList::APPEND_COLON )).arg(::getBaseStringTable()->getString( StringList::FemaleOnly ));
 
     // Requirements
     {
@@ -584,33 +583,33 @@ QString DialogItemInfo::htmlGenerateItemProps()
             if (required_s.size() > 0)
                 required += ", " + required_s;
 
-            html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getStringTable()->getString( StringList::Requires + StringList::APPEND_COLON )).arg(required);
+            html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getBaseStringTable()->getString( StringList::Requires + StringList::APPEND_COLON )).arg(required);
         }
     }
 
     int sz = m_item.getMaxStackSize();
     if (sz > 0)
-        html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getStringTable()->getString( StringList::MaxItemsPerSlot + StringList::APPEND_COLON )).arg( sz );
+        html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getBaseStringTable()->getString( StringList::MaxItemsPerSlot + StringList::APPEND_COLON )).arg( sz );
 
 #ifdef EXTRA_FIELDS
-    html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getStringTable()->getString( StringList::Value + StringList::APPEND_COLON )).arg( m_item.getPrice() );
+    html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getBaseStringTable()->getString( StringList::Value + StringList::APPEND_COLON )).arg( m_item.getPrice() );
 #endif
 
     QString desc = m_item.getDesc();
     if (desc.size() > 0)
-        html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getStringTable()->getString( StringList::Description + StringList::APPEND_COLON )).arg( desc );
+        html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getBaseStringTable()->getString( StringList::Description + StringList::APPEND_COLON )).arg( desc );
 
     if (m_item.hasShots())
     {
         // Shots gets stored in the same field as charges since they're mutually exclusive
         // but semantically similar
-        html += QString( "<p><font color=\"#916448\">%1</font> %2/%3" ).arg(::getStringTable()->getString( StringList::Shots + StringList::APPEND_COLON )).arg( m_item.getCharges() ).arg( m_item.getMaxCharges() );
+        html += QString( "<p><font color=\"#916448\">%1</font> %2/%3" ).arg(::getBaseStringTable()->getString( StringList::Shots + StringList::APPEND_COLON )).arg( m_item.getCharges() ).arg( m_item.getMaxCharges() );
     }
     else if (m_item.hasUses())
     {
         // Uses gets stored in the same field as charges since they're mutually exclusive
         // but semantically similar
-        html += QString( "<p><font color=\"#916448\">%1</font> %2/%3" ).arg(::getStringTable()->getString( StringList::Uses + StringList::APPEND_COLON )).arg( m_item.getCharges() ).arg( m_item.getMaxCharges() );
+        html += QString( "<p><font color=\"#916448\">%1</font> %2/%3" ).arg(::getBaseStringTable()->getString( StringList::Uses + StringList::APPEND_COLON )).arg( m_item.getCharges() ).arg( m_item.getMaxCharges() );
     }
 
     return html;

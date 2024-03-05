@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -114,19 +114,6 @@ bool character::isNull() const
 void character::loadItem( worn idx, const quint8 *cdata)
 {
     quint32   id      = FORMAT_LE32(cdata);
-    quint8    cnt     = FORMAT_8(cdata+4);
-    quint8    charges = FORMAT_8(cdata+5);
-
-    quint8    identified = FORMAT_8(cdata+6);  // 0=unidentified, 1=identified, other values?
-    quint8    uncursed   = FORMAT_8(cdata+10); // 0=object in default state, 1=magically uncursed, other values?
-
-    // Don't know what these other ones are for, but they're doing something
-    /*
-    quint8    c   = FORMAT_8(cdata+7);
-    quint8    d   = FORMAT_8(cdata+8);
-    quint8    e   = FORMAT_8(cdata+9);
-    quint8    g   = FORMAT_8(cdata+11);
-    */
 
     if (id == 0xffffffff)
         m_item[idx] = NULL;
@@ -137,7 +124,7 @@ void character::loadItem( worn idx, const quint8 *cdata)
         if (idx <= worn::Backpack8)
             isEquipped = false;
 
-        m_item[idx] = new item( id, cnt, charges, identified, uncursed, isEquipped );
+        m_item[idx] = new item( cdata, isEquipped );
     }
 }
 
@@ -149,11 +136,11 @@ void character::assignItem( quint8 *cdata, worn idx) const
         ASSIGN_LE8(  cdata+ 4, m_item[idx]->getCount()     );
         ASSIGN_LE8(  cdata+ 5, m_item[idx]->getCharges()   );
         ASSIGN_LE8(  cdata+ 6, m_item[idx]->isIdentified() );
-        ASSIGN_LE8(  cdata+ 7, 0                           );
-        ASSIGN_LE8(  cdata+ 8, 0                           );
-        ASSIGN_LE8(  cdata+ 9, 0                           );
+        ASSIGN_LE8(  cdata+ 7, m_item[idx]->getUnknown(0)  );
+        ASSIGN_LE8(  cdata+ 8, m_item[idx]->getUnknown(1)  );
+        ASSIGN_LE8(  cdata+ 9, m_item[idx]->getUnknown(2)  );
         ASSIGN_LE8(  cdata+10, m_item[idx]->isUncursed()   );
-        ASSIGN_LE8(  cdata+11, 0                           );
+        ASSIGN_LE8(  cdata+11, m_item[idx]->getUnknown(3)  );
     }
     else
     {
@@ -1623,9 +1610,9 @@ QString character::getDamageString(bool primary, bool summarised) const
         return QString("%1-%2").arg(dmin).arg(dmax);
     }
 
-    return QString("%1 %2, %3 %4, %5 %6").arg(::getStringTable()->getString( StringList::BaseMin )).arg( dmin )
-                                         .arg(::getStringTable()->getString( StringList::BaseMax )).arg( dmax )
-                                         .arg(::getStringTable()->getString( StringList::Mod ))
+    return QString("%1 %2, %3 %4, %5 %6").arg(::getBaseStringTable()->getString( StringList::BaseMin )).arg( dmin )
+                                         .arg(::getBaseStringTable()->getString( StringList::BaseMax )).arg( dmax )
+                                         .arg(::getBaseStringTable()->getString( StringList::Mod ))
                                          .arg( QString::asprintf("%+d%%", dpercent) );
 }
 
@@ -1665,8 +1652,8 @@ QString character::getAttackRatingString(bool primary, bool summarised) const
         return QString::number( BaseAR + ModAR );
     }
 
-    return QString("%1 %2, %3 %4").arg(::getStringTable()->getString( StringList::Base )).arg( BaseAR )
-                                  .arg(::getStringTable()->getString( StringList::Mod ))
+    return QString("%1 %2, %3 %4").arg(::getBaseStringTable()->getString( StringList::Base )).arg( BaseAR )
+                                  .arg(::getBaseStringTable()->getString( StringList::Mod ))
                                   .arg( QString::asprintf("%+d", ModAR) );
 }
 
@@ -1724,7 +1711,7 @@ QString character::getProfessionString( character::profession p )
     {
         if (metaProf.value(k) == p)
         {
-            return ::getStringTable()->getString( StringList::LISTProfessions + k );
+            return ::getBaseStringTable()->getString( StringList::LISTProfessions + k );
         }
     }
 
@@ -1749,7 +1736,7 @@ QString character::getRaceString()
     {
         if (m_metaRace.value(k) == m_race)
         {
-            return ::getStringTable()->getString( StringList::LISTRaces + k );
+            return ::getBaseStringTable()->getString( StringList::LISTRaces + k );
         }
     }
 
@@ -1775,7 +1762,7 @@ QString character::getGenderString()
     {
         if (m_metaGender.value(k) == m_gender)
         {
-            return ::getStringTable()->getString( StringList::LISTGenders + k );
+            return ::getBaseStringTable()->getString( StringList::LISTGenders + k );
         }
     }
 
@@ -1862,21 +1849,21 @@ QString character::getCurrentLevelString() const
     // get go.
 
     if (m_currentLevels[ m_profession ] <= 1)
-        return ::getStringTable()->getString( string_ids[prof_idx + 0] );
+        return ::getBaseStringTable()->getString( string_ids[prof_idx + 0] );
     else if (m_currentLevels[ m_profession ] < 4)
-        return ::getStringTable()->getString( string_ids[prof_idx + 1] );
+        return ::getBaseStringTable()->getString( string_ids[prof_idx + 1] );
     else if (m_currentLevels[ m_profession ] < 7)
-        return ::getStringTable()->getString( string_ids[prof_idx + 2] );
+        return ::getBaseStringTable()->getString( string_ids[prof_idx + 2] );
     else if (m_currentLevels[ m_profession ] < 11)
-        return ::getStringTable()->getString( string_ids[prof_idx + 3] );
+        return ::getBaseStringTable()->getString( string_ids[prof_idx + 3] );
     else if (m_currentLevels[ m_profession ] < 16)
-        return ::getStringTable()->getString( string_ids[prof_idx + 4] );
+        return ::getBaseStringTable()->getString( string_ids[prof_idx + 4] );
     else if (m_currentLevels[ m_profession ] < 22)
-        return ::getStringTable()->getString( string_ids[prof_idx + 5] );
+        return ::getBaseStringTable()->getString( string_ids[prof_idx + 5] );
     else if (m_currentLevels[ m_profession ] < 28)
-        return ::getStringTable()->getString( string_ids[prof_idx + 6] );
+        return ::getBaseStringTable()->getString( string_ids[prof_idx + 6] );
     else
-        return ::getStringTable()->getString( string_ids[prof_idx + 7] );
+        return ::getBaseStringTable()->getString( string_ids[prof_idx + 7] );
 }
 
 int character::getInitiative() const
@@ -2646,7 +2633,7 @@ bool character::getProfessionLevel( int idx, QString &profession, int &level ) c
             {
                 if (m_metaProf.value(k) == iter.key())
                 {
-                    profession = ::getStringTable()->getString( StringList::LISTProfessions + k );
+                    profession = ::getBaseStringTable()->getString( StringList::LISTProfessions + k );
                     break;
                 }
             }
@@ -3311,106 +3298,106 @@ QStringList character::getAbilityStrings() const
 {
     QStringList abilities;
 
-    abilities << QString("%1 %2").arg( ::getStringTable()->getString( StringList::LISTSkills + getProfessionalSkill() ) )
-                                 .arg( ::getStringTable()->getString( StringList::SkillBonus ) );
+    abilities << QString("%1 %2").arg( ::getBaseStringTable()->getString( StringList::LISTSkills + getProfessionalSkill() ) )
+                                 .arg( ::getBaseStringTable()->getString( StringList::SkillBonus ) );
 
     switch (m_profession)
     {
         case profession::Fighter:
-            abilities << ::getStringTable()->getString( StringList::ProfBonusStaminaReg );
-            abilities << ::getStringTable()->getString( StringList::ProfBonusKO         );
-            abilities << ::getStringTable()->getString( StringList::ProfBonusBerserk    );
+            abilities << ::getBaseStringTable()->getString( StringList::ProfBonusStaminaReg );
+            abilities << ::getBaseStringTable()->getString( StringList::ProfBonusKO         );
+            abilities << ::getBaseStringTable()->getString( StringList::ProfBonusBerserk    );
             break;
 
         case profession::Lord:
-            abilities << ::getStringTable()->getString( StringList::ProfBonusHealthReg  );
+            abilities << ::getBaseStringTable()->getString( StringList::ProfBonusHealthReg  );
             break;
 
         case profession::Valkyrie:
-            abilities << ::getStringTable()->getString( StringList::ProfBonusCheatDeath );
+            abilities << ::getBaseStringTable()->getString( StringList::ProfBonusCheatDeath );
             break;
 
         case profession::Ranger:
-            abilities << ::getStringTable()->getString( StringList::ProfBonusRangedCrit );
-            abilities << ::getStringTable()->getString( StringList::ProfBonusAutoSearch );
+            abilities << ::getBaseStringTable()->getString( StringList::ProfBonusRangedCrit );
+            abilities << ::getBaseStringTable()->getString( StringList::ProfBonusAutoSearch );
             break;
 
         case profession::Samurai:
-            abilities << ::getStringTable()->getString( StringList::ProfBonusFearless   );
-            abilities << ::getStringTable()->getString( StringList::ProfBonusLightning  );
+            abilities << ::getBaseStringTable()->getString( StringList::ProfBonusFearless   );
+            abilities << ::getBaseStringTable()->getString( StringList::ProfBonusLightning  );
             break;
 
         case profession::Ninja:
-            abilities << ::getStringTable()->getString( StringList::ProfBonusThrownCrit );
-            abilities << ::getStringTable()->getString( StringList::ProfBonusThrownPen  );
+            abilities << ::getBaseStringTable()->getString( StringList::ProfBonusThrownCrit );
+            abilities << ::getBaseStringTable()->getString( StringList::ProfBonusThrownPen  );
             break;
 
         case profession::Monk:
-            abilities << ::getStringTable()->getString( StringList::ProfBonusDmgResist  );
-            abilities << ::getStringTable()->getString( StringList::ProfBonusFightBlind );
+            abilities << ::getBaseStringTable()->getString( StringList::ProfBonusDmgResist  );
+            abilities << ::getBaseStringTable()->getString( StringList::ProfBonusFightBlind );
             break;
 
         case profession::Rogue:
-            abilities << ::getStringTable()->getString( StringList::ProfBonusBackstab   );
+            abilities << ::getBaseStringTable()->getString( StringList::ProfBonusBackstab   );
             break;
 
         case profession::Gadgeteer:
-            abilities << ::getStringTable()->getString( StringList::ProfBonusMakeGadget );
+            abilities << ::getBaseStringTable()->getString( StringList::ProfBonusMakeGadget );
             break;
 
         case profession::Bard:
-            abilities << ::getStringTable()->getString( StringList::ProfBonusPartyCamp  );
+            abilities << ::getBaseStringTable()->getString( StringList::ProfBonusPartyCamp  );
             break;
 
         case profession::Priest:
-            abilities << ::getStringTable()->getString( StringList::ProfBonusPrayMiracle);
-            abilities << ::getStringTable()->getString( StringList::ProfBonusDispelUnd  );
+            abilities << ::getBaseStringTable()->getString( StringList::ProfBonusPrayMiracle);
+            abilities << ::getBaseStringTable()->getString( StringList::ProfBonusDispelUnd  );
             break;
 
         case profession::Alchemist:
-            abilities << ::getStringTable()->getString( StringList::ProfBonusMakePotions);
+            abilities << ::getBaseStringTable()->getString( StringList::ProfBonusMakePotions);
             break;
 
         case profession::Bishop:
-            abilities << ::getStringTable()->getString( StringList::ProfBonusRemoveCurse);
-            abilities << ::getStringTable()->getString( StringList::ProfBonusDispelUnd  );
+            abilities << ::getBaseStringTable()->getString( StringList::ProfBonusRemoveCurse);
+            abilities << ::getBaseStringTable()->getString( StringList::ProfBonusDispelUnd  );
             break;
 
         case profession::Psionic:
-            abilities << ::getStringTable()->getString( StringList::ProfBonusFearless   );
-            abilities << ::getStringTable()->getString( StringList::ProfBonusMentalImm  );
+            abilities << ::getBaseStringTable()->getString( StringList::ProfBonusFearless   );
+            abilities << ::getBaseStringTable()->getString( StringList::ProfBonusMentalImm  );
             break;
 
         case profession::Mage:
-            abilities << ::getStringTable()->getString( StringList::ProfBonusMgcResist  );
+            abilities << ::getBaseStringTable()->getString( StringList::ProfBonusMgcResist  );
             break;
     }
 
     switch (m_race)
     {
         case race::Dwarf:
-            abilities << ::getStringTable()->getString( StringList::RaceBonusDmgResist  );
+            abilities << ::getBaseStringTable()->getString( StringList::RaceBonusDmgResist  );
             break;
 
         case race::Lizardman:
-            abilities << ::getStringTable()->getString( StringList::RaceBonusSlowMgcRec );
+            abilities << ::getBaseStringTable()->getString( StringList::RaceBonusSlowMgcRec );
             break;
 
         case race::Dracon:
-            abilities << ::getStringTable()->getString( StringList::RaceBonusAcidBreath );
+            abilities << ::getBaseStringTable()->getString( StringList::RaceBonusAcidBreath );
             break;
 
         case race::Faerie:
-            abilities << ::getStringTable()->getString( StringList::RaceBonusAC         );
-            abilities << ::getStringTable()->getString( StringList::RaceBonusEquipment  );
-            abilities << ::getStringTable()->getString( StringList::RaceBonusReducedCC  );
-            abilities << ::getStringTable()->getString( StringList::RaceBonusWeightLimit);
-            abilities << ::getStringTable()->getString( StringList::RaceBonusFastMgcRec );
+            abilities << ::getBaseStringTable()->getString( StringList::RaceBonusAC         );
+            abilities << ::getBaseStringTable()->getString( StringList::RaceBonusEquipment  );
+            abilities << ::getBaseStringTable()->getString( StringList::RaceBonusReducedCC  );
+            abilities << ::getBaseStringTable()->getString( StringList::RaceBonusWeightLimit);
+            abilities << ::getBaseStringTable()->getString( StringList::RaceBonusFastMgcRec );
             break;
 
         case race::Android:
-            abilities << ::getStringTable()->getString( StringList::RaceBonusAndroid    );
-            abilities << ::getStringTable()->getString( StringList::RaceBonusNoMagic    );
+            abilities << ::getBaseStringTable()->getString( StringList::RaceBonusAndroid    );
+            abilities << ::getBaseStringTable()->getString( StringList::RaceBonusNoMagic    );
             break;
 
         default:

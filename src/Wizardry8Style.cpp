@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -44,13 +44,16 @@
 #include "WindowItemsList.h"
 
 #include "SLFFile.h"
-#include "STItoQImage.h"
+#include "STI.h"
 
 #include "qdebug.h"
 
 #define CB_OFFSET         5
 #define SPIN_SUB_OFFSET  25
 #define SPIN_ADD_OFFSET  30
+
+#define WINDOWS_ITEM_FRAME      2 /* QWindowsStylePrivate::windowsItemFrame */
+#define WINDOWS_CHECK_WIDTH    12 /* QWindowsStylePrivate::windowsCheckMarkWidth */
 
 #define PM_SpinnerHeight       (QStyle::PixelMetric)((int)PM_CustomBase + 1) // Height of the +/- pixmap on a spinner
 #define PM_SpinnerWidth        (QStyle::PixelMetric)((int)PM_CustomBase + 2) // Width of the +/- pixmap on a spinner
@@ -79,21 +82,21 @@ Wizardry8Style::Wizardry8Style() :
     if (up_arrow.open(QFile::ReadOnly))
     {
         QByteArray array = up_arrow.readAll();
-        m_up_arrow = new STItoQImage( array );
+        m_up_arrow = new STI( array );
         up_arrow.close();
     }
     SLFFile down_arrow( "DIALOGS/DIALOGDOWNARROW.STI" );
     if (down_arrow.open(QFile::ReadOnly))
     {
         QByteArray array = down_arrow.readAll();
-        m_down_arrow = new STItoQImage( array );
+        m_down_arrow = new STI( array );
         down_arrow.close();
     }
     SLFFile sbslider( "DIALOGS/DIALOGSLIDEBAR.STI" );
     if (sbslider.open(QFile::ReadOnly))
     {
         QByteArray array = sbslider.readAll();
-        m_sbslider = new STItoQImage( array );
+        m_sbslider = new STI( array );
         sbslider.close();
     }
     // For QSliders
@@ -101,7 +104,7 @@ Wizardry8Style::Wizardry8Style() :
     if (slider.open(QFile::ReadOnly))
     {
         QByteArray array = slider.readAll();
-        m_slider = new STItoQImage( array );
+        m_slider = new STI( array );
         slider.close();
     }
 
@@ -110,7 +113,7 @@ Wizardry8Style::Wizardry8Style() :
     if (cb.open(QFile::ReadOnly))
     {
         QByteArray array = cb.readAll();
-        m_cb = new STItoQImage( array );
+        m_cb = new STI( array );
         cb.close();
     }
 
@@ -119,7 +122,7 @@ Wizardry8Style::Wizardry8Style() :
     if (spinner.open(QFile::ReadOnly))
     {
         QByteArray array = spinner.readAll();
-        m_spinner = new STItoQImage( array );
+        m_spinner = new STI( array );
         spinner.close();
     }
 }
@@ -681,6 +684,52 @@ void Wizardry8Style::drawPrimitive(PrimitiveElement element,
 
     switch (element)
     {
+        // Hack to get the Windows style to implement menu radio buttons when exclusive actiongroups are in use
+        // A second hack was needed in CE_MenuItem to ensure this got called for all rows, not just the checked row
+        case PE_IndicatorMenuCheckMark:
+        {
+            if (const QStyleOptionMenuItem *menuitem = qstyleoption_cast<const QStyleOptionMenuItem *>(option))
+            {
+                if (menuitem->checkType & QStyleOptionMenuItem::Exclusive)
+                {
+                    QStyleOption  new_mi = *menuitem;
+
+                    QColor gr_yellow   (0x70, 0x70, 0x43); // disabled text colour
+                    QColor lt_yellow   (0xe0, 0xe0, 0xc3); // main text colour
+
+                    if (!(option->state & State_Enabled) && !(option->state & State_On))
+                    {
+                        new_mi.palette.setBrush(QPalette::Text,        (menuitem->checked ? gr_yellow : Qt::black));
+                        new_mi.palette.setBrush(QPalette::Dark,        gr_yellow);
+                        new_mi.palette.setBrush(QPalette::Shadow,      gr_yellow);
+                        new_mi.palette.setBrush(QPalette::Light,       gr_yellow);
+                        new_mi.palette.setBrush(QPalette::Midlight,    gr_yellow);
+                    }
+                    else
+                    {
+                        new_mi.palette.setBrush(QPalette::Text,        (menuitem->checked ? lt_yellow : Qt::black));
+                        new_mi.palette.setBrush(QPalette::Dark,        lt_yellow);
+                        new_mi.palette.setBrush(QPalette::Shadow,      lt_yellow);
+                        new_mi.palette.setBrush(QPalette::Light,       lt_yellow);
+                        new_mi.palette.setBrush(QPalette::Midlight,    lt_yellow);
+                    }
+
+                    new_mi.palette.setBrush(QPalette::Button,      Qt::black);
+                    new_mi.palette.setBrush(QPalette::Base,        Qt::black);
+
+                    new_mi.state |= State_On;
+
+                    QProxyStyle::drawPrimitive(PE_IndicatorRadioButton, &new_mi, painter, widget);
+                    break;
+                }
+                else
+                {
+                    QProxyStyle::drawPrimitive(element, option, painter, widget);
+                }
+            }
+            break;
+        }
+
         // QToolTip
         case PE_PanelTipLabel:
         {
@@ -839,6 +888,33 @@ void Wizardry8Style::drawControl(ControlElement element,
 
     switch (element)
     {
+        case CE_MenuItem:
+        {
+            // Do the normal invocation first
+            QProxyStyle::drawControl(element, option, painter, widget);
+
+            // Now call the radio buttons that weren't rendered by Windows
+            if (const QStyleOptionMenuItem *menuitem = qstyleoption_cast<const QStyleOptionMenuItem *>(option))
+            {
+                if (menuitem->checkType & QStyleOptionMenuItem::Exclusive)
+                {
+                    QStyleOptionMenuItem newMi = *menuitem;
+                    newMi.rect = visualRect(option->direction, menuitem->rect,
+                             QRect(menuitem->rect.x() + WINDOWS_ITEM_FRAME,
+                                   menuitem->rect.y() + WINDOWS_ITEM_FRAME,
+                                   WINDOWS_CHECK_WIDTH - 2 * WINDOWS_ITEM_FRAME,
+                                   menuitem->rect.height() - 2 * WINDOWS_ITEM_FRAME));
+
+                    // We MISUSE the PE_IndicatorMenuCheckMark here. We know it will hit our hack and get
+                    // turned into a radio button. The reason that code isn't duplicated under radio
+                    // button is that didn't want to hack a second type and potentially break more than
+                    // intended. The radio button type is not specific to menus.
+                    proxy()->drawPrimitive(PE_IndicatorMenuCheckMark, &newMi, painter, widget);
+                }
+            }
+            break;
+        }
+
         // QPushButton
         case CE_PushButton:
         {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -152,9 +152,10 @@ Window3DNavigator::Window3DNavigator( int mapId, float x, float y, float z, floa
     // We force it to load at the top left of the screen because if we're on
     // a highDpi monitor the window will need to resize, and if it puts it in
     // the default location (centred) it ends up going off the lower right corner
-    // of the screen
-    engineParameters[ EP_WINDOW_POSITION_X ] = 0;
-    engineParameters[ EP_WINDOW_POSITION_Y ] = 0;
+    // of the screen. We don't use 0,0 because otherwise Windows hides the
+    // titlebar
+    engineParameters[ EP_WINDOW_POSITION_X ] = 10;
+    engineParameters[ EP_WINDOW_POSITION_Y ] = 60;
 
     engineParameters[ EP_RESOURCE_PATHS  ] = ":/CoreData.pak";
 
@@ -329,7 +330,7 @@ void Window3DNavigator::ScaleForHiDPI()
 
 bool Window3DNavigator::isTGAFile32Bit( String tga_file )
 {
-    SLFFile tga( "LEVELS", "LEVELS.SLF", tga_file.CString() );
+    SLFFile tga( "LEVELS", "LEVELS.SLF", tga_file.CString(), false );
 
     if (tga.isGood())
     {
@@ -354,7 +355,7 @@ void Window3DNavigator::AddTgaToResourceCache( String folder, String slf, String
     SharedPtr<Texture2D> renderTexture = context_->CreateObject<Texture2D>();
     if (renderTexture)
     {
-        SLFFile         tga( folder.CString(), slf.CString(), texture_name.CString() );
+        SLFFile         tga( folder.CString(), slf.CString(), texture_name.CString(), false );
         SLFDeserializer tgaDeserial( tga );
 
         SharedPtr<Resource> resource = DynamicCast<Resource>(renderTexture);
@@ -497,7 +498,7 @@ void Window3DNavigator::LoadMaterials( String pvlFolderName, int num_materials, 
             if (texture_file.EndsWith(".IFL")) // animation
             {
                 String ifl_file = pvlFolderName + "/BITMAPS/" + texture_file;
-                SLFFile  ifl( "Levels", "LEVELS.SLF", ifl_file.CString() );
+                SLFFile  ifl( "Levels", "LEVELS.SLF", ifl_file.CString(), false );
                 SLFDeserializer iflDeserial( ifl );
                 String line;
 
@@ -1666,7 +1667,11 @@ int Window3DNavigator::LoadPVL( int map_id )
 {
     String filename = ::toUrho(::getLevelFilename( map_id ));
 
-    SLFFile f( "LEVELS", "LEVELS.SLF", filename.CString() );
+    // The last argument to this constructor is supposed to be defaultable, but
+    // the compiler is choosing the wrong constructor if we omit it here (due to
+    // out usage of C Strings instead of QStrings, it matches the wrong thing).
+    // And usage of the wrong constructor fails to load anything at all.
+    SLFFile f( "LEVELS", "LEVELS.SLF", filename.CString(), false );
 
     // The PVL file format may not have been deliberately designed to be obfuscated
     // - it could easily have been a lot worse - but it also wasn't designed to be

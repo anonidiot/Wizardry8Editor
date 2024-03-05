@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,12 +31,15 @@
 #endif
 
 #include <QApplication>
+#include <QAction>
 #include <QHelpEvent>
 #include <QFile>
+#include <QMenu>
 
 #include "common.h"
 #include "ScreenCommon.h"
 #include "ScreenPersonality.h"
+#include "ReplacePortrait.h"
 
 #include "StringList.h"
 #include "WButton.h"
@@ -49,12 +52,11 @@
 #include <QPixmap>
 
 #include "SLFFile.h"
+#include "STI.h"
 
 #include "main.h"
 
 #include <QDebug>
-
-#define REMOVE_DUPLICATE_PORTRAITS
 
 typedef enum
 {
@@ -62,6 +64,8 @@ typedef enum
 
     VAL_FULL_NAME,
     VAL_NICKNAME,
+
+    LBL_PORTRAIT_MOD,
 
     PERS_START,
     CB_PERS1 = PERS_START,
@@ -117,7 +121,8 @@ ScreenPersonality::ScreenPersonality(character *c, QWidget *parent) :
         { NO_ID,              QRect( 195,   0,  -1,  -1 ),    new WImage(    "CHAR GENERATION/CG_PIECES.STI",                   0,              this ),  -1,  NULL },
         { NO_ID,              QRect(  44, 450,  -1,  -1 ),    new WImage(    "CHAR GENERATION/CG_PIECES.STI",                   4,              this ),  -1,  NULL },
         { NO_ID,              QRect( 195,  43,  -1,  -1 ),    new WImage(    "CHAR GENERATION/CG_PERSONALITY.STI",              0,              this ),  -1,  NULL },
-        { NO_ID,              QRect(   4, 290, 190,  60 ),    new WLabel(    StringList::InstructPersonality, Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  NULL },
+        { NO_ID,              QRect(   4, 250, 190,  60 ),    new WLabel(    StringList::InstructPersonality, Qt::AlignCenter, 10, QFont::Thin,      this ),  -1,  NULL },
+        { LBL_PORTRAIT_MOD,   QRect(   4, 335, 190, 100 ),    new WLabel(    StringList::PortraitInfo,        Qt::AlignCenter, 10, QFont::Thin,      this ),  -1,  NULL },
 
         { NO_ID,              QRect( 236,  64,  54,  30 ),    new WLabel(    StringList::PrevRace,            Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  NULL },
         { NO_ID,              QRect( 296,  69,  -1,  -1 ),    new WButton(   "CHAR GENERATION/CG_BUTTONS.STI",                  0, true,  1.0,  this ),  -1,  SLOT(prevRace(bool)) },
@@ -185,7 +190,7 @@ ScreenPersonality::ScreenPersonality(character *c, QWidget *parent) :
     if (imgs.open(QFile::ReadOnly))
     {
         QByteArray array = imgs.readAll();
-        STItoQImage sti_imgs( array );
+        STI sti_imgs( array );
 
         m_audioLevels[0] = QPixmap::fromImage( sti_imgs.getImage( 1 ));
         m_audioLevels[1] = QPixmap::fromImage( sti_imgs.getImage( 2 ));
@@ -195,7 +200,40 @@ ScreenPersonality::ScreenPersonality(character *c, QWidget *parent) :
         imgs.close();
     }
 
+    assemblePortraitIndices();
+
     resetScreen( m_char, NULL );
+
+    // Popup menu for the portrait
+    m_cmPortraitModify = new QAction( ::getBaseStringTable()->getString( StringList::PortraitModify ), this);
+    m_cmPortraitModify->setStatusTip(tr("Replace character picture with one of your own."));
+    connect(m_cmPortraitModify, SIGNAL(triggered()), this, SLOT(cmPortraitModify()));
+
+    m_cmPortraitReset = new QAction( ::getBaseStringTable()->getString( StringList::PortraitReset ), this);
+    m_cmPortraitReset->setStatusTip(tr("Reset to default picture."));
+    connect(m_cmPortraitReset, SIGNAL(triggered()), this, SLOT(cmPortraitReset()));
+
+    if (isWizardry128())
+    {
+        // Wizardry 1.2.8 ignores the patches, so this feature is pointless.
+        // In any event Wizardry 1.2.8 has a better way of adding more portraits
+        // if desired.
+        // Turn off the screen information advertising it, and don't connect the
+        // popup menu
+        if (WLabel *w = qobject_cast<WLabel *>(m_widgets[ LBL_PORTRAIT_MOD ]))
+        {
+            w->setVisible( false );
+        }
+    }
+    else
+    {
+        // Some other version of Wizardry.
+        // Leave the screen text alone, and connect the popup menu.
+        if (WImage *w = qobject_cast<WImage *>(m_widgets[ VAL_FACELIFT ]))
+        {
+            connect(    w, SIGNAL(contextMenu(QPoint)), this, SLOT(portraitPopup(QPoint)) );
+        }
+    }
 
     // This button is only here because it's present in the original UI. We permanently
     // disable it. If you want to replace a character you do it by right clicking on the
@@ -240,6 +278,68 @@ ScreenPersonality::~ScreenPersonality()
     delete m_voice_cb_group;
 }
 
+void ScreenPersonality::resetLanguage()
+{
+    QObjectList kids = children();
+
+    for (int k=0; k<kids.size(); k++)
+    {
+        if (WLabel *w = qobject_cast<WLabel *>(kids.at(k)))
+        {
+            w->resetText();
+        }
+        else if (WCheckBox *w = qobject_cast<WCheckBox *>(kids.at(k)))
+        {
+            w->resetText();
+        }
+    }
+
+    if (WButton *w = qobject_cast<WButton *>(m_widgets[ QUOTE_PLAY ]))
+    {
+        w->setToolTip( ::getBaseStringTable()->getString( StringList::PlayVoiceSample ) );
+    }
+    if (WButton *w = qobject_cast<WButton *>(m_widgets[ PERS_REPLACE ]))
+    {
+        w->setToolTip( ::getBaseStringTable()->getString( StringList::ReplaceCharacter ) );
+    }
+    if (WButton *w = qobject_cast<WButton *>(m_widgets[ PERS_CANCEL ]))
+    {
+        w->setToolTip( ::getBaseStringTable()->getString( StringList::CancelAndExit ) );
+    }
+    if (WButton *w = qobject_cast<WButton *>(m_widgets[ PERS_UNDO ]))
+    {
+        w->setToolTip( ::getBaseStringTable()->getString( StringList::UndoChanges ) );
+    }
+    if (WButton *w = qobject_cast<WButton *>(m_widgets[ PERS_PREV ]))
+    {
+        w->setToolTip( ::getBaseStringTable()->getString( StringList::PreviousPage ) );
+    }
+    if (WButton *w = qobject_cast<WButton *>(m_widgets[ PERS_EXIT ]))
+    {
+        w->setToolTip( ::getBaseStringTable()->getString( StringList::Done ) );
+    }
+
+    if (WLabel *q = qobject_cast<WLabel *>(m_widgets[ VAL_MUGNAME ]))
+    {
+        q->setText( m_char->getName() );
+    }
+    if (WLabel *q = qobject_cast<WLabel *>(m_widgets[ VAL_MUGRACE ]))
+    {
+        q->setText( m_char->getGenderString() + " " + m_char->getRaceString() );
+    }
+    if (WLabel *q = qobject_cast<WLabel *>(m_widgets[ VAL_MUGPROF ]))
+    {
+        q->setText( m_char->getProfessionString() );
+    }
+    if (WLabel *q = qobject_cast<WLabel *>(m_widgets[ VAL_MUGLEVEL ]))
+    {
+        q->setText( ::getBaseStringTable()->getString( StringList::Level ) +
+                         " " + QString::number(m_char->getCurrentLevel()) +
+                         " (" + m_char->getCurrentLevelString() + ")" ); 
+    }
+
+    changePersonalityVoice(Qt::Checked);
+}
 
 void ScreenPersonality::resetScreen(void *char_tag, void *party_tag)
 {
@@ -256,7 +356,7 @@ void ScreenPersonality::resetScreen(void *char_tag, void *party_tag)
         { VAL_MUGNAME,   m_char->getName()                                              },
         { VAL_MUGRACE,   m_char->getGenderString() + " " + m_char->getRaceString()      },
         { VAL_MUGPROF,   m_char->getProfessionString()                                  },
-        { VAL_MUGLEVEL,  ::getStringTable()->getString( StringList::Level ) +
+        { VAL_MUGLEVEL,  ::getBaseStringTable()->getString( StringList::Level ) +
                          " " + QString::number(m_char->getCurrentLevel()) +
                          " (" + m_char->getCurrentLevelString() + ")"                   },
 
@@ -265,7 +365,7 @@ void ScreenPersonality::resetScreen(void *char_tag, void *party_tag)
 
     for (int k=0; vals[k].id != -1; k++)
     {
-        if (QLabel *q = qobject_cast<QLabel *>(m_widgets[ vals[k].id ]))
+        if (WLabel *q = qobject_cast<WLabel *>(m_widgets[ vals[k].id ]))
         {
             q->setText( vals[k].str );
         }
@@ -322,6 +422,14 @@ void ScreenPersonality::setVisible( bool visible )
             q->setVisible( visible );
         }
     }
+
+    if (isWizardry128())
+    {
+        if (WLabel *w = qobject_cast<WLabel *>(m_widgets[ LBL_PORTRAIT_MOD ]))
+        {
+            w->setVisible( false );
+        }
+    }
     QWidget::setVisible( visible );
 }
 
@@ -330,21 +438,64 @@ void ScreenPersonality::resizeEvent(QResizeEvent *event)
     (void)event;
 }
 
+void ScreenPersonality::assemblePortraitIndices()
+{
+    // The duplicates are all shown now. In 1.2.4 we now let them modify pictures, and
+    // the dups are prime candidates for alteration. We could skip them in 1.2.8, but
+    // thought it better to preserve same ordering up to the point where the 1.2.8
+    // additionals are added.
+
+    m_portraits[ PORTRAIT_GRP_HUMAN     ] << /* Male */  0 <<  1 <<  2 <<  3 << 76 <<  4 <<  5 << 69 /* Myles */
+                                          << /*Female*/  6 <<  7 <<  8 <<  9 << 77 << 10 << 11 << 70 /* Vi */;
+    m_portraits[ PORTRAIT_GRP_ELF       ] << /* Male */ 12 << 13 << 14 << 78
+                                          << /*Female*/ 15 << 16 << 17 << 79;
+    m_portraits[ PORTRAIT_GRP_DWARF     ] << /* Male */ 18 << 19 << 20
+                                          << /*Female*/ 21 << 22 << 23;
+    m_portraits[ PORTRAIT_GRP_GNOME     ] << /* Male */ 24 << 25
+                                          << /*Female*/ 26 << 27;
+    m_portraits[ PORTRAIT_GRP_HOBBIT    ] << /* Male */ 28 << 29
+                                          << /*Female*/ 30 << 31;
+    m_portraits[ PORTRAIT_GRP_FAIRY     ] << /* Male */ 32 << 33
+                                          << /*Female*/ 34 << 35;
+    m_portraits[ PORTRAIT_GRP_LIZARDMAN ] << /* Male */ 36 << 37
+                                          << /*Female*/ 38 << 39;
+    m_portraits[ PORTRAIT_GRP_DRACON    ] << /* Male */ 40 << 41
+                                          << /*Female*/ 42 << 43;
+    m_portraits[ PORTRAIT_GRP_FELPURR   ] << /* Male */ 44 << 45
+                                          << /*Female*/ 46 << 47;
+    m_portraits[ PORTRAIT_GRP_RAWULF    ] << /* Male */ 48 << 49
+                                          << /*Female*/ 50 << 51;
+    m_portraits[ PORTRAIT_GRP_MOOK      ] << /* Male */ 52 << 53 << 65 /* Urq */                             /* 58 is a dup of 65 */
+                                          << /*Female*/ 54 << 55;
+    m_portraits[ PORTRAIT_GRP_NINJA     ] << /* Male */ 56
+                                          << /*Female*/ 57;
+    m_portraits[ PORTRAIT_GRP_TRYNNIE   ] << /* Male */ 61 << 67 /* Madras */                                /* 59 is a dup of 67 */
+                                          << /*Female*/ 68 /* Sparkle */;                                    /* 60 is a dup of 68 */
+    m_portraits[ PORTRAIT_GRP_TRANG     ] << /* Male */ 71 /* Drazic */ << 72 /* Tantris */;                 /* 62 is a dup of 71 */
+    m_portraits[ PORTRAIT_GRP_UMPANI    ] << /* Male */ 73 /* Rodan */ << 74 /* Glumph */ << 75 /* Saxx */;  /* 63 is a dup of 73 */
+    m_portraits[ PORTRAIT_GRP_RAPAX     ] << /* Male */ 64 /* Sexus */;
+    m_portraits[ PORTRAIT_GRP_ANDROID   ] <<            66 /* RFS-81 */;
+
+    if (isWizardry128())
+    {
+        for (int k=0; k<PORTRAIT_GRP_SIZE; k++)
+        {
+            QVector<int> extras = getIdsForPortraitCategory( static_cast<portrait_category>(k) );
+
+            for (int j=0; j<extras.size(); j++)
+            {
+                m_portraits[k].append( extras[j] + ScreenCommon::getInternalPortraitCount() );
+            }
+        }
+    }
+}
+
 // @race = true  -> next/prev race
 // @race = false -> next/prev face
 // @up   = true  -> next
 // @up   = false -> prev
 int ScreenPersonality::nextImageIdx(bool race, bool up)
 {
-    // The base game has several duplicate portaits in it we wish
-    // to filter out. But of course a mod can go and change these
-    // and they might not actually be duplicates for it.
-    // While the Mook/Urq portraits and the Umpani/Rodan portraits
-    // are binary identical though, the other 3 aren't, so we can't
-    // just automatically decide what to do here.
-    // Currently it's a compile time switch; probably should be a
-    // userspace setting at some point
-#ifdef REMOVE_DUPLICATE_PORTRAITS
     // First get rid of the duplicate indexes - apologies to any mods
     // who actually changed these ones.
     // FIXME: Make this a user preference
@@ -365,80 +516,27 @@ int ScreenPersonality::nextImageIdx(bool race, bool up)
         case 63:           // "umpani.sti", // double up of Rodan
             m_mugIdx = 73; // "rodan.sti",
     }
-#endif
 
-    static const int img_idx[][17] =
+    for (unsigned int k=0; k<PORTRAIT_GRP_SIZE; k++)
     {
-        /* Humans    */ { /* Male */  0,  1,  2,  3, 76,  4,  5, 69 /* Myles */,
-                          /*Female*/  6,  7,  8,  9, 77, 10, 11, 70 /* Vi */, -1 },
-        /* Elves     */ { /* Male */ 12, 13, 14, 78,
-                          /*Female*/ 15, 16, 17, 79, -1 },
-        /* Dwarves   */ { /* Male */ 18, 19, 20,
-                          /*Female*/ 21, 22, 23, -1 },
-        /* Gnomes    */ { /* Male */ 24, 25,
-                          /*Female*/ 26, 27, -1 },
-        /* Hobbits   */ { /* Male */ 28, 29,
-                          /*Female*/ 30, 31, -1 },
-        /* Fairies   */ { /* Male */ 32, 33,
-                          /*Female*/ 34, 35, -1 },
-        /* Lizardmen */ { /* Male */ 36, 37,
-                          /*Female*/ 38, 39, -1 },
-        /* Dracons   */ { /* Male */ 40, 41,
-                          /*Female*/ 42, 43, -1 },
-        /* Felpurrs  */ { /* Male */ 44, 45,
-                          /*Female*/ 46, 47, -1 },
-        /* Rawulfs   */ { /* Male */ 48, 49,
-                          /*Female*/ 50, 51, -1 },
-#ifdef REMOVE_DUPLICATE_PORTAITS
-        /* Mook      */ { /* Male */ 52, 53, 65 /* Urq */,
-#else
-        /* Mook      */ { /* Male */ 52, 53, 65 /* Urq */, 58,
-#endif
-                          /*Female*/ 54, 55, -1 },
-        /* Ninja     */ { /* Male */ 56,
-                          /*Female*/ 57, -1 },
-#ifdef REMOVE_DUPLICATE_PORTRAITS
-        /* Trynnie   */ { /* Male */ 61, 67 /* Madras */,
-                          /*Female*/ 68 /* Sparkle */, -1 },
-        /* T'Rang    */ { /* Male */ 71 /* Drazic */, 72 /* Tantris */, -1 },
-        /* Umpani    */ { /* Male */ 73 /* Rodan */, 74 /* Glumph */, 75 /* Saxx */, -1 },
-#else
-        /* Trynnie   */ { /* Male */ 61, 67 /* Madras */, 59,
-                          /*Female*/ 68 /* Sparkle */, 60, -1 },
-        /* T'Rang    */ { /* Male */ 71 /* Drazic */, 72 /* Tantris */, 62, -1 },
-        /* Umpani    */ { /* Male */ 73 /* Rodan */, 74 /* Glumph */, 75 /* Saxx */, 63, -1 },
-#endif
-        /* Rapax     */ { /* Male */ 64 /* Sexus */, -1 },
-        /* Android   */ {            66 /* RFS-81 */, -1 }
-    };
-
-    for (unsigned int k=0; k<sizeof(img_idx)/sizeof(img_idx[0]); k++)
-    {
-        for (int j=0; img_idx[k][j] != -1; j++)
+        for (int j=0; j < m_portraits[k].size(); j++)
         {
-            if (img_idx[k][j] == m_mugIdx)
+            if (m_portraits[k][j] == m_mugIdx)
             {
                 if (race == false)
                 {
                     // next / previous face within a race
-
                     if (up == false)
                     {
                         if (j > 0)
-                            return img_idx[k][j-1];
-                        for (int i=j; img_idx[k][i] != -1; i++)
-                        {
-                            if (img_idx[k][i+1] == -1)
-                                return img_idx[k][i];
-                        }
-                        Q_ASSERT(0);
-                        return -1;
+                            return m_portraits[k][j-1];
+                        return m_portraits[k].last();
                     }
                     else
                     {
-                        if (img_idx[k][j+1] != -1)
-                            return img_idx[k][j+1];
-                        return img_idx[k][0];
+                        if (j+1 < m_portraits[k].size())
+                            return m_portraits[k][j+1];
+                        return m_portraits[k].first();
                     }
                 }
                 else
@@ -447,14 +545,14 @@ int ScreenPersonality::nextImageIdx(bool race, bool up)
                     if (up == false)
                     {
                         if (k > 0)
-                            return img_idx[k-1][0];
-                        return img_idx[ sizeof(img_idx)/sizeof(img_idx[0]) - 1 ][0];
+                            return m_portraits[k-1].first();
+                        return m_portraits[ PORTRAIT_GRP_SIZE - 1 ].first();
                     }
                     else
                     {
-                        if (k < sizeof(img_idx)/sizeof(img_idx[0]))
-                            return img_idx[k+1][0];
-                        return img_idx[0][0];
+                        if (k+1 < PORTRAIT_GRP_SIZE)
+                            return m_portraits[k+1].first();
+                        return m_portraits[0].first();
                     }
                 }
             }
@@ -827,7 +925,7 @@ void ScreenPersonality::changePersonalityVoice(int state)
                 QString quote = StringList::decipher( quote_enc );
 
                 // Shove that text onto a QLabel after putting quotes around it.
-                QLabel *q = qobject_cast<QLabel *>(m_widgets[ VAL_QUOTE ]);
+                WLabel *q = qobject_cast<WLabel *>(m_widgets[ VAL_QUOTE ]);
 
                 q->setWordWrap( true );
                 q->setText( "\"" + quote.trimmed() + "\"" );
@@ -920,4 +1018,57 @@ void ScreenPersonality::exitPersonalityScreen(bool)
     this->setParent(NULL);
     this->deleteLater();
 
+}
+
+void ScreenPersonality::portraitPopup(QPoint point)
+{
+    if (WImage *w = qobject_cast<WImage *>(sender()))
+    {
+        if (ScreenCommon::isCustomPortrait( m_mugIdx ))
+        {
+            m_cmPortraitReset->setEnabled(true);
+        }
+        else
+        {
+            m_cmPortraitReset->setEnabled(false);
+        }
+
+        QMenu menu(w);
+
+        menu.addAction(m_cmPortraitModify);
+        menu.addAction(m_cmPortraitReset);
+
+        menu.exec( point );
+    }
+}
+
+void ScreenPersonality::cmPortraitModify()
+{
+    QString imgFilename = ::getOpenFileName( this, QObject::tr("Select image to replace portrait with"), QDir::homePath(), QObject::tr("Image files (*.png *.pnm *.jpg *.xpm)"));
+
+    if (! imgFilename.isEmpty())
+    {
+        ::replacePortrait( m_mugIdx, imgFilename );
+
+        m_cmPortraitReset->setEnabled(true);
+
+        if (WImage *q = qobject_cast<WImage *>(m_widgets[ VAL_FACELIFT ]))
+        {
+            q->setPixmap( ScreenCommon::getLargePortrait( m_mugIdx ) );
+        }
+        emit changedPortrait();
+    }
+}
+
+void ScreenPersonality::cmPortraitReset()
+{
+    ::replacePortrait( m_mugIdx, "" );
+
+    m_cmPortraitReset->setEnabled(false);
+
+    if (WImage *q = qobject_cast<WImage *>(m_widgets[ VAL_FACELIFT ]))
+    {
+        q->setPixmap( ScreenCommon::getLargePortrait( m_mugIdx ) );
+    }
+    emit changedPortrait();
 }

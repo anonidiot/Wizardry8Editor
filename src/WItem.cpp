@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -38,7 +38,7 @@
 
 #include "main.h"
 #include "SLFFile.h"
-#include "STItoQImage.h"
+#include "STI.h"
 
 #include <QDebug>
 
@@ -145,7 +145,7 @@ void WItem::resetPixmaps()
         if (imgs.open(QFile::ReadOnly))
         {
             QByteArray array = imgs.readAll();
-            STItoQImage sti_imgs( array );
+            STI sti_imgs( array );
 
             if (m_rect.height() <= kBackpackItemMaxHeight)
                 m_itemPixmap = QPixmap::fromImage( sti_imgs.getImage( kBackpackItemIndex ));
@@ -178,7 +178,7 @@ void WItem::resetPixmaps()
             {
                 QByteArray array = sti_file.readAll();
 
-                STItoQImage s( array);
+                STI s( array);
 
                 m_usablePixmap = QPixmap::fromImage( s.getImage( 0 ));
             }
@@ -515,21 +515,21 @@ void WItem::createContextMenuActions(context_mode contexts)
     }
     else
     {
-        m_cmInspectItem = new QAction( ::getStringTable()->getString( StringList::InspectItem ), this);
+        m_cmInspectItem = new QAction( ::getBaseStringTable()->getString( StringList::InspectItem ), this);
         m_cmInspectItem->setStatusTip(tr("View Item Properties"));
         connect(m_cmInspectItem, SIGNAL(triggered()), this, SLOT(cmInspectItem()));
 
-        m_cmEditItem = new QAction( ::getStringTable()->getString( StringList::EditItem ), this);
+        m_cmEditItem = new QAction( ::getBaseStringTable()->getString( StringList::EditItem ), this);
         m_cmEditItem->setStatusTip(tr("Edit Item Properties"));
         connect(m_cmEditItem, SIGNAL(triggered()), this, SLOT(cmEditItem()));
 
         if (contexts == context_mode::All)
         {
-            m_cmAddItem = new QAction( ::getStringTable()->getString( StringList::AddItem ), this);
+            m_cmAddItem = new QAction( ::getBaseStringTable()->getString( StringList::AddItem ), this);
             m_cmAddItem->setStatusTip(tr("Add new Item"));
             connect(m_cmAddItem, SIGNAL(triggered()), this, SLOT(cmAddItem()));
 
-            m_cmDropItem = new QAction( ::getStringTable()->getString( StringList::DropItem ), this);
+            m_cmDropItem = new QAction( ::getBaseStringTable()->getString( StringList::DropItem ), this);
             m_cmDropItem->setStatusTip(tr("Discard Item"));
             connect(m_cmDropItem, SIGNAL(triggered()), this, SLOT(cmDropItem()));
         }

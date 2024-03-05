@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -94,6 +94,7 @@ private:
     qint64              m_filesize;
     int                 m_numSegs;
     QList<riff_entry>   m_segments;
+    bool                m_WIZ8variant; // file uses alternative WIZ8 header used by Wizardry 1.2.8 insted of RIFF
 };
 
 #endif /* RIFFFILE_H__ */

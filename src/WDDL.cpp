@@ -28,6 +28,7 @@
 #include <QDebug>
 
 #include "Screen.h"
+#include "STI.h"
 
 #include "WDDL.h"
 
@@ -169,7 +170,7 @@ void WDDL::loadDDLPixmaps()
     if (imgs.open(QFile::ReadOnly))
     {
         QByteArray array = imgs.readAll();
-        STItoQImage sti_imgs( array );
+        STI sti_imgs( array );
 
         m_ddlInactive = QPixmap::fromImage( sti_imgs.getImage( 1 ) );
         m_ddlActive   = QPixmap::fromImage( sti_imgs.getImage( 2 ) );

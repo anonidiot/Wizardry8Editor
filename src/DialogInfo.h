@@ -31,7 +31,6 @@
 #include <Dialog.h>
 #include "Wizardry8Scalable.h"
 
-class STItoQImage;
 
 class DialogInfo : public Dialog
 {

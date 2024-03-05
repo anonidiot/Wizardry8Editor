@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,6 +33,8 @@
 #include "constants.h"
 #include "common.h"
 #include "spell.h"
+#include "Localisation.h"
+#include "STI.h"
 
 #include <QDebug>
 
@@ -48,6 +50,11 @@ item::item(quint32 id, quint8 cnt, quint8 charges, quint8 identified, quint8 unc
     m_uncursed(uncursed),
     m_equipped(equipped)
 {
+    m_unknown[0] = 0;
+    m_unknown[1] = 0;
+    m_unknown[2] = 0;
+    m_unknown[3] = 0;
+
     m_helper = dbHelper::getHelper();
 
     if (m_id != 0xffffffff)
@@ -60,40 +67,49 @@ item::item(quint32 id, quint8 cnt, quint8 charges, quint8 identified, quint8 unc
     }
 }
 
-// 0x0000: Item name (maximum length unknown)
+item::item(const quint8 *item_ptr, bool equipped) :
+    m_equipped(equipped)
+{
+    m_id = FORMAT_LE32(item_ptr);
+    m_cnt     = FORMAT_8(item_ptr+4);
+    m_charges = FORMAT_8(item_ptr+5);
+
+    m_identified = FORMAT_8(item_ptr+6);  // 0=unidentified, 1=identified, TODO: other values?
+    m_unknown[0] = FORMAT_8(item_ptr+7);
+    m_unknown[1] = FORMAT_8(item_ptr+8);
+    m_unknown[2] = FORMAT_8(item_ptr+9);
+    m_uncursed   = FORMAT_8(item_ptr+10); // 0=object in default state, 1=magically uncursed, TODO: other values?
+    m_unknown[3] = FORMAT_8(item_ptr+11);
+
+    m_helper = dbHelper::getHelper();
+
+    if (m_id != 0xffffffff)
+    {
+        m_db_record = m_helper->getItemRecord(m_id);
+    }
+    else
+    {
+        m_db_record = NULL;
+    }
+}
+
+// 0x0000: Item name
 QString item::getName() const
 {
     // The item name is a UTF16 string at the start of the item record.
     // Maximum length is 30 - "Potion of Cure Light Condition", which isn't
     // NULL terminated if it gets that long
 
-    // Don't make any assumptions about the endianness of the host being LE
-    // ie. can't just do:
-    // quint16 *data = (quint16 *)m_db_record.constData();
-    // return QString::fromUtf16(data);
+    Localisation *loc = Localisation::getLocalisation();
 
-    QString name = "";
-
-    if (m_id != 0xffffffff)
-    {
-        quint8 *data = (quint8 *)m_db_record.constData();
-        for (int k=0; k<0x3c; k+=2)
-        {
-            quint16 c = FORMAT_LE16(data+k);
-
-            if (c == 0)
-                break;
-
-            name += QChar(c);
-        }
-    }
-
-    return name;
+    return loc->getItemName( m_id );
 }
 
 QString item::getDesc() const
 {
-    return m_helper->getItemDesc( m_id );
+    Localisation *loc = Localisation::getLocalisation();
+
+    return loc->getItemDesc( m_id );
 }
 
 // 0x003c--0x003d: UNKNOWN
@@ -111,7 +127,7 @@ item::type item::getType() const
 }
 QString item::getTypeString() const
 {
-    return ::getStringTable()->getString( StringList::LISTItemTypes + static_cast<int>( getType() ) );
+    return ::getBaseStringTable()->getString( StringList::LISTItemTypes + static_cast<int>( getType() ) );
 }
 
 // 0x003f--0x0040: appearance (icon) of item
@@ -443,11 +459,11 @@ QString item::getSkillUsedString() const
                 break;
 
             case item::spell_usage_type::Instrument:
-                skills = ::getStringTable()->getString( StringList::LISTSkills + static_cast<int>( character::skill::Music ) );
+                skills = ::getBaseStringTable()->getString( StringList::LISTSkills + static_cast<int>( character::skill::Music ) );
                 break;
 
             case item::spell_usage_type::Gadget:
-                skills = ::getStringTable()->getString( StringList::LISTSkills + static_cast<int>( character::skill::Engineering ) );
+                skills = ::getBaseStringTable()->getString( StringList::LISTSkills + static_cast<int>( character::skill::Engineering ) );
                 break;
 
             case item::spell_usage_type::Item:
@@ -457,7 +473,7 @@ QString item::getSkillUsedString() const
             case item::spell_usage_type::Drink_Potion:
             case item::spell_usage_type::Bomb_Powder:
             case item::spell_usage_type::MiscMagic:
-                skills = ::getStringTable()->getString( StringList::LISTSkills + static_cast<int>( character::skill::Artifacts ) );
+                skills = ::getBaseStringTable()->getString( StringList::LISTSkills + static_cast<int>( character::skill::Artifacts ) );
                 break;
         }
     }
@@ -470,7 +486,7 @@ QString item::getSkillUsedString() const
     if (skills.size() > 0)
         skills += ", ";
 
-    return skills + ::getStringTable()->getString( StringList::LISTSkills + static_cast<int>(k) );
+    return skills + ::getBaseStringTable()->getString( StringList::LISTSkills + static_cast<int>(k) );
 }
 
 // 0x0047: Range
@@ -486,7 +502,7 @@ item::range item::getRange() const
 }
 QString item::getRangeString() const
 {
-    return ::getStringTable()->getString( StringList::LISTRanges + static_cast<int>(getRange() ) );
+    return ::getBaseStringTable()->getString( StringList::LISTRanges + static_cast<int>(getRange() ) );
 }
 
 // 0x0048: Initiative +/-
@@ -575,7 +591,7 @@ QString item::getAttacksString() const
     for (int k=0; k<metaAttack.keyCount(); k++)
     {
         if (a & metaAttack.value(k))
-            list += QString(", ") + ::getStringTable()->getString( StringList::LISTAttacks + k*2  );
+            list += QString(", ") + ::getBaseStringTable()->getString( StringList::LISTAttacks + k*2  );
     }
 
     return list.mid(2);
@@ -679,7 +695,7 @@ QString item::getSpecialAttackString() const
     {
         if (a & metaAttack.value(k))
         {
-            list += QString( ", %1 %2%").arg( ::getStringTable()->getString( StringList::LISTSpecialAttacks + k ) ).arg( getPercentageChance( static_cast<item::special_attack>( metaAttack.value(k) ) ) );
+            list += QString( ", %1 %2%").arg( ::getBaseStringTable()->getString( StringList::LISTSpecialAttacks + k ) ).arg( getPercentageChance( static_cast<item::special_attack>( metaAttack.value(k) ) ) );
             if (k == special_attack::Poison)
             {
                 list += QString( tr(" (STR %3)") ).arg( getPoisonStrength() );
@@ -708,7 +724,7 @@ QString item::getSlaysString() const
     if (k == item::slays::None)
         return QString();
 
-    return ::getStringTable()->getString( StringList::LISTSlays + static_cast<int>(k) );
+    return ::getBaseStringTable()->getString( StringList::LISTSlays + static_cast<int>(k) );
 }
 
 // 0x0062: Armor Class
@@ -929,7 +945,7 @@ QString item::getArmorWeightClassString() const
     if (k == item::weight::None)
         return tr("None");
 
-    return ::getStringTable()->getString( StringList::LISTArmorWeights + static_cast<int>(k) );
+    return ::getBaseStringTable()->getString( StringList::LISTArmorWeights + static_cast<int>(k) );
 }
 
 // 0x0076: usable by professions
@@ -1001,11 +1017,11 @@ QString item::getRequiredAttribsString() const
 
     if (a1 != character::attribute::ATTRIBUTE_NONE)
     {
-        attribs += QString(", %1 %2").arg( ::getStringTable()->getString(StringList::LISTPrimaryAttributes + static_cast<int>(a1)) ).arg( v1 );
+        attribs += QString(", %1 %2").arg( ::getBaseStringTable()->getString(StringList::LISTPrimaryAttributes + static_cast<int>(a1)) ).arg( v1 );
     }
     if (a2 != character::attribute::ATTRIBUTE_NONE)
     {
-        attribs += QString(", %1 %2").arg( ::getStringTable()->getString(StringList::LISTPrimaryAttributes + static_cast<int>(a2)) ).arg( v2 );
+        attribs += QString(", %1 %2").arg( ::getBaseStringTable()->getString(StringList::LISTPrimaryAttributes + static_cast<int>(a2)) ).arg( v2 );
     }
 
     return attribs.mid( 2 );
@@ -1038,24 +1054,24 @@ QString item::getRequiredSkillsString() const
 
     if (s1 != character::skill::SKILL_NONE)
     {
-        skills += QString(", %1 %2").arg( ::getStringTable()->getString(StringList::LISTSkills + static_cast<int>(s1)) ).arg( v1 );
+        skills += QString(", %1 %2").arg( ::getBaseStringTable()->getString(StringList::LISTSkills + static_cast<int>(s1)) ).arg( v1 );
     }
     if (s2 != character::skill::SKILL_NONE)
     {
-        skills += QString(", %1 %2").arg( ::getStringTable()->getString(StringList::LISTSkills + static_cast<int>(s2)) ).arg( v2 );
+        skills += QString(", %1 %2").arg( ::getBaseStringTable()->getString(StringList::LISTSkills + static_cast<int>(s2)) ).arg( v2 );
     }
 
     spell item_spell = getSpell();
     if ((s1 == character::skill::Music) || (s2 == character::skill::Music))
     {
         // If it requries Music, it's also going to require a certain Bard Level
-        skills += QString( ", %1\u00a0%2" ).arg(::getStringTable()->getString( StringList::BardLevel )).arg( item_spell.getLevelAsPureClass() );
+        skills += QString( ", %1\u00a0%2" ).arg(::getBaseStringTable()->getString( StringList::BardLevel )).arg( item_spell.getLevelAsPureClass() );
     }
 
     if ((s1 == character::skill::Engineering) || (s2 == character::skill::Engineering))
     {
         // If it requries Engineering, it's also going to require a certain Gadgeteer Level
-        skills += QString( ", %1\u00a0%2" ).arg(::getStringTable()->getString( StringList::GadgeteerLevel )).arg( item_spell.getLevelAsPureClass() );
+        skills += QString( ", %1\u00a0%2" ).arg(::getBaseStringTable()->getString( StringList::GadgeteerLevel )).arg( item_spell.getLevelAsPureClass() );
     }
 
     // The real game doesn't show this because it is VERY messy and complicated due
@@ -1093,7 +1109,7 @@ QString item::getRequiredSkillsString() const
                     case character::profession::Bishop:
                     case character::profession::Psionic:
                     case character::profession::Mage:
-                        pure_users += "/" + ::getStringTable()->getString( StringList::LISTProfessions + k );
+                        pure_users += "/" + ::getBaseStringTable()->getString( StringList::LISTProfessions + k );
                         break;
 
                     // Hybrid Fighter & magic users
@@ -1103,19 +1119,19 @@ QString item::getRequiredSkillsString() const
                     case character::profession::Samurai:
                     case character::profession::Ninja:
                     case character::profession::Monk:
-                        hybrid_users += "/" + ::getStringTable()->getString( StringList::LISTProfessions + k );
+                        hybrid_users += "/" + ::getBaseStringTable()->getString( StringList::LISTProfessions + k );
                         break;
                 }
             }
         }
         if (pure_users.size() > 0)
         {
-            prof_reqs += tr(" or ") + pure_users.mid(1) + QString( " %1\u00a0%2").arg(::getStringTable()->getString( StringList::Level ))
+            prof_reqs += tr(" or ") + pure_users.mid(1) + QString( " %1\u00a0%2").arg(::getBaseStringTable()->getString( StringList::Level ))
                              .arg( item_spell.getLevelAsPureClass() );
         }
         if (hybrid_users.size() > 0)
         {
-            prof_reqs += tr(" or ") + hybrid_users.mid(1) + QString( " %1\u00a0%2").arg(::getStringTable()->getString( StringList::Level ))
+            prof_reqs += tr(" or ") + hybrid_users.mid(1) + QString( " %1\u00a0%2").arg(::getBaseStringTable()->getString( StringList::Level ))
                              .arg( item_spell.getLevelAsHybridClass() );
         }
         skills += ", " + prof_reqs.mid( 4 );
@@ -1138,29 +1154,29 @@ QString item::getRequiredSkillsString() const
             if (profs & character::profession::Mage)
             {
                 school_reqs += QString( tr(" or (%1 + %2\u00f710) %3"))
-                                     .arg( ::getStringTable()->getString( StringList::LISTSkills + static_cast<int>( character::skill::Wizardry )) )
-                                     .arg( ::getStringTable()->getString( StringList::LISTSkills + spell_realm) )
+                                     .arg( ::getBaseStringTable()->getString( StringList::LISTSkills + static_cast<int>( character::skill::Wizardry )) )
+                                     .arg( ::getBaseStringTable()->getString( StringList::LISTSkills + spell_realm) )
                                      .arg( (spell_level - 1)*15 );
             }
             if (profs & character::profession::Alchemist)
             {
                 school_reqs += QString( tr(" or (%1 + %2\u00f710) %3"))
-                                     .arg( ::getStringTable()->getString( StringList::LISTSkills + static_cast<int>( character::skill::Alchemy )) )
-                                     .arg( ::getStringTable()->getString( StringList::LISTSkills + spell_realm) )
+                                     .arg( ::getBaseStringTable()->getString( StringList::LISTSkills + static_cast<int>( character::skill::Alchemy )) )
+                                     .arg( ::getBaseStringTable()->getString( StringList::LISTSkills + spell_realm) )
                                      .arg( (spell_level - 1)*15 );
             }
             if (profs & character::profession::Priest)
             {
                 school_reqs += QString( tr(" or (%1 + %2\u00f710) %3"))
-                                     .arg( ::getStringTable()->getString( StringList::LISTSkills + static_cast<int>( character::skill::Divinity )) )
-                                     .arg( ::getStringTable()->getString( StringList::LISTSkills + spell_realm) )
+                                     .arg( ::getBaseStringTable()->getString( StringList::LISTSkills + static_cast<int>( character::skill::Divinity )) )
+                                     .arg( ::getBaseStringTable()->getString( StringList::LISTSkills + spell_realm) )
                                      .arg( (spell_level - 1)*15 );
             }
             if (profs & character::profession::Psionic)
             {
                 school_reqs += QString( tr(" or (%1 + %2\u00f710) %3"))
-                                     .arg( ::getStringTable()->getString( StringList::LISTSkills + static_cast<int>( character::skill::Psionics )) )
-                                     .arg( ::getStringTable()->getString( StringList::LISTSkills + spell_realm) )
+                                     .arg( ::getBaseStringTable()->getString( StringList::LISTSkills + static_cast<int>( character::skill::Psionics )) )
+                                     .arg( ::getBaseStringTable()->getString( StringList::LISTSkills + spell_realm) )
                                      .arg( (spell_level - 1)*15 );
             }
 
@@ -1391,7 +1407,7 @@ QString item::getCompleteData(bool include_image) const
         if (imgs.open(QFile::ReadOnly))
         {
             QByteArray array = imgs.readAll();
-            STItoQImage sti_imgs( array );
+            STI sti_imgs( array );
 
             pix = QPixmap::fromImage( sti_imgs.getImage( 0 ));
 

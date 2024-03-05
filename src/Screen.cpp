@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -205,7 +205,7 @@ QMap<int, QWidget *> Screen::widgetInit( struct layout *widgets, int num_widgets
 
             if (widgets[k].toolTip != -1)
             {
-                w->setToolTip( ::getStringTable()->getString( widgets[k].toolTip ) );
+                w->setToolTip( ::getBaseStringTable()->getString( widgets[k].toolTip ) );
             }
 
             if (widgets[k].id != 0) // NO_ID should always be 0

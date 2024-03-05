@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,12 +32,13 @@
 #include <QPixmap>
 #include <QPushButton>
 #include <QStack>
+#include <QVector>
 
 #include "Wizardry8Scalable.h"
-#include "STItoQImage.h"
 
 #include "character.h"
 #include "Screen.h"
+#include "PortraitsDb.h"
 
 class QHelpEvent;
 class QButtonGroup;
@@ -70,6 +71,10 @@ public slots:
     void        exitPersonalityScreen(bool checked);
     void        changePersonalityVoice(int state);
     void        nameChanged(const QString &name);
+    void        portraitPopup(QPoint point);
+    void        cmPortraitModify();
+    void        cmPortraitReset();
+    void        resetLanguage();
 
 protected:
     void        resizeEvent(QResizeEvent *event) override;
@@ -80,6 +85,8 @@ private:
     void        resetScreen(void *char_tag, void *party_tag) override;
 
     int         nextImageIdx(bool race, bool up);
+
+    void        assemblePortraitIndices();
 
 
     character        *m_char;
@@ -92,5 +99,10 @@ private:
     QMediaPlayer     *m_audio_player;
     QAudioProbe      *m_visualiser;
     QFile            *m_snd_file;
+ 
+    QAction          *m_cmPortraitModify;
+    QAction          *m_cmPortraitReset;
+
+    QVector<int>      m_portraits[ PORTRAIT_GRP_SIZE];
 };
 #endif

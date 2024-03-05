@@ -34,7 +34,7 @@
 #include "WButton.h"
 
 #include "SLFFile.h"
-#include "STItoQImage.h"
+#include "STI.h"
 #include "main.h"
 
 WButton::WButton(QWidget* parent, Qt::WindowFlags)
@@ -66,7 +66,7 @@ WButton::WButton(QString sti_file, int image_idx, bool bNoFifthState, double ext
     if (buttons.open(QFile::ReadOnly))
     {
         QByteArray array = buttons.readAll();
-        STItoQImage sti_buttons( array );
+        STI sti_buttons( array );
 
         // expect 5 state button; those that only have 4 need to
         // do some management of their own

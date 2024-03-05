@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -861,10 +861,10 @@ void ScreenItems::resetScreen(void *char_tag, void *party_tag)
 
         { VAL_GOLD,     QLocale(QLocale::English).toString(m_party->getGold()) },
 
-        { LBL_PRIM,     ((m_char->getItem( character::worn::Weapon1a ).isNull()) && (m_char->getItem( character::worn::Weapon1b ).isNull())) ?  ::getStringTable()->getString( StringList::Kick )
-                                                                                                                                 :  ::getStringTable()->getString( StringList::Primary )   },
-        { LBL_SECO,     ((m_char->getItem( character::worn::Weapon1a ).isNull()) && (m_char->getItem( character::worn::Weapon1b ).isNull())) ?  ::getStringTable()->getString( StringList::Punch )
-                                                                                                                                 :  ::getStringTable()->getString( StringList::Secondary ) },
+        { LBL_PRIM,     ((m_char->getItem( character::worn::Weapon1a ).isNull()) && (m_char->getItem( character::worn::Weapon1b ).isNull())) ?  ::getBaseStringTable()->getString( StringList::Kick )
+                                                                                                                                 :  ::getBaseStringTable()->getString( StringList::Primary )   },
+        { LBL_SECO,     ((m_char->getItem( character::worn::Weapon1a ).isNull()) && (m_char->getItem( character::worn::Weapon1b ).isNull())) ?  ::getBaseStringTable()->getString( StringList::Punch )
+                                                                                                                                 :  ::getBaseStringTable()->getString( StringList::Secondary ) },
 
         { INITIATIVE,         QString::number( m_char->getInitiative() ) },
         { KILLS,              QString::number( m_char->getKills() )      },

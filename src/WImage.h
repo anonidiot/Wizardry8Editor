@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,10 +27,11 @@
 #define WIMAGE_H__
 
 #include <QPixmap>
+#include <QPoint>
 #include <QWidget>
 #include "Wizardry8Scalable.h"
 
-class STItoQImage;
+class STI;
 
 class WImage : public QWidget, public Wizardry8Scalable
 {
@@ -62,7 +63,11 @@ signals:
     void  clicked(bool down);
     void  mouseOver(bool on);
 
+    void  contextMenu( QPoint globalPosition );
+
 protected:
+    void  contextMenuEvent(QContextMenuEvent *event) override;
+
     void  paintEvent(QPaintEvent *event);
 
     void  mousePressEvent(QMouseEvent *event);
@@ -81,7 +86,7 @@ private:
     bool           m_fakeInvisible;
 
     QByteArray     m_stiData;
-    STItoQImage   *m_stiImages;
+    STI           *m_stiImages;
     int            m_frameIdx;
 
     QRect          m_crop;

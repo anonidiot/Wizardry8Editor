@@ -25,7 +25,6 @@
 
 #include "DialogAbout.h"
 #include "SLFFile.h"
-#include "STItoQImage.h"
 #include "main.h"
 
 #include <QApplication>

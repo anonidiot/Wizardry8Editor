@@ -30,7 +30,6 @@
 #include <QWidget>
 #include "Wizardry8Scalable.h"
 
-class STItoQImage;
 
 class WStatBar : public QWidget, public Wizardry8Scalable
 {

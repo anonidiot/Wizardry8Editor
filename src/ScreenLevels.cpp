@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -405,13 +405,13 @@ ScreenLevels::ScreenLevels(character *c, QWidget *parent) :
 
         { NO_ID,              QRect( 323,  88,  -1,  -1 ),    new WImage(    "SPELLS/BITMAPS/A-GLOW-BLUE.TGA", 0, QColor(Qt::black), 0.5,   this ),  -1,  NULL },
 
-        { LBL_POS_X,          QRect( 344,  90, 186,  14 ),    new WLabel(    ::getStringTable()->getString( StringList::Position ) + " X",  Qt::AlignCenter,   10, QFont::Thin, this ),  -1,  NULL },
+        { LBL_POS_X,          QRect( 344,  90, 186,  14 ),    new WLabel(    ::getBaseStringTable()->getString( StringList::Position ) + " X",  Qt::AlignCenter,   10, QFont::Thin, this ),  -1,  NULL },
         { VAL_POS_X,          QRect( 520,  90,  64,  14 ),    new WLineEdit( "",                          Qt::AlignRight,  10, QFont::Thin, this ),  -1,  SLOT(lineeditChanged(const QString &)) },
         { BTN_POS_X,          QRect( 588,  89,  -1,  -1 ),    new WButton(   "MAIN INTERFACE/PARTYMOVEMENT_BUTTONS.STI",    0, true, 0.70,  this ),  -1,  SLOT(setPosition(bool)) },
-        { LBL_POS_Y,          QRect( 344, 104, 186,  14 ),    new WLabel(    ::getStringTable()->getString( StringList::Position ) + " Y",  Qt::AlignCenter,   10, QFont::Thin, this ),  -1,  NULL },
+        { LBL_POS_Y,          QRect( 344, 104, 186,  14 ),    new WLabel(    ::getBaseStringTable()->getString( StringList::Position ) + " Y",  Qt::AlignCenter,   10, QFont::Thin, this ),  -1,  NULL },
         { VAL_POS_Y,          QRect( 520, 104,  64,  14 ),    new WLineEdit( "",                          Qt::AlignRight,  10, QFont::Thin, this ),  -1,  SLOT(lineeditChanged(const QString &)) },
         { BTN_POS_Y,          QRect( 588, 103,  -1,  -1 ),    new WButton(   "MAIN INTERFACE/PARTYMOVEMENT_BUTTONS.STI",    0, true, 0.70,  this ),  -1,  SLOT(setPosition(bool)) },
-        { LBL_POS_Z,          QRect( 344, 118, 186,  14 ),    new WLabel(    ::getStringTable()->getString( StringList::Position ) + " Z",  Qt::AlignCenter,   10, QFont::Thin, this ),  -1,  NULL },
+        { LBL_POS_Z,          QRect( 344, 118, 186,  14 ),    new WLabel(    ::getBaseStringTable()->getString( StringList::Position ) + " Z",  Qt::AlignCenter,   10, QFont::Thin, this ),  -1,  NULL },
         { VAL_POS_Z,          QRect( 520, 118,  64,  14 ),    new WLineEdit( "",                          Qt::AlignRight,  10, QFont::Thin, this ),  -1,  SLOT(lineeditChanged(const QString &)) },
         { BTN_POS_Z,          QRect( 588, 117,  -1,  -1 ),    new WButton(   "MAIN INTERFACE/PARTYMOVEMENT_BUTTONS.STI",    0, true, 0.70,  this ),  -1,  SLOT(setPosition(bool)) },
         { LBL_HEADING,        QRect( 344, 132, 186,  14 ),    new WLabel(    StringList::Heading,         Qt::AlignCenter, 10, QFont::Thin, this ),  -1,  NULL },
@@ -420,7 +420,7 @@ ScreenLevels::ScreenLevels(character *c, QWidget *parent) :
 
         { BTN_NAVIGATOR,      QRect( 610,  90,  -1,  -1 ),    new WButton(   "MAIN INTERFACE/ICONS_STANDARD.STI",          35, false, 1.0,  this ),  -1,  SLOT(openNavigator(bool)) },
 
-        { LBL_MAP,            QRect( 320,  54,  50,  14 ),    new WLabel(    ::getStringTable()->getString( StringList::Map + StringList::APPEND_COLON ),  Qt::AlignRight, 10, QFont::Thin, this ),  -1,  NULL },
+        { LBL_MAP,            QRect( 320,  54,  50,  14 ),    new WLabel(    ::getBaseStringTable()->getString( StringList::Map + StringList::APPEND_COLON ),  Qt::AlignRight, 10, QFont::Thin, this ),  -1,  NULL },
         { DDL_MAP,            QRect( 386,  47,  -1,  -1 ),    new WDDL(      "Lucida Calligraphy",        Qt::AlignLeft,  9, QFont::Thin,   this ),  -1,  SLOT(ddlChanged(int)) },
     };
 
@@ -840,34 +840,34 @@ void ScreenLevels::info(bool checked)
 
             int prof_idx = m_widgets.key( w ) - LBL_PROFS;
 
-            html  = QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getStringTable()->getString( StringList::Description + StringList::APPEND_COLON ))
-                            .arg(::getStringTable()->getString( StringList::DESCProfessions + prof_idx ));
+            html  = QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getBaseStringTable()->getString( StringList::Description + StringList::APPEND_COLON ))
+                            .arg(::getBaseStringTable()->getString( StringList::DESCProfessions + prof_idx ));
 
             QList<character::skill> sk = character::getProfessionalSkills( static_cast<character::profession>(m_metaProf.value(prof_idx)) );
 
-            html += QString( "<p><font color=\"#916448\">%1</font> " ).arg(::getStringTable()->getString( StringList::ProfessionalSkills + StringList::APPEND_COLON ));
+            html += QString( "<p><font color=\"#916448\">%1</font> " ).arg(::getBaseStringTable()->getString( StringList::ProfessionalSkills + StringList::APPEND_COLON ));
             for (int k=0; k < sk.size(); k++)
             {
                 if (k == 0)
                 {
-                    html += QString( "<font color=\"#02a7da\">%1</font>" ).arg(::getStringTable()->getString( StringList::LISTSkills + sk.at(k) ));
+                    html += QString( "<font color=\"#02a7da\">%1</font>" ).arg(::getBaseStringTable()->getString( StringList::LISTSkills + sk.at(k) ));
                 }
                 else
                 {
-                    html += ", " + ::getStringTable()->getString( StringList::LISTSkills + sk.at(k) );
+                    html += ", " + ::getBaseStringTable()->getString( StringList::LISTSkills + sk.at(k) );
                 }
             }
 
             sk = character::getTrainableSkills( static_cast<character::profession>(m_metaProf.value(prof_idx)) );
 
-            html += QString( "<p><font color=\"#916448\">%1</font> " ).arg(::getStringTable()->getString( StringList::OtherSkills + StringList::APPEND_COLON ));
+            html += QString( "<p><font color=\"#916448\">%1</font> " ).arg(::getBaseStringTable()->getString( StringList::OtherSkills + StringList::APPEND_COLON ));
             for (int k=0; k < sk.size(); k++)
             {
                 if (k != 0)
                 {
                     html += ", ";
                 }
-                html += ::getStringTable()->getString( StringList::LISTSkills + sk.at(k) );
+                html += ::getBaseStringTable()->getString( StringList::LISTSkills + sk.at(k) );
             }
 
             new DialogInfo( StringList::LISTProfessions + prof_idx, html, this );

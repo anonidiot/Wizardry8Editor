@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -37,7 +37,8 @@ RIFFFile::RIFFFile(const QString &name) :
     QFile(name),
     m_error(),
     m_filesize(-1),
-    m_numSegs(0)
+    m_numSegs(0),
+    m_WIZ8variant(false)
 {
     if (open(QFile::ReadOnly))
     {
@@ -98,6 +99,7 @@ QList<riff_entry> RIFFFile::readLVLS()
 
 void RIFFFile::readDirectory()
 {
+    bool    okHeader = false;
     quint8  buf[10];
 
     // RIFF files have a 4 byte header saying 'RIFF'
@@ -108,6 +110,19 @@ void RIFFFile::readDirectory()
         (buf[1] == 'I') &&
         (buf[2] == 'F') &&
         (buf[3] == 'F'))
+    {
+        okHeader = true;
+    }
+    else if ((buf[0] == 'W') &&
+             (buf[1] == 'I') &&
+             (buf[2] == 'Z') &&
+             (buf[3] == '8'))
+    {
+        okHeader = true;
+        m_WIZ8variant = true;
+    }
+
+    if (okHeader)
     {
         // Offset 4
         skip(2);
@@ -473,6 +488,14 @@ bool RIFFFile::isRIFF(QFile &file)
             (buf[1] == 'I') &&
             (buf[2] == 'F') &&
             (buf[3] == 'F'))
+        {
+            return true;
+        }
+        // Treat the Wizardry 1.2.8 variant file as a RIFF too
+        if ((buf[0] == 'W') &&
+            (buf[1] == 'I') &&
+            (buf[2] == 'Z') &&
+            (buf[3] == '8'))
         {
             return true;
         }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2024 Anonymous Idiot
+ * Copyright (C) 2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,33 +23,39 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <QPixmap>
-#include <QWidget>
+#ifndef DLGPARWORLD_H
+#define DLGPARWORLD_H
 
-#include "StringList.h"
+#include "Dialog.h"
+#include "Wizardry8Scalable.h"
 
-class facts;
+class QListWidgetItem;
 
-#define ORIGINAL_DIM_X   640
-#define ORIGINAL_DIM_Y   480
+class DialogParallelWorlds : public Dialog
+{
+    Q_OBJECT
 
-const StringList     *getStringTable();
-const StringList     *getBaseStringTable();
+public:
+    DialogParallelWorlds(QStringList worlds, QString current_world = "", QWidget *parent = nullptr);
+    ~DialogParallelWorlds();
 
-bool                  getIgnoreModStrings();
-void                  setIgnoreModStrings(bool value);
+    QString getWorld()            { return m_currentWorld;     }
+    bool    getIgnoreModStrings() { return m_ignoreModStrings; }
 
-void                  setFacts(facts f);
-bool                  testFact(int fact_id);
-bool                  testFact(QString fact_name);
+public slots:
+    void worldChanged(QListWidgetItem *now);
+    void setCb(int cb);    
 
-void                  setAppScale(double scale);
-double                getAppScale();
+protected:
+    void init();
+    void updateList(QStringList worlds);
 
-QPixmap               getCursor(int id);
+private:
+    QPixmap    makeDialogForm();
+    QPixmap    makeWider( QImage im, int width );
 
-bool                  isWizardry128();
-bool                  isParallelWorlds();
+    QString         m_currentWorld;
+    bool            m_ignoreModStrings;
+};
 
-QString getOpenFileName(QWidget *parent, const QString &caption, const QString &directory, const QString &filter);
-QString getSaveFileName(QWidget *parent, const QString &caption, const QString &directory, const QString &filter);
+#endif /* DLG_PARWORLD_H */

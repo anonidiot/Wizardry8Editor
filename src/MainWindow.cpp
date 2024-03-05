@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -35,15 +35,17 @@
 #include "WindowItemsList.h"
 #include "WindowFactEditor.h"
 #include <QFile>
+#include <QActionGroup>
 #include <QByteArray>
 
 #include "common.h"
 #include "main.h"
 
+#include "Localisation.h"
 #include "RIFFFile.h"
 #include "SLFFile.h"
 #include "character.h"
-#include "STItoQImage.h"
+#include "STI.h"
 #include "ScreenCommon.h"
 
 // MainWindow is a singleton class so we can get away with this
@@ -112,7 +114,6 @@ MainWindow::MainWindow(QString loadFile) :
             m_loadedGame->close();
         }
     }
-
     m_party->resetCharacterColors();
     m_party->divvyUpPartyWeight();
 
@@ -168,10 +169,20 @@ MainWindow::MainWindow(QString loadFile) :
 
     show();
 
-    // No existing saved game loaded -- show the new game dialog
+    // No existing saved game loaded
     if (!m_loadedGame)
     {
-        newAct->activate( QAction::Trigger );
+        if (::isWizardry128())
+        {
+            QMessageBox::warning(this, tr("App Init Error"),
+                tr("New and Reset games are not supported under Wizardry 1.2.8."));
+            disableSave();
+        }
+        else
+        {
+            // Show the new game dialog
+            newAct->activate( QAction::Trigger );
+        }
     }
 }
 
@@ -251,6 +262,17 @@ MainWindow::~MainWindow()
     cutAct->deleteLater();
     copyAct->deleteLater();
     pasteAct->deleteLater();
+
+    ignoreStringsAct->deleteLater();
+    localisationAct->deleteLater();
+
+    QList<QAction *> actions = m_loc_langs->actions();
+    for (int k=0; k<actions.size(); k++)
+    {
+        actions[k]->deleteLater();
+    }
+    m_loc_langs->deleteLater();
+
     droppedItemsAct->deleteLater();
     findItemsAct->deleteLater();
     factEditorAct->deleteLater();
@@ -270,6 +292,14 @@ QSize MainWindow::sizeHint() const
 
 void MainWindow::newFile()
 {
+    if (isWizardry128())
+    {
+        QMessageBox::warning(this, tr("Feature Unavailable"),
+            tr("New and Reset games are not supported under Wizardry 1.2.8\ndue to its modified file format."));
+
+        return;
+    }
+
     DialogNewFile *d = new DialogNewFile(this);
 
     if (d->exec() == QDialog::Accepted)
@@ -338,9 +368,18 @@ void MainWindow::open()
 {
     // Show a file dialog and ask what they want to open
 
-    QString &wizardryPath = SLFFile::getWizardryPath();
+    QString Path;
 
-    QString openFile = ::getOpenFileName(NULL, tr("Open File"), wizardryPath + "/Saves", tr("Saved Games (*.sav)"));
+    if (isParallelWorlds())
+    {
+        Path = SLFFile::getParallelWorldPath();
+    }
+    else
+    {
+        Path = SLFFile::getWizardryPath();
+    }
+
+    QString openFile = ::getOpenFileName(NULL, tr("Open File"), Path + "/Saves", tr("Saved Games (*.sav)"));
     if (openFile.isEmpty())
         return;
 
@@ -444,6 +483,14 @@ void MainWindow::save()
 
 void MainWindow::saveAsResetGame()
 {
+    if (isWizardry128())
+    {
+        QMessageBox::warning(this, tr("Feature Unavailable"),
+            tr("New and Reset games are not supported under Wizardry 1.2.8\ndue to its modified file format."));
+
+        return;
+    }
+
     // Popup similar dialog as New. Warn that all game state will be removed
     // and it will be saved as a new file. Warn that this file can only be loaded by patched
     // versions of the game. Also warn that RPCs will be dropped.
@@ -511,9 +558,18 @@ void MainWindow::saveAsResetGame()
 
 void MainWindow::saveAs()
 {
-    QString &wizardryPath = SLFFile::getWizardryPath();
+    QString Path;
 
-    QString saveFile = ::getSaveFileName(NULL, tr("Save File"),  wizardryPath + "/Saves", tr("Saved Games (*.sav)"));
+    if (isParallelWorlds())
+    {
+        Path = SLFFile::getParallelWorldPath();
+    }
+    else
+    {
+        Path = SLFFile::getWizardryPath();
+    }
+
+    QString saveFile = ::getSaveFileName(NULL, tr("Save File"),  Path + "/Saves", tr("Saved Games (*.sav)"));
     if (saveFile.isEmpty())
         return;
 
@@ -584,6 +640,8 @@ void MainWindow::saveAs()
 
         quint8 b[4];
 
+        // This can stay as hardcoded RIFF. We do not support creating new games under Wizardry 1.2.8,
+        // where the WIZ8 header is used instead.
         dst.write( "RIFF", 4 );
         ASSIGN_LE8(  b, 0xff );      dst.write( (char *)b, sizeof(quint8)  );
         ASSIGN_LE8(  b, 0x00 );      dst.write( (char *)b, sizeof(quint8)  );
@@ -684,7 +742,7 @@ QByteArray MainWindow::makeSnapshot( wiz7_end clip )
             if (slf.open(QFile::ReadOnly))
             {
                 QByteArray array = slf.readAll();
-                STItoQImage c( array );
+                STI c( array );
 
                 src = c.getImage( 0 );
 
@@ -738,6 +796,54 @@ void MainWindow::paste()
     statusBar()->showMessage(tr("Invoked <b>Edit|Paste</b>"));
 }
 
+void MainWindow::ignoreModStrings()
+{
+    statusBar()->showMessage(tr("Invoked <b>Edit|Ignore Most Module Strings</b>"));
+
+    setIgnoreModStrings( ! getIgnoreModStrings() );
+
+    // in case RPC characters were deleted, we have refreshes to make
+    if (ScreenCommon *s = qobject_cast<ScreenCommon *>(m_contentWidget))
+    {
+        s->resetLanguage();
+    }
+}
+
+void MainWindow::enableLocalisation()
+{
+    statusBar()->showMessage(tr("Invoked <b>Edit|Enable Localisation</b>"));
+
+    Localisation *loc = Localisation::getLocalisation();
+
+    loc->setLocalisationActive( ! loc->isLocalisationActive() );
+
+    QList<QAction *> actions = m_loc_langs->actions();
+    for (int k=0; k<actions.size(); k++)
+    {
+        actions[k]->setEnabled( loc->isLocalisationActive() );
+    }
+
+    // in case RPC characters were deleted, we have refreshes to make
+    if (ScreenCommon *s = qobject_cast<ScreenCommon *>(m_contentWidget))
+    {
+        s->resetLanguage();
+    }
+}
+
+void MainWindow::changeLocalisation()
+{
+    if (QAction *a = qobject_cast<QAction *>(sender()))
+    {
+        Localisation *loc = Localisation::getLocalisation();
+        loc->setLanguage( a->text() );
+
+        // in case RPC characters were deleted, we have refreshes to make
+        if (ScreenCommon *s = qobject_cast<ScreenCommon *>(m_contentWidget))
+        {
+            s->resetLanguage();
+        }
+    }
+}
 
 void MainWindow::droppedItems()
 {
@@ -920,6 +1026,39 @@ void MainWindow::createActions()
     pasteAct->setDisabled( true );
     //connect(pasteAct, &QAction::triggered, this, &MainWindow::paste);
 
+    ignoreStringsAct = new QAction( ::getBaseStringTable()->getString( StringList::IgnoreModStringsShort ), this);
+    ignoreStringsAct->setStatusTip( ::getBaseStringTable()->getString( StringList::IgnoreModStrings ) );
+    ignoreStringsAct->setCheckable( true );
+    ignoreStringsAct->setChecked( getIgnoreModStrings() );
+    connect(ignoreStringsAct, &QAction::triggered, this, &MainWindow::ignoreModStrings);
+
+    Localisation *loc = Localisation::getLocalisation();
+
+    localisationAct = new QAction(tr("Enable Localisation"), this);
+    localisationAct->setStatusTip( tr("Toggle Localisation on or off") );
+    localisationAct->setCheckable( true );
+    localisationAct->setChecked( loc->isLocalisationActive() );
+    connect(localisationAct, &QAction::triggered, this, &MainWindow::enableLocalisation);
+
+    QStringList avail = loc->getLanguagesAvailable();
+
+    m_loc_langs = new QActionGroup(this);
+    if (m_loc_langs)
+    {
+        m_loc_langs->setExclusive(true);
+
+        for (int k=0; k<avail.size(); k++)
+        {
+            QAction *a = m_loc_langs->addAction( avail[k] );
+            a->setCheckable( true );
+            if (avail[k] == loc->getLanguage())
+            {
+                a->setChecked( true );
+            }
+            connect(a, &QAction::triggered, this, &MainWindow::changeLocalisation);
+        }
+    }
+
     droppedItemsAct = new QAction(tr("Dropped Items..."), this);
     droppedItemsAct->setStatusTip(tr("Show all dropped items to enable recovery"));
     connect(droppedItemsAct, &QAction::triggered, this, &MainWindow::droppedItems);
@@ -975,6 +1114,18 @@ void MainWindow::createMenus()
     editMenu->addAction(copyAct);
     editMenu->addAction(pasteAct);
     editMenu->addSeparator();
+
+    editMenu->addAction(ignoreStringsAct);
+    if (::isWizardry128())
+    {
+        editMenu->addAction(localisationAct);
+
+        QList<QAction *> actions = m_loc_langs->actions();
+        for (int k=0; k<actions.size(); k++)
+        {
+            editMenu->addAction(actions[k]);
+        }
+    }
 
     specialMenu = menuBar()->addMenu(tr("&Special"));
     specialMenu->addAction(droppedItemsAct);

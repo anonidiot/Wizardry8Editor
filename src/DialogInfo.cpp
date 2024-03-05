@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -57,7 +57,7 @@ DialogInfo::DialogInfo(const QString &title, const QString &content, QWidget *pa
 DialogInfo::DialogInfo(int stringNum, const QString &content, QWidget *parent)
     : Dialog(parent)
 {
-    init( ::getStringTable()->getString( stringNum ), content );
+    init( ::getBaseStringTable()->getString( stringNum ), content );
     show();
 }
 

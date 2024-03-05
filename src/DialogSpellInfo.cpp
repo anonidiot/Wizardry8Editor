@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,7 +25,6 @@
 
 #include "DialogSpellInfo.h"
 #include "SLFFile.h"
-#include "STItoQImage.h"
 #include "main.h"
 
 #include <QApplication>
@@ -180,16 +179,16 @@ QString DialogSpellInfo::htmlGenerateSpellProps()
         if (profs & character::profession::Psionic)
             p += tr(", Psionic");
 
-        html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getStringTable()->getString( StringList::Spellbook + StringList::APPEND_COLON )).arg(p.mid(2));
+        html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getBaseStringTable()->getString( StringList::Spellbook + StringList::APPEND_COLON )).arg(p.mid(2));
     }
     // Usable
-    html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getStringTable()->getString( StringList::SpellUsable + StringList::APPEND_COLON )).arg( m_spell.getUsabilityString() );
+    html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getBaseStringTable()->getString( StringList::SpellUsable + StringList::APPEND_COLON )).arg( m_spell.getUsabilityString() );
 
     // Target
-    html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getStringTable()->getString( StringList::Target + StringList::APPEND_COLON )).arg(m_spell.getTargetString());
+    html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getBaseStringTable()->getString( StringList::Target + StringList::APPEND_COLON )).arg(m_spell.getTargetString());
 
     // Range
-    html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getStringTable()->getString( StringList::Range + StringList::APPEND_COLON )).arg(m_spell.getRangeString());
+    html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getBaseStringTable()->getString( StringList::Range + StringList::APPEND_COLON )).arg(m_spell.getRangeString());
 
     // Damage
     {
@@ -198,7 +197,7 @@ QString DialogSpellInfo::htmlGenerateSpellProps()
         m_spell.getDamage( &min_damage, &max_damage );
         if (max_damage != 0)
         {
-            html += QString( "<p><font color=\"#916448\">%1</font> %2-%3 %4" ).arg(::getStringTable()->getString( StringList::Damage + StringList::APPEND_COLON )).arg(min_damage).arg(max_damage).arg(::getStringTable()->getString( StringList::HPperPL ) );
+            html += QString( "<p><font color=\"#916448\">%1</font> %2-%3 %4" ).arg(::getBaseStringTable()->getString( StringList::Damage + StringList::APPEND_COLON )).arg(min_damage).arg(max_damage).arg(::getBaseStringTable()->getString( StringList::HPperPL ) );
         }
     }
 
@@ -209,7 +208,7 @@ QString DialogSpellInfo::htmlGenerateSpellProps()
         m_spell.getDuration( &base, &per_pl );
         if ((base == 9999) || (per_pl == 9999))
         {
-            html += QString( "<p><font color=\"#916448\">%1</font> %2 %3%4" ).arg(::getStringTable()->getString( StringList::Duration + StringList::APPEND_COLON )).arg(::getStringTable()->getString( StringList::Permanent ));
+            html += QString( "<p><font color=\"#916448\">%1</font> %2 %3%4" ).arg(::getBaseStringTable()->getString( StringList::Duration + StringList::APPEND_COLON )).arg(::getBaseStringTable()->getString( StringList::Permanent ));
         }
         else
         {
@@ -237,7 +236,7 @@ QString DialogSpellInfo::htmlGenerateSpellProps()
                     if (value == 1)
                         unit_idx++;
 
-                    dur = QString( "%1 %2" ).arg(value).arg(::getStringTable()->getString( unit_idx ));
+                    dur = QString( "%1 %2" ).arg(value).arg(::getBaseStringTable()->getString( unit_idx ));
                 }
                 else
                 {
@@ -271,11 +270,11 @@ QString DialogSpellInfo::htmlGenerateSpellProps()
                         unit_idx2++;
                 }
 
-                dur += QString( "%1 %2%3" ).arg(value).arg(::getStringTable()->getString( unit_idx2 )).arg(::getStringTable()->getString( StringList::PerPL ));
+                dur += QString( "%1 %2%3" ).arg(value).arg(::getBaseStringTable()->getString( unit_idx2 )).arg(::getBaseStringTable()->getString( StringList::PerPL ));
             }
             if ((base != 0) || (per_pl != 0))
             {
-                html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getStringTable()->getString( StringList::Duration + StringList::APPEND_COLON )).arg(dur);
+                html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getBaseStringTable()->getString( StringList::Duration + StringList::APPEND_COLON )).arg(dur);
             }
         }
     }
@@ -283,7 +282,7 @@ QString DialogSpellInfo::htmlGenerateSpellProps()
     // Description
     QString desc = m_spell.getDesc();
     if (desc.size() > 0)
-        html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getStringTable()->getString( StringList::Description + StringList::APPEND_COLON )).arg( desc );
+        html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getBaseStringTable()->getString( StringList::Description + StringList::APPEND_COLON )).arg( desc );
 
     return html;
 }

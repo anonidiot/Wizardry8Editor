@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,7 +25,6 @@
 
 #include "DialogDuration.h"
 #include "SLFFile.h"
-#include "STItoQImage.h"
 #include "main.h"
 
 #include <QApplication>
@@ -37,7 +36,6 @@
 #include "WImage.h"
 #include "WLabel.h"
 
-#include <QDebug>
 
 #define USE_LOGARITHMIC_SCALE
 
@@ -58,7 +56,7 @@ DialogDuration::DialogDuration(QString sickness, int duration, QWidget *parent)
     QPixmap bgImg = makeDialogForm();
     QSize   bgImgSize = bgImg.size();
 
-    setWindowTitle( sickness + " " + ::getStringTable()->getString( StringList::Duration ) );
+    setWindowTitle( sickness + " " + ::getBaseStringTable()->getString( StringList::Duration ) );
 
     // All these controls are added as children of this widget, and hence will be destructed automatically
     // when we are destroyed

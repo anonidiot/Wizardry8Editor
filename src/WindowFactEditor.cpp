@@ -28,7 +28,6 @@
 #include "WindowFactEditor.h"
 
 #include "SLFFile.h"
-#include "STItoQImage.h"
 #include "main.h"
 
 #include <QListWidgetItem>

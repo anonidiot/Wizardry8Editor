@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2024 Anonymous Idiot
+ * Copyright (C) 2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -22,34 +22,38 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#ifndef _PORTRAITS_DB_H__
+#define _PORTRAITS_DB_H__
 
-#include <QPixmap>
-#include <QWidget>
+#include <QString>
+#include <QVector>
 
-#include "StringList.h"
+typedef enum
+{
+    PORTRAIT_GRP_HUMAN,
+    PORTRAIT_GRP_ELF,
+    PORTRAIT_GRP_DWARF,
+    PORTRAIT_GRP_GNOME,
+    PORTRAIT_GRP_HOBBIT,
+    PORTRAIT_GRP_FAIRY,
+    PORTRAIT_GRP_LIZARDMAN,
+    PORTRAIT_GRP_DRACON,
+    PORTRAIT_GRP_FELPURR,
+    PORTRAIT_GRP_RAWULF,
+    PORTRAIT_GRP_MOOK,
+    PORTRAIT_GRP_NINJA,
+    PORTRAIT_GRP_TRYNNIE,
+    PORTRAIT_GRP_TRANG,
+    PORTRAIT_GRP_UMPANI,
+    PORTRAIT_GRP_RAPAX,
+    PORTRAIT_GRP_ANDROID,
 
-class facts;
+    PORTRAIT_GRP_SIZE
+} portrait_category;
 
-#define ORIGINAL_DIM_X   640
-#define ORIGINAL_DIM_Y   480
+QString getLargePortraitFromPortraitDB( int portraitIdx );
+QString getMediumPortraitFromPortraitDB( int portraitIdx );
+QString getSmallPortraitFromPortraitDB( int portraitIdx );
+QVector<int> getIdsForPortraitCategory( portrait_category category);
 
-const StringList     *getStringTable();
-const StringList     *getBaseStringTable();
-
-bool                  getIgnoreModStrings();
-void                  setIgnoreModStrings(bool value);
-
-void                  setFacts(facts f);
-bool                  testFact(int fact_id);
-bool                  testFact(QString fact_name);
-
-void                  setAppScale(double scale);
-double                getAppScale();
-
-QPixmap               getCursor(int id);
-
-bool                  isWizardry128();
-bool                  isParallelWorlds();
-
-QString getOpenFileName(QWidget *parent, const QString &caption, const QString &directory, const QString &filter);
-QString getSaveFileName(QWidget *parent, const QString &caption, const QString &directory, const QString &filter);
+#endif /* _PORTRAITS_DB_H__ */

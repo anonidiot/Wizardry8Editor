@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,6 +26,7 @@
 #include <QButtonGroup>
 #include <QByteArray>
 #include <QColor>
+#include <QDirIterator>
 #include <QIcon>
 #include <QMainWindow>
 #include <QMenu>
@@ -42,6 +43,7 @@
 #include "ScreenSkills.h"
 #include "ScreenAttribs.h"
 #include "ScreenPersonality.h"
+#include "PortraitsDb.h"
 
 #include "common.h"
 #include "main.h"
@@ -58,7 +60,7 @@
 
 #include "RIFFFile.h"
 #include "SLFFile.h"
-#include "STItoQImage.h"
+#include "STI.h"
 
 #include <QDebug>
 
@@ -354,23 +356,23 @@ ScreenCommon::ScreenCommon(party *p, int charIdx, QWidget *parent) :
     resetScreen( m_party->m_chars[ m_charIdx], m_party );
 
     // Popup menu for the characters
-    m_cmImportChar = new QAction( ::getStringTable()->getString( StringList::ImportCharacter ), this);
+    m_cmImportChar = new QAction( ::getBaseStringTable()->getString( StringList::ImportCharacter ), this);
     m_cmImportChar->setStatusTip(tr("Import new character file to party, replacing any existing character."));
     connect(m_cmImportChar, SIGNAL(triggered()), this, SLOT(cmImportChar()));
 
-    m_cmExportChar = new QAction( ::getStringTable()->getString( StringList::ExportCharacter ), this);
+    m_cmExportChar = new QAction( ::getBaseStringTable()->getString( StringList::ExportCharacter ), this);
     m_cmExportChar->setStatusTip(tr("Export character as a separate file."));
     connect(m_cmExportChar, SIGNAL(triggered()), this, SLOT(cmExportChar()));
 
-    m_cmDropChar = new QAction( ::getStringTable()->getString( StringList::DropCharacter ), this);
+    m_cmDropChar = new QAction( ::getBaseStringTable()->getString( StringList::DropCharacter ), this);
     m_cmDropChar->setStatusTip(tr("Drop character from party."));
     connect(m_cmDropChar, SIGNAL(triggered()), this, SLOT(cmDropChar()));
 
-    m_cmCopyChar = new QAction( ::getStringTable()->getString( StringList::Copy ), this);
+    m_cmCopyChar = new QAction( ::getBaseStringTable()->getString( StringList::Copy ), this);
     m_cmCopyChar->setStatusTip(tr("Copy character."));
     connect(m_cmCopyChar, SIGNAL(triggered()), this, SLOT(cmCopyChar()));
 
-    m_cmPasteChar = new QAction( ::getStringTable()->getString( StringList::Paste ), this);
+    m_cmPasteChar = new QAction( ::getBaseStringTable()->getString( StringList::Paste ), this);
     m_cmPasteChar->setStatusTip(tr("Paste previously copied character into this slot."));
     connect(m_cmPasteChar, SIGNAL(triggered()), this, SLOT(cmPasteChar()));
 
@@ -393,17 +395,158 @@ ScreenCommon::~ScreenCommon()
     m_cmPasteChar->deleteLater();
 }
 
+QPixmap ScreenCommon::getPortraitFromFilePath( QString portraitPath )
+{
+    QDir         cwd = SLFFile::getWizardryPath();
+    QPixmap      img;
+
+    QStringList  entries;
+    QStringList  filter;
+
+    QString normalisedPath = portraitPath.replace("\\", "/").toUpper();
+
+    // speed this up a bit by getting into the first folder at least - which should be USER
+    if (normalisedPath.startsWith("USER/"))
+    {
+        filter << "USER";
+
+        portraitPath = normalisedPath.mid( 5 );
+
+        entries = cwd.entryList(filter, QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot );
+
+        if (entries.size() == 1)
+        {
+            cwd.cd( entries.at(0) );
+
+            QDirIterator it( cwd, QDirIterator::Subdirectories);
+
+            while (it.hasNext())
+            {
+                QString file = it.next();
+
+                if (file.compare( cwd.absoluteFilePath( portraitPath ), Qt::CaseInsensitive ) == 0)
+                {
+                    QFile     portrait(file);
+
+                    if (portrait.open(QFile::ReadOnly))
+                    {
+                        QByteArray array = portrait.readAll();
+                        STI c( array );
+
+                        img = QPixmap::fromImage( c.getImage( 0 ) );
+
+                        portrait.close();
+                    }
+                    break;
+                }
+            }
+        }
+    }
+    return img;
+}
+
+int ScreenCommon::getInternalPortraitCount()
+{
+    return sizeof(sti_portraits)/sizeof(QString);
+}
+
 QPixmap ScreenCommon::getSmallPortrait(int portraitIndex)
 {
-    return SLFFile::getPixmapFromSlf( k_small_portrait + sti_portraits[ portraitIndex ], 0 );
+    if (portraitIndex >= getInternalPortraitCount())
+    {
+        if (!isWizardry128())
+        {
+            // Force a wraparound to the first image when we try to draw it,
+            // so we don't exceed the array bounds. Whatever is using the
+            // out of range index will continue to do so for what gets
+            // written to file, though.
+            portraitIndex = 0;
+        }
+        else
+        {
+            // Wizardry 8 has support for additional images beyond those
+            // hardcoded in the exe.
+            portraitIndex -= getInternalPortraitCount();
+
+            QString portraitPath = ::getSmallPortraitFromPortraitDB( portraitIndex );
+//            qDebug() << "SMALL" << portraitPath;
+
+            return getPortraitFromFilePath( portraitPath );
+        }
+    }
+
+    return SLFFile::getPixmapFromSlf( getSmallPortraitName( portraitIndex ), 0 );
 }
 
 QPixmap ScreenCommon::getMediumPortrait(int portraitIndex)
 {
+    if (portraitIndex >= getInternalPortraitCount())
+    {
+        if (!isWizardry128())
+        {
+            // Force a wraparound to the first image when we try to draw it,
+            // so we don't exceed the array bounds. Whatever is using the
+            // out of range index will continue to do so for what gets
+            // written to file, though.
+            portraitIndex = 0;
+        }
+        else
+        {
+            // Wizardry 8 has support for additional images beyond those
+            // hardcoded in the exe.
+            portraitIndex -= getInternalPortraitCount();
+
+            QString portraitPath = ::getMediumPortraitFromPortraitDB( portraitIndex );
+//            qDebug() << "MEDIUM" << portraitPath;
+
+            return getPortraitFromFilePath( portraitPath );
+        }
+    }
+
+    return SLFFile::getPixmapFromSlf( getMediumPortraitName( portraitIndex ), 0 );
+}
+
+QPixmap ScreenCommon::getLargePortrait(int portraitIndex)
+{
+    if (portraitIndex >= getInternalPortraitCount())
+    {
+        if (!isWizardry128())
+        {
+            // Force a wraparound to the first image when we try to draw it,
+            // so we don't exceed the array bounds. Whatever is using the
+            // out of range index will continue to do so for what gets
+            // written to file, though.
+            portraitIndex = 0;
+        }
+        else
+        {
+            // Wizardry 8 has support for additional images beyond those
+            // hardcoded in the exe.
+            portraitIndex -= getInternalPortraitCount();
+
+            QString portraitPath = ::getLargePortraitFromPortraitDB( portraitIndex );
+//            qDebug() << "LARGE" << portraitPath;
+
+            return getPortraitFromFilePath( portraitPath );
+        }
+    }
+
+    return SLFFile::getPixmapFromSlf( getLargePortraitName( portraitIndex ), 0 );
+}
+
+QString ScreenCommon::getSmallPortraitName(int portraitIndex)
+{
+    return k_small_portrait + sti_portraits[ portraitIndex ];
+}
+
+QString ScreenCommon::getMediumPortraitName(int portraitIndex)
+{
+    QString  med_portrait_filename = k_medium_portrait + sti_portraits[ portraitIndex ];
+
     // SLFFile classes don't support the copy constructor because they
     // depend on QFile which also doesn't support it.
     // So have to use this as a pointer type
-    SLFFile *portrait_file = new SLFFile( k_medium_portrait + sti_portraits[ portraitIndex ] );
+    SLFFile *portrait_file = new SLFFile( med_portrait_filename );
 
     if (portrait_file)
     {
@@ -412,30 +555,42 @@ QPixmap ScreenCommon::getMediumPortrait(int portraitIndex)
             // irritatingly some of the portraits use a different file prefix letter, but
             // only in the medium portrait size
             delete portrait_file;
-            portrait_file = new SLFFile( k_rpcmed_portrait + sti_portraits[ portraitIndex ] );
+            med_portrait_filename = k_rpcmed_portrait + sti_portraits[ portraitIndex ];
+            portrait_file = new SLFFile( med_portrait_filename );
         }
         if (portrait_file->isGood() )
         {
-            if (!portrait_file->open(QFile::ReadOnly))
-            {
-                qWarning() << "Could not open file" << portrait_file->fileName();
-            }
-            QByteArray array = portrait_file->readAll();
-
-            delete portrait_file;
-
-            STItoQImage s( array);
-
-            return QPixmap::fromImage( s.getImage( 0 ));
+            return med_portrait_filename;
         }
         delete portrait_file;
     }
-    return QPixmap();
+    return QString();
 }
 
-QPixmap ScreenCommon::getLargePortrait(int portraitIndex)
+QString ScreenCommon::getLargePortraitName(int portraitIndex)
 {
-    return SLFFile::getPixmapFromSlf( k_large_portrait + sti_portraits[ portraitIndex ], 0 );
+    return k_large_portrait + sti_portraits[ portraitIndex ];
+}
+
+bool ScreenCommon::isCustomPortrait(int portraitIndex)
+{
+    // Not supported in Wizardry 1.2.8 because it ignores the Patch files
+    // used to modify the stock pictures in earlier versions
+    if (isWizardry128())
+        return false;
+
+    if (portraitIndex >= getInternalPortraitCount())
+    {
+        // prevent an array index out of bounds
+        portraitIndex = 0;
+    }
+    SLFFile slf( k_large_portrait + sti_portraits[ portraitIndex ] );
+
+    if (slf.isGood())
+    {
+        return slf.isFromPatch();
+    }
+    return false;
 }
 
 QPixmap ScreenCommon::getStatue( character::race r, character::gender g )
@@ -482,7 +637,7 @@ void ScreenCommon::resetCharacterSelectButtons(void)
     if (buttons.open(QFile::ReadOnly))
     {
         QByteArray array = buttons.readAll();
-        STItoQImage sti_buttons( array );
+        STI sti_buttons( array );
 
         for (int k=0; k<NUM_CHARS; k++)
         {
@@ -602,8 +757,9 @@ void ScreenCommon::changeName(bool down)
         character *c = m_party->m_chars[ m_charIdx ];
 
         ScreenPersonality *s = new ScreenPersonality( c, this );
-        connect(s, SIGNAL(changedName(QString)), this, SLOT(changedName(QString)));
-        connect(s, SIGNAL(changedPortrait()),    this, SLOT(changedPortrait()));
+        connect(s,    SIGNAL(changedName(QString)), this, SLOT(changedName(QString)));
+        connect(s,    SIGNAL(changedPortrait()),    this, SLOT(changedPortrait()));
+        connect(this, SIGNAL(languageReset()),      s,    SLOT(resetLanguage()));
         s->setVisible(true);
         this->update();
     }
@@ -647,7 +803,7 @@ void ScreenCommon::changedLevel()
 {
     if (WLabel *q = qobject_cast<WLabel *>(m_widgets[ VAL_LEVEL ]))
     {
-        q->setText( ::getStringTable()->getString( StringList::Level ) +
+        q->setText( ::getBaseStringTable()->getString( StringList::Level ) +
                     " " + QString::number(m_party->m_chars[m_charIdx]->getCurrentLevel()) +
                     " (" + m_party->m_chars[m_charIdx]->getCurrentLevelString() + ")" );
     }
@@ -828,7 +984,7 @@ void ScreenCommon::resetScreen(void *char_tag, void *party_tag)
             { VAL_NAME,     c->getName()                                              },
             { VAL_RACE,     c->getGenderString() + " " + c->getRaceString()           },
             { VAL_PROF,     c->getProfessionString()                                  },
-            { VAL_LEVEL,    ::getStringTable()->getString( StringList::Level ) +
+            { VAL_LEVEL,    ::getBaseStringTable()->getString( StringList::Level ) +
                             " " + QString::number(c->getCurrentLevel()) +
                             " (" + c->getCurrentLevelString() + ")"                   },
 
@@ -1424,4 +1580,37 @@ QPixmap ScreenCommon::makeAttribsButton(int state)
     p.end();
 
     return buttonAttribs;
+}
+
+void ScreenCommon::resetLanguage()
+{
+    resetScreen( m_party->m_chars[m_charIdx], m_party );
+    this->update();
+
+    // When the language option gets changed, absolutely everything (including
+    // all the text labels) has to be redrawn
+
+    if (ScreenAttribs *s = qobject_cast<ScreenAttribs *> (m_currentScreen))
+    {
+        reviewAttribs(true);
+    }
+    else if (ScreenLevels *s = qobject_cast<ScreenLevels *> (m_currentScreen))
+    {
+        reviewLevels(true);
+    }
+    else if (ScreenItems *s = qobject_cast<ScreenItems *> (m_currentScreen))
+    {
+        reviewItems(true);
+    }
+    else if (ScreenMagic *s = qobject_cast<ScreenMagic *> (m_currentScreen))
+    {
+        reviewMagic(true);
+    }
+    else if (ScreenSkills *s = qobject_cast<ScreenSkills *> (m_currentScreen))
+    {
+        reviewSkills(true);
+    }
+
+    // ScreenPersonality listens for this signal if it is active
+    emit languageReset();
 }

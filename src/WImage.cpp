@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,7 +31,7 @@
 #include "WImage.h"
 
 #include "SLFFile.h"
-#include "STItoQImage.h"
+#include "STI.h"
 #include "TGAtoQImage.h"
 
 WImage::WImage(QWidget* parent, Qt::WindowFlags)
@@ -201,7 +201,7 @@ void WImage::setStiFile(QString sti_file, int image_idx, bool keep)
             delete m_stiImages;
 
         m_stiData   = imgs.readAll();
-        m_stiImages = new STItoQImage( m_stiData );
+        m_stiImages = new STI( m_stiData );
         m_frameIdx  = image_idx;
 
         this->setPixmap( QPixmap::fromImage( m_stiImages->getImage( image_idx )) );
@@ -388,4 +388,11 @@ void WImage::leaveEvent(QEvent *)
         m_mouseInLabel = false;
         emit mouseOver( m_mouseInLabel );
     }
+}
+
+// Methods required to implement a context menu on the image -
+// actually we just pass this back to the calling class
+void WImage::contextMenuEvent(QContextMenuEvent *event)
+{
+    emit contextMenu( event->globalPos() );
 }

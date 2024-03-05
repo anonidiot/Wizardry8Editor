@@ -25,7 +25,6 @@
 
 #include "DialogBegin.h"
 #include "SLFFile.h"
-#include "STItoQImage.h"
 #include "main.h"
 
 #include <QApplication>
@@ -36,9 +35,7 @@
 #include "WButton.h"
 #include "WCheckBox.h"
 #include "WImage.h"
-#include "WLabel.h"
 
-#include <QDebug>
 
 typedef enum
 {

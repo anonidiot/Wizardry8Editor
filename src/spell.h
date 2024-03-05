@@ -31,8 +31,6 @@
 #include <QByteArray>
 #include <QPixmap>
 
-#include <STItoQImage.h>
-
 #include "item.h"
 #include "SLFFile.h"
 
