@@ -1,7 +1,16 @@
 # Wizardry8Editor
 QT Based Save Game editor for Wizardry 8
 
-Latest Release 0.1.6
+Latest Release 0.2.0
+
+Adds Wizardry 1.2.8 Fanpatch (Partial) compatibility
+
+Supports the extended portraits range and the ParallelWorlds layout. Partially supports Localisation.
+Does not support increased spell ranges, increased voices, facts, or levels.
+Tested against 1.2.8 Build 6200 which it can successfully patch.
+Later builds may work with the editor, but won't be patchable.
+
+Release 0.1.6
 
 Adds support for navigating levels to change the current saved position and portal locations.
 
