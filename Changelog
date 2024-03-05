@@ -1,3 +1,13 @@
+0.2.0
+FEATURE: Add support for recognising Wizardry 1.2.8 trees
+FEATURE: Add support for reading Wizardry 1.2.8 save game files
+FEATURE: Add support for Wizardry 1.2.8 Parallel Worlds and alternat disk structure it uses
+FEATURE: Add support for processing the Wizardry 1.2.8 Portraits database and additional portraits
+FEATURE: Add basic support for localization to work with alternate language mods
+FEATURE: Support altering the portraits via patch under Wizardry 1.2.4 and older
+BUGFIX: Stop writing dead characters into the position map
+BUGFIX: Stop zeroing out the unknown item fields when they go through the editor
+
 0.1.6
 FEATURE: Integrate Urho3D Engine to support position navigation
 FEATURE: New dialogbox about Urho3D engine
