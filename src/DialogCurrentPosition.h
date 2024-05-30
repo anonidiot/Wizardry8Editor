@@ -23,8 +23,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef DLGADDITEM_H
-#define DLGADDITEM_H
+#ifndef DLGCURRPOS_H
+#define DLGCURRPOS_H
 
 #include "Dialog.h"
 #include "Wizardry8Scalable.h"

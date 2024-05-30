@@ -40,7 +40,7 @@ struct layout
     QRect         pos;
     QWidget      *widget;
     int           toolTip;
-    char         *trigger;
+    const char   *trigger;
 };
 
 class Screen : public QWidget, public Wizardry8Scalable

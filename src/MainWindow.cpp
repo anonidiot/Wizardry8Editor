@@ -48,6 +48,11 @@
 #include "STI.h"
 #include "ScreenCommon.h"
 
+#define NPC_RECORD_SIZE              0x13d
+#define MONS_SEG_IDX_RECORD_SIZE     0x12b
+#define MONS_SEG_DATA_RECORD_SIZE    0x425
+#define MONSTER_DB_RECORD_SIZE       0x297
+
 // MainWindow is a singleton class so we can get away with this
 // even if it is bad practice. We have a second class in use on
 // Windows that wants access to this and otherwise has trouble
@@ -64,11 +69,14 @@ MainWindow::MainWindow(QString loadFile) :
 {
     bool nonhack_game = false;
 
+    m_rpcMap.clear();
+
     if (loadFile.isEmpty())
     {
         m_loadedGame = NULL;
         m_facts = facts();
         setFacts( m_facts );
+
         m_party = new party();
 
         for (unsigned int k=0; k<NUM_CHARS; k++)
@@ -89,6 +97,7 @@ MainWindow::MainWindow(QString loadFile) :
             m_loadedGame = NULL;
             m_facts = facts();
             setFacts( m_facts );
+
             m_party = new party();
 
             for (unsigned int k=0; k<NUM_CHARS; k++)
@@ -100,15 +109,19 @@ MainWindow::MainWindow(QString loadFile) :
         {
             m_facts = facts( m_loadedGame->readFacts() );
             setFacts( m_facts );
+
+            siftNPCs();
+
             m_party = new party( m_loadedGame->readParty() );
 
             for (unsigned int k=0; k<NUM_CHARS; k++)
             {
-                m_party->m_chars.append( new character( m_loadedGame->readCharacter(k), m_loadedGame->readCharacterExtra(k) ));
+                m_party->m_chars.append( new character( m_loadedGame->readCharacter(k), m_loadedGame->readCharacterExtra(k), m_loadedGame->isWizardry128File() ));
             }
+            m_party->setKnownRPCs( m_rpcMap );
             m_party->setVisitedMaps( m_loadedGame->getVisitedMapsList() );
 
-            if (! m_loadedGame->seekSegment("HACK"))
+            if (m_loadedGame->seekSegment("HACK") < 0)
                 nonhack_game = true;
 
             m_loadedGame->close();
@@ -145,6 +158,8 @@ MainWindow::MainWindow(QString loadFile) :
     connect( m_contentWidget, SIGNAL(partyEmpty()),  this, SLOT(disableSave()) );
     connect( m_contentWidget, SIGNAL(partyViable()), this, SLOT(enableSave())  );
     connect( m_contentWidget, SIGNAL(exit()), this, SLOT(exit())  );
+    connect( m_contentWidget, SIGNAL(loadRPCintoSlot( int, int )),
+                        this, SLOT(loadRPCfromNPCT( int, int ) ));
 
     QString message = tr("A context menu is available by right-clicking");
     statusBar()->showMessage(message);
@@ -326,6 +341,9 @@ void MainWindow::newFile()
         party *old_party = m_party;
         m_facts = facts();
         setFacts( m_facts );
+
+        m_rpcMap.clear();
+
         m_party = new party();
 
         for (unsigned int k=0; k<NUM_CHARS; k++)
@@ -362,6 +380,300 @@ void MainWindow::newFile()
         }
     }
     delete d;
+}
+
+void MainWindow::addRPC(QByteArray rpc, int npc_idx, int npc_id)
+{
+    (void)npc_id;
+
+    const quint8 *cdata = (const quint8 *) rpc.constData();
+
+    // Extract the RPC name from the raw character data
+
+    quint16   buf[ 10 ];
+
+    for (unsigned int k=0; k<10; k++)
+    {
+        buf[k] = FORMAT_LE16(cdata+5 + k*2);
+    }
+    buf[9] = 0;
+
+    QString rpcName = QString::fromUtf16( buf );
+    // We don't actually keep the RPCs in memory, because it
+    // is unnecessarily wasteful. Just store the names and the
+    // indexes, and if the user wants to load one, we re-pass
+    // the NPCT area then.
+    m_rpcMap[ npc_idx ] = rpcName;
+}
+
+void MainWindow::siftNPCs()
+{
+    getRPC( -1 );
+}
+
+void MainWindow::loadRPCfromNPCT( int npc_idx, int slot_idx )
+{
+    QByteArray rpc;
+
+    if (!m_loadedGame->open(QIODevice::ReadOnly))
+    {
+        return; // ERROR
+    }
+
+    rpc = getRPC( npc_idx );
+
+    m_loadedGame->close();
+
+    if (rpc.length() >= 0x185c)
+    {
+        while (rpc.length() < RIFFFile::CHARACTER_SIZE)
+        {
+            rpc.append('\0');
+        }
+    }
+    if (rpc.length() != RIFFFile::CHARACTER_SIZE)
+    {
+        return; // ERROR
+    }
+    quint8     *rpcbytes = (quint8 *) rpc.data();
+
+    ASSIGN_LE8(  rpcbytes+0x0004, 1);
+    ASSIGN_LE32( rpcbytes+0x0000, 0); // and turn this one off
+
+    // We don't have any character extra info to restore, so reconstruct
+    // RPC data with defaults
+    QByteArray rpcCharX   = QByteArray( RIFFFile::CHARACTER_EXTRA_SIZE, 0 );
+    qint8     *charx_data = (qint8 *) rpcCharX.data();
+
+    // Don't actually know what these fields represent
+    ASSIGN_LE8(  charx_data+0x0000,  1 );
+    ASSIGN_LE32( charx_data+0x0071, -1 );
+    ASSIGN_LE8(  charx_data+0x00d0, -1 );
+    ASSIGN_LE32( charx_data+0x00f1,  0 ); // This will get overrode by m_party->resetCharacterColors()
+    ASSIGN_LE32( charx_data+0x00fa,  npc_idx );
+
+    delete m_party->m_chars[ slot_idx ];
+    m_party->m_chars[ slot_idx ] = new character( rpc, rpcCharX,  m_loadedGame->isWizardry128File() );
+
+    m_party->addedRPCs << npc_idx;
+
+    m_party->resetCharacterColors();
+
+    m_party->divvyUpPartyWeight();
+
+    if (ScreenCommon *s = qobject_cast<ScreenCommon *>(m_contentWidget))
+    {
+        s->updateChars( m_party );
+    }
+
+    enableSave();
+}
+
+QByteArray MainWindow::getRPC(int target_idx)
+{
+    int    segno = m_loadedGame->seekSegment( "NPCT" );
+
+    if (segno != -1)
+    {
+        // NPCT segment actually exists
+        size_t segsz = m_loadedGame->getSegmentSize( segno );
+
+        if (segsz >= sizeof(qint8) + sizeof(quint32))
+        {
+            qint8   ver       = m_loadedGame->readByte();
+            quint32 num_npcs  = m_loadedGame->readLEULong();
+
+            segsz -= sizeof(qint8) + sizeof(quint32);
+
+            for (int k=0; k < (int)num_npcs; k++)
+            {
+                quint8 npc_data[ NPC_RECORD_SIZE ];
+
+                if (segsz < NPC_RECORD_SIZE)
+                    break;
+
+                m_loadedGame->read( (char *)npc_data, NPC_RECORD_SIZE );
+                segsz -= NPC_RECORD_SIZE;
+
+                int npc_idx; // ie == k (the index it has in our file - the one we need to put in the playerarea)
+                int npc_id;  // the index it has in NPC.DBS
+                if (m_loadedGame->isWizardry128File())
+                {
+                    // Wizardry 1.2.8 add variable number of bytes I've no idea what store to every NPC that is an
+                    // RPC
+
+                    size_t wtf_bytes = FORMAT_LE32( npc_data + 0x38 ) * 3;
+
+                    if (segsz < wtf_bytes)
+                        break;
+
+                    m_loadedGame->skip( wtf_bytes );
+                    segsz -= wtf_bytes;
+
+                    npc_idx = FORMAT_LE16( npc_data + 0x30 );
+                    npc_id  = FORMAT_LE16( npc_data + 0x34 );
+                }
+                else
+                {
+                    npc_idx = FORMAT_8( npc_data + 0x2c );
+                    npc_id  = FORMAT_8( npc_data + 0x2e );
+                }
+                int rpc_ptr = FORMAT_LE32( npc_data + 0x27 );
+
+                Q_ASSERT( npc_idx == k );
+
+                if (rpc_ptr)
+                {
+                    size_t to_read = 0x185c;
+
+                    if (ver >= 3)
+                    {
+                        if (segsz < sizeof(quint32))
+                            break;
+
+                        to_read = m_loadedGame->readLEULong();
+                        segsz -= sizeof(quint32);
+
+                        Q_ASSERT(to_read <= 0x1862);
+                        if (to_read > 0x1862)
+                            to_read = 0x1862;
+                    }
+                    if (segsz < to_read)
+                        break;
+
+                    QByteArray rpc = m_loadedGame->read( to_read );
+                    segsz -= to_read;
+
+                    if (target_idx == -1)
+                    {
+                        addRPC( rpc, npc_idx, npc_id );
+                    }
+                    else if (target_idx == npc_idx)
+                    {
+                        return rpc;
+                    }
+                }
+            }
+        }
+    }
+    return QByteArray();
+}
+
+bool MainWindow::writeRPCinNPCT(int target_idx)
+{
+    int    segno = m_loadedGame->seekSegment( "NPCT" );
+
+    // Shouldn't be able to get into this function if RPCs haven't been added,
+    // and they shouldn't be able to be added if the NPCT segment doesn't already
+    // exist, but we check this in other functions so check it here.
+
+    if (segno != -1)
+    {
+        size_t segsz = m_loadedGame->getSegmentSize( segno );
+
+        if (segsz >= sizeof(qint8) + sizeof(quint32))
+        {
+            qint8   ver       = m_loadedGame->readByte();
+            quint32 num_npcs  = m_loadedGame->readLEULong();
+
+            segsz -= sizeof(qint8) + sizeof(quint32);
+
+            // Records are variable size - we need to iterate through all
+            // of them; remembering the position of the start of the record
+            // before we read, so that we can rewind in order to rewrite if
+            // necessary.
+
+            for (int k=0; k < (int)num_npcs; k++)
+            {
+                quint8 npc_data[ NPC_RECORD_SIZE ];
+
+                if (segsz < NPC_RECORD_SIZE)
+                    break;
+
+                qint64 recordStart = m_loadedGame->pos();
+
+                m_loadedGame->read( (char *)npc_data, NPC_RECORD_SIZE );
+                segsz -= NPC_RECORD_SIZE;
+
+                int npc_idx; // ie == k (the index it has in our file - the one we need to put in the playerarea)
+                int npc_id;  // the index it has in NPC.DBS
+                if (m_loadedGame->isWizardry128File())
+                {
+                    // Wizardry 1.2.8 add variable number of bytes I've no idea what store to every NPC that is an
+                    // RPC
+
+                    size_t wtf_bytes = FORMAT_LE32( npc_data + 0x38 ) * 3;
+
+                    if (segsz < wtf_bytes)
+                        break;
+
+                    m_loadedGame->skip( wtf_bytes );
+                    segsz -= wtf_bytes;
+
+                    npc_idx = FORMAT_LE16( npc_data + 0x30 );
+                    npc_id  = FORMAT_LE16( npc_data + 0x34 );
+                }
+                else
+                {
+                    npc_idx = FORMAT_8( npc_data + 0x2c );
+                    npc_id  = FORMAT_8( npc_data + 0x2e );
+                }
+                Q_UNUSED(npc_id);
+                int rpc_ptr = FORMAT_LE32( npc_data + 0x27 );
+
+                Q_ASSERT( npc_idx == k );
+
+                if (target_idx == npc_idx)
+                {
+                    // A lot of other bytes can be set on RPC add to party
+                    // too. The ones which seem to happen ALL the time are
+                    // 0x1a (ever been in party 1=no, 0=yes?)
+                    // 0x1e (faction?)
+                    // 0x25 (1 if out of party, 0 if in now?)
+                    // 0x26 (0 if out of party, 1 if in now?)
+
+                    // These bytes seem to be the same for Wizardry 1.2.8
+
+                    ASSIGN_LE8( npc_data+0x1a, 0);
+                    ASSIGN_LE8( npc_data+0x25, 0);
+                    ASSIGN_LE8( npc_data+0x26, 1);
+
+                    m_loadedGame->seek( recordStart );
+
+                    m_loadedGame->write( (char *)npc_data, NPC_RECORD_SIZE );
+
+                    // We don't need to seek back to where we were if
+                    // we exit immediately
+
+                    return true;
+                }
+
+                if (rpc_ptr)
+                {
+                    size_t to_read = 0x185c;
+
+                    if (ver >= 3)
+                    {
+                        if (segsz < sizeof(quint32))
+                            break;
+
+                        to_read = m_loadedGame->readLEULong();
+                        segsz -= sizeof(quint32);
+
+                        Q_ASSERT(to_read <= 0x1862);
+                        if (to_read > 0x1862)
+                            to_read = 0x1862;
+                    }
+                    if (segsz < to_read)
+                        break;
+
+                    QByteArray rpc = m_loadedGame->read( to_read );
+                    segsz -= to_read;
+                }
+            }
+        }
+    }
+    return false;
 }
 
 void MainWindow::open()
@@ -404,17 +716,23 @@ void MainWindow::open()
 
     m_facts = facts( m_loadedGame->readFacts() );
     setFacts( m_facts );
+
+    m_rpcMap.clear();
+
+    siftNPCs();
+
     m_party = new party( m_loadedGame->readParty() );
 
     for (unsigned int k=0; k<NUM_CHARS; k++)
     {
-        m_party->m_chars.append( new character( m_loadedGame->readCharacter(k), m_loadedGame->readCharacterExtra(k) ));
+        m_party->m_chars.append( new character( m_loadedGame->readCharacter(k), m_loadedGame->readCharacterExtra(k),  m_loadedGame->isWizardry128File() ));
     }
     m_party->divvyUpPartyWeight();
+    m_party->setKnownRPCs( m_rpcMap );
     m_party->setVisitedMaps( m_loadedGame->getVisitedMapsList() );
 
     // Cannot change the current position on a 'New' or 'Reset' game
-    if (m_loadedGame->seekSegment("HACK"))
+    if (m_loadedGame->seekSegment("HACK") >= 0)
         currPosAct->setEnabled(false);
     else
         currPosAct->setEnabled(true);
@@ -462,13 +780,36 @@ void MainWindow::save()
 
         for (unsigned int k=0; k<NUM_CHARS; k++)
         {
-            m_loadedGame->writeCharacter( k, m_party->m_chars[k]->serialize() );
+            m_loadedGame->writeCharacter( k, m_party->m_chars[k]->serialize( m_loadedGame->isWizardry128File() ) );
             m_loadedGame->writeCharacterExtra( k, m_party->m_chars[k]->getCharExtra() );
         }
 
         if (! m_facts.isNull())
         {
             m_loadedGame->writeFacts( m_facts.serialize() );
+        }
+
+        // Rewrite NPCT area to reflect the current status of RPCs recruited into the party
+        // Only change the records for ones manually added in this session, because I don't
+        // trust myself enough not to be stuffing up other records by rewriting them all.
+
+        for (int j=0; j<m_party->addedRPCs.size(); j++)
+        {
+            int rpc_id = m_party->addedRPCs[j];
+
+            // Check RPC is still in the party - could have been deleted after
+            // being added.
+            for (unsigned int k=0; k<NUM_CHARS; k++)
+            {
+                if (m_party->m_chars[k]->isRPC() &&
+                   (m_party->m_chars[k]->getRPCId() == rpc_id))
+                {
+                    writeRPCinNPCT( rpc_id );
+
+                    removeNpcFromLVLS( rpc_id );
+                    break;
+                }
+            }
         }
 
         m_loadedGame->close();
@@ -624,7 +965,7 @@ void MainWindow::saveAs()
     }
     else
     {
-        // Saving a 'New' game
+        // Saving a 'New' game - Not supported in  Wizardry 1.2.8
         // This is a SAV game that won't load in unpatched versions of Wizardry 8
         // The only sections present in it are:
         //  * GSTA -- contains the party and the characters
@@ -678,7 +1019,7 @@ void MainWindow::saveAs()
 
         for (unsigned int k=0; k<NUM_CHARS; k++)
         {
-            QByteArray ch = m_party->m_chars[k]->serialize();
+            QByteArray ch = m_party->m_chars[k]->serialize( false );
 
             Q_ASSERT( ch.size() == RIFFFile::CHARACTER_SIZE );
             ASSIGN_LE32( b, ch.size() );
@@ -1140,4 +1481,227 @@ void MainWindow::createMenus()
     helpMenu->addAction(aboutAct);
     helpMenu->addAction(aboutQtAct);
     helpMenu->addAction(aboutUrhoAct);
+}
+
+QMap<int, int> MainWindow::buildMonsterNpcTable()
+{
+    QMap<int, int> npcMonsters;
+
+    // Because this is the only place this application
+    // needs it, and it isn't needed unless the user has
+    // invoked the "Recruit RPC" menu and then saved, this
+    // database is accessed locally here only, and not
+    // through dbHelper.
+
+    SLFFile monsterDb("DATABASES/MONSTERS.DBS");
+
+    monsterDb.open(QIODevice::ReadOnly);
+
+    int numMonsters = monsterDb.readLEULong();
+
+    for (int k=0; k<numMonsters; k++)
+    {
+        quint8 monster_data[ MONSTER_DB_RECORD_SIZE ];
+
+        monsterDb.read( (char *)monster_data, MONSTER_DB_RECORD_SIZE );
+
+        int npc_id = FORMAT_LE16( monster_data + 0xcd );
+
+        npcMonsters[ npc_id ] = k /* monster id */;
+    }
+    monsterDb.close();
+
+    return npcMonsters;
+}
+
+int MainWindow::readMonsterIdxRecord()
+{
+    quint8 monster_data[ MONS_SEG_IDX_RECORD_SIZE ];
+
+    int rec_size = m_loadedGame->readLEULong();
+
+    if (rec_size > MONS_SEG_IDX_RECORD_SIZE)
+        rec_size = MONS_SEG_IDX_RECORD_SIZE;
+
+    m_loadedGame->read( (char *)monster_data, rec_size );
+    memset(monster_data + rec_size, 0, MONS_SEG_IDX_RECORD_SIZE - rec_size);
+    
+    if (FORMAT_LE32( monster_data + 0xc4 ) >= 2)
+        m_loadedGame->readByte(); // skip additional byte
+
+    int monster_id = FORMAT_LE32( monster_data + 0x18 );
+
+    return monster_id;
+}
+
+int MainWindow::readMonsterDataRecord()
+{
+    quint8 monster_data[ MONS_SEG_DATA_RECORD_SIZE ];
+
+    // another prick of a record to unpick easily
+
+    int additions  = m_loadedGame->readLEULong();
+    int rec_size   = m_loadedGame->readLEULong();
+
+    if (rec_size > MONS_SEG_DATA_RECORD_SIZE)
+        rec_size = MONS_SEG_DATA_RECORD_SIZE;
+
+    m_loadedGame->read( (char *)monster_data, rec_size );
+    memset(monster_data + rec_size, 0, MONS_SEG_DATA_RECORD_SIZE - rec_size);
+    if (m_loadedGame->readByte())
+    {
+        m_loadedGame->skip( 64 + 4 + 4);
+
+        int len  = m_loadedGame->readLEULong();
+        m_loadedGame->skip( len );
+    }
+    if (additions >= 5)
+        m_loadedGame->skip( 1 );
+
+    if (additions >= 2)
+    {
+        if (m_loadedGame->readByte())
+            m_loadedGame->skip( 4 + 4 + 12 + 12  );
+    }
+    if (additions >= 3)
+    {
+        m_loadedGame->skip( 1 + 1 + 1 + 1 + 4 + 4 + 1 );
+
+        int to_skip = m_loadedGame->readLEULong() * 12;
+        m_loadedGame->skip( to_skip );
+    }
+
+    if (additions >= 4)
+        m_loadedGame->skip( 12 );
+    if (additions >= 6)
+        m_loadedGame->skip( 1 );
+    if (additions >= 7)
+        m_loadedGame->skip( 1 );
+        
+    int monster_id = FORMAT_LE32( monster_data + 0x08 );
+
+    // The group id at offset 4 should also match the group id of the index (offset 0)
+    // Since NPCs should be in a group by themselves I just haven't bothered enforcing
+
+    return monster_id;
+}
+
+void MainWindow::removeNpcFromLVLS(int npc_idx)
+{
+    // The LVLS files contain within their MONS subsection
+    // the current location of all the NPCS on each map
+    // already visited.
+
+    // But they are referenced by Monster id, not NPC id
+
+    // In order to convert the npc_idx/rpc_id into the
+    // monster id we have to use the monsters database.
+
+    // We cache the conversion table, though, in case more
+    // than one character needs to be done during save.
+
+    if (m_npcMonsters.isEmpty())
+    {
+        m_npcMonsters = buildMonsterNpcTable();
+    }
+
+    if (m_npcMonsters.contains( npc_idx ))
+    {
+        int monster_id = m_npcMonsters.value( npc_idx );
+
+        qDebug() << "Recruited RPC" << m_rpcMap[ npc_idx ] << "has NPC index:" << npc_idx << "and monster id:" << monster_id;
+
+        // Have to go through _all_ LVLS in the file looking, and
+        // any we change are going to have new segment lengths as
+        // a result, which leads to a new overall file length as
+        // well.
+
+        int    numSegs = m_loadedGame->getNumSegments();
+        for (int i=0; i<numSegs; i++)
+        {
+            if (m_loadedGame->getSegmentCode(i) == "LVLS")
+            {
+                if (-1 != m_loadedGame->seekSegment(i))
+                {
+                    QList<riff_entry> subsegs = m_loadedGame->readLVLS();
+
+                    for (int j=0; j<subsegs.size(); j++)
+                    {
+                        if (subsegs[j].code == "MONS")
+                        {
+                            m_loadedGame->seek( subsegs[j].offset );
+
+                            // There are 2 separate sections under MONS. The number
+                            // of records in each is given at the top of the segment
+
+                            quint32 numMonsIdx  = m_loadedGame->readLEULong();
+                            quint32 numMonsData = m_loadedGame->readLEULong();
+
+                            // all the records are variable length. And both need their
+                            // entries correctly excised to remove a recruited RPC.
+
+                            // We do the same operation for each one - read the record,
+                            // and if necessary excise. Because they're so identical they're
+                            // done inside this 2x for() loop. Know that makes it slightly
+                            // harder to read.
+
+                            for (int section=0; section<2; section++)
+                            {
+                                quint32 *limit[] = { &numMonsIdx, &numMonsData };
+
+                                for (int k=0; k<(int)*limit[section]; k++)
+                                {
+                                    qint64 record_start = m_loadedGame->pos();
+
+                                    bool match = false;
+
+                                    if (section == 0)
+                                    {
+                                        match = (monster_id == readMonsterIdxRecord());
+                                    }
+                                    else // section == 1
+                                    {
+                                        match = (monster_id == readMonsterDataRecord());
+                                    }
+
+                                    if (match)
+                                    {
+                                        // clip this record out.
+
+                                        qint64 record_end   = m_loadedGame->pos();
+                                        qint64 data_size    = subsegs[j].size - (record_end - subsegs[j].offset);
+
+                                        qDebug() << "Clipping" << ((section==0)?"IDX":"DATA") << "record between"
+                                                 << Qt::hex << Qt::showbase << record_start << "and" << record_end;
+
+                                        // This moves the segment data down by one record to clip out the record
+                                        QByteArray allInOneGo = m_loadedGame->read( data_size );
+                                        m_loadedGame->seek( record_start );
+                                        m_loadedGame->write( allInOneGo );
+
+                                        // There is going to be a record full of garbage at the end of the segment
+                                        // after this. We avoid trimming it out because then we have to redo the 
+                                        // RIFF header, and move bytes down for the whole file, and recalculate new
+                                        // offsets for everything. Way easier to leave the garbage in and let
+                                        // Wizardry just ignore it and clean it up on any later save.
+
+                                        // We do need to adjust the index count though
+                                        m_loadedGame->seek( subsegs[j].offset );
+                                        (*limit[section])--; // decrement the appropriate numMonsIdx or numMonsData
+                                        m_loadedGame->writeLEULong( numMonsIdx );
+                                        m_loadedGame->writeLEULong( numMonsData );
+
+                                        // reposition to start of this record again, and decrement the loop counter
+                                        // to account for the deleted record
+                                        m_loadedGame->seek( record_start );
+                                        k--;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

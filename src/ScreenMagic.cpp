@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -343,8 +343,10 @@ void ScreenMagic::createList( int list_widget_idx, character::realm realm )
         {
             spell s(k);
 
-            if ((s.getRealm() == realm) &&
-                (s.getSPCost() > 0))
+            // Apparently 0 cost spells are something some mods expect to be able to do, so swap to
+            // hiding spells which have a 0 level instead, and hope no-one expects to do that also.
+            if (! s.isNull() && (s.getRealm() == realm) &&
+                (s.getLevel() > 0))
             {
                 QListWidgetItem *newItem = new QListWidgetItem( s.getName() + "\t" + QString::number( s.getSPCost() ) );
 

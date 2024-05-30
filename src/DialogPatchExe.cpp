@@ -46,10 +46,10 @@
 
 // v 1.2.4 version patches
 
-int apply_greedy_pickpocket_patch( quint8 *data );
-int apply_levelsensor_patch( quint8 *data );
-int apply_chestreset_patch( quint8 *data );
-int apply_hacksav_patch( quint8 *data );
+bool apply_greedy_pickpocket_patch( quint8 *data );
+bool apply_levelsensor_patch( quint8 *data );
+bool apply_chestreset_patch( quint8 *data );
+bool apply_hacksav_patch( quint8 *data );
 
 // v 1.2.8 build 6200 versions of some of these patches.
 // Our modified SAV file format is _not_ supported under v1.2.8.
@@ -57,16 +57,16 @@ int apply_hacksav_patch( quint8 *data );
 // (or more exactly the code hooks it implements for this
 //  purpose which are modifying the same code area as us)
 
-int apply_greedy_pickpocket_patch_6200( quint8 *data );
-int apply_levelsensor_patch_6200( quint8 *data );
-int apply_chestreset_patch_6200( quint8 *data );
+bool apply_greedy_pickpocket_patch_6200( quint8 *data );
+bool apply_levelsensor_patch_6200( quint8 *data );
+bool apply_chestreset_patch_6200( quint8 *data );
 
 struct patch
 {
     DialogPatchExe::wizardry_ver    game_ver;
     const char                     *name;
     const char                     *description;
-    int                             (*function)(quint8 *);
+    bool                            (*function)(quint8 *);
 };
 
 struct patch known_patches[] =
@@ -169,12 +169,13 @@ DialogPatchExe::DialogPatchExe(QWidget *parent)
 
     m_widgets = Screen::widgetInit( patchesScrn, num_widgets, this );
 
-    char *exePath = NULL;
-    QString err = identifyWizardryExeVersion( "", &m_myWizVer, NULL, &exePath );
+    QList<struct exe_info> idList = identifyWizardryExeVersion( "" );
+    m_myWizVer = idList[0].ver;
+    m_exePath  = idList[0].exePath;
 
-    if (! err.isEmpty() )
+    if (! idList[0].error.isEmpty() )
     {
-        QMessageBox::warning(this, tr("Patch Application Error"), err );
+        QMessageBox::warning(this, tr("Patch Application Error"), idList[0].error );
     }
     else
     {
@@ -182,11 +183,6 @@ DialogPatchExe::DialogPatchExe(QWidget *parent)
         {
             lbl->setText( tr("Patches available for Wizardry EXE v%1:").arg( getVersionStr(m_myWizVer) ) );
         }        
-    }
-    if (exePath)
-    {
-        m_exePath = exePath;
-        free( exePath );
     }
 
     // The patch list
@@ -379,7 +375,7 @@ void DialogPatchExe::patchAway(bool)
  
     if (src.open(QFile::ReadOnly))
     {
-        if (src.size() != getExpectedExeSize(m_myWizVer))
+        if ((quint64)src.size() != getExpectedExeSize(m_myWizVer))
         {
             src.close();
             QMessageBox::warning(this, tr("Patch Application Error"),
@@ -439,8 +435,33 @@ void DialogPatchExe::patchAway(bool)
 // Combined the old pickpocket v2 patch into this and labelled it v3.
 // Together they restore the 1.0 behaviour, and are better taken together
 // or omitted together.
-int apply_greedy_pickpocket_patch( quint8 *data )
+bool apply_greedy_pickpocket_patch( quint8 *data )
 {
+    bool already_applied = true;
+
+    if (already_applied)
+    {
+        for (int k=0; k<120; k++)
+        {
+            if (*( data + 0x0010bcec) != 0x90)
+            {
+                already_applied = false;
+                break;
+            }
+        }
+    }
+    if (already_applied)
+    {
+        for (int k=0; k<125; k++)
+        {
+            if (*( data + 0x0010c04c) != 0x90)
+            {
+                already_applied = false;
+                break;
+            }
+        }
+    }
+
     memset( data + 0x0010bcec, 0x90, 120 );                                  // 0x0050bcec
     memset( data + 0x0010c04c, 0x90, 125 );                                  // 0x0050c04c
 
@@ -461,10 +482,13 @@ int apply_greedy_pickpocket_patch( quint8 *data )
     {
         for (int k=0; k < p[j].cnt; k++)
         {
-            data[ p[j].offset + k ] = p[j].bytes[k];
+            if (data[ p[j].offset + k ] != (quint8) p[j].bytes[k])
+                already_applied = false;
+
+            data[ p[j].offset + k ] = (quint8) p[j].bytes[k];
         }
     }
-    return 0;
+    return already_applied;
 }
 
 /*
@@ -481,8 +505,21 @@ int apply_greedy_pickpocket_patch( quint8 *data )
  * people want it, rather than risk this interfering with it. And it saves
  * the trouble of constantly needing to redo it for every build number.
  */
-int apply_greedy_pickpocket_patch_6200( quint8 *data )
+bool apply_greedy_pickpocket_patch_6200( quint8 *data )
 {
+    bool already_applied = true;
+
+    if (already_applied)
+    {
+        for (int k=0; k<125; k++)
+        {
+            if (*( data + 0x0010b75c) != 0x90)
+            {
+                already_applied = false;
+                break;
+            }
+        }
+    }
     memset( data + 0x0010b75c, 0x90, 125 );                                  // 0x0050c15c
 
     struct patch_detail p[] =
@@ -502,14 +539,19 @@ int apply_greedy_pickpocket_patch_6200( quint8 *data )
     {
         for (int k=0; k < p[j].cnt; k++)
         {
-            data[ p[j].offset + k ] = p[j].bytes[k];
+            if (data[ p[j].offset + k ] != (quint8) p[j].bytes[k])
+                already_applied = false;
+
+            data[ p[j].offset + k ] = (quint8) p[j].bytes[k];
         }
     }
-    return 0;
+    return already_applied;
 }
 
-int apply_levelsensor_patch( quint8 *data )
+bool apply_levelsensor_patch( quint8 *data )
 {
+    bool already_applied = true;
+
     struct patch_detail p[] =
     {
         { 0x000f8a40,   6, "\x32\xc9\x90\x90\x90\x90" },
@@ -520,14 +562,19 @@ int apply_levelsensor_patch( quint8 *data )
     {
         for (int k=0; k < p[j].cnt; k++)
         {
-            data[ p[j].offset + k ] = p[j].bytes[k];
+            if (data[ p[j].offset + k ] != (quint8) p[j].bytes[k])
+                already_applied = false;
+
+            data[ p[j].offset + k ] = (quint8) p[j].bytes[k];
         }
     }
-    return 0;
+    return already_applied;
 }
 
-int apply_levelsensor_patch_6200( quint8 *data )
+bool apply_levelsensor_patch_6200( quint8 *data )
 {
+    bool already_applied = true;
+
     struct patch_detail p[] =
     {
         { 0x000f8150,   6, "\x32\xc9\x90\x90\x90\x90" }, // Patches instruction at 0x004f8b50
@@ -538,14 +585,19 @@ int apply_levelsensor_patch_6200( quint8 *data )
     {
         for (int k=0; k < p[j].cnt; k++)
         {
-            data[ p[j].offset + k ] = p[j].bytes[k];
+            if (data[ p[j].offset + k ] != (quint8) p[j].bytes[k])
+                already_applied = false;
+
+            data[ p[j].offset + k ] = (quint8) p[j].bytes[k];
         }
     }
-    return 0;
+    return already_applied;
 }
 
-int apply_chestreset_patch( quint8 *data )
+bool apply_chestreset_patch( quint8 *data )
 {
+    bool already_applied = true;
+
     struct patch_detail p[] =
     {
         { 0x00045585,   6, "\x90\x90\x90\x90\x90\x90" },
@@ -555,14 +607,19 @@ int apply_chestreset_patch( quint8 *data )
     {
         for (int k=0; k < p[j].cnt; k++)
         {
-            data[ p[j].offset + k ] = p[j].bytes[k];
+            if (data[ p[j].offset + k ] != (quint8) p[j].bytes[k])
+                already_applied = false;
+
+            data[ p[j].offset + k ] = (quint8) p[j].bytes[k];
         }
     }
-    return 0;
+    return already_applied;
 }
 
-int apply_chestreset_patch_6200( quint8 *data )
+bool apply_chestreset_patch_6200( quint8 *data )
 {
+    bool already_applied = true;
+
     struct patch_detail p[] =
     {
         { 0x00044a75,   6, "\x90\x90\x90\x90\x90\x90" }, // Patches instruction at 0x00445475
@@ -572,16 +629,27 @@ int apply_chestreset_patch_6200( quint8 *data )
     {
         for (int k=0; k < p[j].cnt; k++)
         {
-            data[ p[j].offset + k ] = p[j].bytes[k];
+            if (data[ p[j].offset + k ] != (quint8) p[j].bytes[k])
+                already_applied = false;
+
+            data[ p[j].offset + k ] = (quint8) p[j].bytes[k];
         }
     }
-    return 0;
+    return already_applied;
 }
 
-int apply_hacksav_patch( quint8 *data )
+bool apply_hacksav_patch( quint8 *data )
 {
-    memmove( data + 0x00112968, data + 0x0011295d, 0x158 );
-    memmove( data + 0x00112b72, data + 0x00112b6d,  0xaa );
+    bool already_applied = true;
+
+    // Memmove isn't a safe operation to apply multiple times
+    // so detect if any of the patch appears to already have
+    // been applied.
+    if (*( data + 0x00112937 ) != 0x50)
+    {
+        memmove( data + 0x00112968, data + 0x0011295d, 0x158 );
+        memmove( data + 0x00112b72, data + 0x00112b6d,  0xaa );
+    }
 
     struct patch_detail p[] =
     {
@@ -692,30 +760,51 @@ int apply_hacksav_patch( quint8 *data )
     {
         for (int k=0; k < p[j].cnt; k++)
         {
-            data[ p[j].offset + k ] = p[j].bytes[k];
+            if (data[ p[j].offset + k ] != (quint8) p[j].bytes[k])
+                already_applied = false;
+
+            data[ p[j].offset + k ] = (quint8) p[j].bytes[k];
         }
     }
-    return 0;
+    return already_applied;
 }
 
-QString DialogPatchExe::identifyWizardryExeVersion( QString exeFile, wizardry_ver *ver, char *md5Hash, char **exePath )
+QList<struct DialogPatchExe::exe_info> DialogPatchExe::identifyWizardryExeVersion( QString exeFileOrPath )
 {
-    if (exePath != NULL)
-    {
-        *exePath = NULL;
-    }
-    if (ver != NULL)
-    {
-        *ver = WIZ_VER_UNKNOWN;
-    }
+    QList<struct DialogPatchExe::exe_info> idList;
 
     QString &wizardryPath = SLFFile::getWizardryPath();
 
-    QFile   *src = NULL;
-
-    if (! exeFile.isEmpty())
+    if (! exeFileOrPath.isEmpty())
     {
-        src = new QFile( exeFile );
+        if (exeFileOrPath.endsWith( ".exe", Qt::CaseInsensitive))
+        {
+            QFile *src = new QFile( exeFileOrPath );
+            idList << identifyWizardryFile( src );
+            src->close();
+            delete src;
+        }
+        else
+        {
+            QDir  path = QDir(exeFileOrPath);
+
+            if (path.isReadable())
+            {
+                QDirIterator it( path, QDirIterator::Subdirectories);
+                while (it.hasNext())
+                {
+                    QString file = it.next();
+
+                    if (file.endsWith( ".exe", Qt::CaseInsensitive ))
+                    {
+                        QFile *src = new QFile(file);
+                        idList << identifyWizardryFile( src );
+                        src->close();
+                        delete src;
+                    }
+                }
+            }
+        }
     }
     else
     {
@@ -727,7 +816,7 @@ QString DialogPatchExe::identifyWizardryExeVersion( QString exeFile, wizardry_ve
 
         wizardryExe << "Wiz8_v128.exe" << "Wiz8.exe";
 
-        for (int i = 0; !src && (i < wizardryExe.size()); i++)
+        for (int i = 0; idList.empty() && (i < wizardryExe.size()); i++)
         {
             // For the benefit of case sensitive filesystems actually check all combinations of
             // casing of the filename, and don't assume a particular format
@@ -740,138 +829,134 @@ QString DialogPatchExe::identifyWizardryExeVersion( QString exeFile, wizardry_ve
 
                 if (file.compare( path.absoluteFilePath( wizardryExe.at(i) ), Qt::CaseInsensitive ) == 0)
                 {
-                    src = new QFile(file);
-                    if ((ver != NULL) && (wizardryExe.at(i) == "Wiz8_v128.exe"))
+                    struct exe_info  id;
+
+                    QFile *src = new QFile(file);
+                    id = identifyWizardryFile( src );
+                    src->close();
+                    delete src;
+
+                    if ((id.ver == WIZ_VER_UNKNOWN) && (wizardryExe.at(i) == "Wiz8_v128.exe"))
                     {
-                        *ver = WIZ_VER_1_2_8_UNKNOWN;
+                        id.ver = WIZ_VER_1_2_8_UNKNOWN;
                     }
+                    idList << id;
                     break;
                 }
             }
         }
     }
+    return idList;
+}
+
+struct DialogPatchExe::exe_info DialogPatchExe::identifyWizardryFile( QFile *src )
+{
+    struct DialogPatchExe::exe_info   id;
 
     if (!src)
     {
-        return QString( "The Wizardry executable can't be located." );
-    }
-    if (exePath != NULL)
-    {
-        QByteArray ba = src->fileName().toLatin1();
-
-        *exePath = strdup( ba.data() );
-    }
-    if (src->open(QFile::ReadOnly))
-    {
-        QByteArray machineType = src->read(2);
-
-        // Wizardry EXEs should be original format 16-bit MZ executables
-        if ((machineType[0] != 'M') &&
-            (machineType[1] != 'Z'))
-        {
-            src->close();
-            delete src;
-
-            return QString( "Not correct type of Wizardry executable!" );
-        }
-        if (ver != NULL)
-        {
-            // ver is either WIZ_VER_UNKNOWN or WIZ_VER_1_2_8_UNKNOWN at this point
-            // See if we can identify a specific version by making an initial guess,
-            // applying patches for that guess and seeing if it matches the final
-            // expected MD5 for a particular version.
-
-            src->reset();
-            QByteArray exeData = src->readAll();
-
-            QByteArray hashData  = QCryptographicHash::hash(exeData, QCryptographicHash::Md5);
-            QByteArray md5before = hashData.toHex();
-
-            wizardry_ver patch_ver = WIZ_VER_UNKNOWN;
-
-            if (src->size() == getExpectedExeSize(WIZ_VER_1_0))
-            {
-                patch_ver = WIZ_VER_1_0;
-            }
-            else if (src->size() == getExpectedExeSize(WIZ_VER_1_2_4))
-            {
-                patch_ver = WIZ_VER_1_2_4;
-            }
-            else if (src->size() == getExpectedExeSize(WIZ_VER_1_2_8_BUILD_6200))
-            {
-                patch_ver = WIZ_VER_1_2_8_BUILD_6200;
-            }
-            else if (*ver == WIZ_VER_1_2_8_UNKNOWN)
-            {
-                // Wizardry 1.2.8 fan patches are different sizes for every release
-                patch_ver = WIZ_VER_1_2_8_UNKNOWN;
-            }
-
-            int num_items = sizeof(known_patches) / sizeof(struct patch);
-            for (int k=0; k<num_items; k++)
-            {
-                if (known_patches[k].game_ver == patch_ver)
-                {
-                    // Ignore any already patched errors
-                    known_patches[ k ].function( (quint8 *) exeData.data() );
-                }
-            }
-            hashData = QCryptographicHash::hash(exeData, QCryptographicHash::Md5);
-            QByteArray md5after = hashData.toHex();
-
-            if (md5Hash)
-            {
-                strcpy( md5Hash, md5after.data() );
-            }
-
-            // Not presently any patches for the 1.0 exe, so should
-            // match the pristine MD5
-            if (md5after == "73ad900ac38e38bdc93d25627ea66035")
-            {
-                Q_ASSERT(md5before == "73ad900ac38e38bdc93d25627ea66035");
-                *ver = WIZ_VER_1_0;
-            }
-            else if (md5after == "1a3b555563966d3a96dfcd8ce990b2e6")
-            {
-                if (md5before == "cdf6a691d899fa192e05ceb4a3cc1e67")
-                {
-                    *ver = WIZ_VER_1_2_4;
-                    if (md5Hash)
-                    {
-                        strcpy( md5Hash, md5before.data() );
-                    }
-                }
-                else
-                {
-                    *ver = WIZ_VER_1_2_4_PATCHED;
-                }
-            }
-            else if (md5after == "5a8404639ef0cb1ef43fc50a3bf11147")
-            {
-                if (md5before == "a80aaed35cd3c2d71620d23d7394aa54")
-                {
-                    *ver = WIZ_VER_1_2_8_BUILD_6200;
-                    if (md5Hash)
-                    {
-                        strcpy( md5Hash, md5before.data() );
-                    }
-                }
-                else
-                {
-                    *ver = WIZ_VER_1_2_8_BUILD_6200_PATCHED;
-                }
-            }
-        }
-
-        src->close();
+        id.exePath = "";
+        id.error   = "The Wizardry executable can't be located.";
     }
     else
     {
-        delete src;
+        id.exePath = src->fileName();
 
-        return QString( "The Wizardry executable can't be opened." );
+        if (! src->open(QFile::ReadOnly))
+        {
+            id.error = "The Wizardry executable can't be opened.";
+        }
+        else
+        {
+            QByteArray machineType = src->read(2);
+
+            // Wizardry EXEs should be original format 16-bit MZ executables
+            if ((machineType[0] != 'M') &&
+                (machineType[1] != 'Z'))
+            {
+                id.error = "Not correct type of Wizardry executable!";
+            }
+            else
+            {
+                src->reset();
+                QByteArray exeData = src->readAll();
+
+                QByteArray hashData  = QCryptographicHash::hash(exeData, QCryptographicHash::Md5);
+                QByteArray md5before = hashData.toHex();
+
+                wizardry_ver version_guess = WIZ_VER_UNKNOWN;
+
+                if ((quint64)src->size() == getExpectedExeSize(WIZ_VER_1_0))
+                {
+                    version_guess = WIZ_VER_1_0;
+                }
+                else if ((quint64)src->size() == getExpectedExeSize(WIZ_VER_1_2_4))
+                {
+                    version_guess = WIZ_VER_1_2_4;
+                }
+                else if ((quint64)src->size() == getExpectedExeSize(WIZ_VER_1_2_8_BUILD_6200))
+                {
+                    version_guess = WIZ_VER_1_2_8_BUILD_6200;
+                }
+                else
+                {
+                    // Wizardry 1.2.8 fan patches are different sizes for every release
+                    version_guess = WIZ_VER_1_2_8_UNKNOWN;
+                }
+
+                int num_items = sizeof(known_patches) / sizeof(struct patch);
+                for (int k=0; k<num_items; k++)
+                {
+                    if (known_patches[k].game_ver == version_guess)
+                    {
+                        // Ignore any already patched errors
+                        if (known_patches[ k ].function( (quint8 *) exeData.data() ))
+                        {
+                            id.patchesApplied << QString( known_patches[ k ].name );
+                        }
+                    }
+                }
+
+                hashData = QCryptographicHash::hash(exeData, QCryptographicHash::Md5);
+                QByteArray md5after = hashData.toHex();
+
+                strcpy( id.md5Hash, md5after.data() );
+
+                id.ver = WIZ_VER_UNKNOWN;
+
+                // Not presently any patches for the 1.0 exe, so should
+                // match the pristine MD5
+                if (md5after == "73ad900ac38e38bdc93d25627ea66035")
+                {
+                    Q_ASSERT(md5before == "73ad900ac38e38bdc93d25627ea66035");
+                    id.ver = WIZ_VER_1_0;
+                }
+                else if (md5after == "1a3b555563966d3a96dfcd8ce990b2e6")
+                {
+                    if (md5before == "cdf6a691d899fa192e05ceb4a3cc1e67")
+                    {
+                        id.ver = WIZ_VER_1_2_4;
+                        strcpy( id.md5Hash, md5before.data() );
+                    }
+                    else
+                    {
+                        id.ver = WIZ_VER_1_2_4_PATCHED;
+                    }
+                }
+                else if (md5after == "5a8404639ef0cb1ef43fc50a3bf11147")
+                {
+                    if (md5before == "a80aaed35cd3c2d71620d23d7394aa54")
+                    {
+                        id.ver = WIZ_VER_1_2_8_BUILD_6200;
+                        strcpy( id.md5Hash, md5before.data() );
+                    }
+                    else
+                    {
+                        id.ver = WIZ_VER_1_2_8_BUILD_6200_PATCHED;
+                    }
+                }
+            }
+        }
     }
-    delete src;
-
-    return "";
+    return id;
 }

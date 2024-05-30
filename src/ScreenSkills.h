@@ -56,5 +56,7 @@ private:
     character  *m_char;
     party      *m_party;
     bool        m_inspectMode;
+
+    int         m_initialPopulate;
 };
 #endif

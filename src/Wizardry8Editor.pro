@@ -1,4 +1,4 @@
-VERSION=0.2.0
+VERSION=0.2.1
 
 # "These comments are in quotes because the apostrophes mix up the"
 # "syntax highlighting otherwise."
@@ -125,6 +125,7 @@ SOURCES += main.cpp \
            DialogParallelWorlds.cpp \
            DialogPatchExe.cpp \
            DialogNewFile.cpp \
+           DialogRUSure.cpp \
            ReplacePortrait.cpp \
            Screen.cpp \
            ScreenCommon.cpp \
@@ -187,6 +188,7 @@ HEADERS += Wizardry8Style.h \
            DialogParallelWorlds.h \
            DialogPatchExe.h \
            DialogNewFile.h \
+           DialogRUSure.h \
            ReplacePortrait.h \
            Screen.h \
            ScreenCommon.h \

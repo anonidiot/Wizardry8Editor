@@ -1233,6 +1233,10 @@ void ScreenItems::setItemAtLoc( item i, int item_loc, bool in_place )
             // point will have limited accuracty if
             // filters are active
 
+            if (in_place) // ie. edit of existing item
+            {
+                m_party->deleteItem(m_partyItems_scrollPos + item_loc - PARTY_ITEMS_START);
+            }
             m_party->insertItem(m_partyItems_scrollPos + item_loc - PARTY_ITEMS_START, i);
             resetPartyItemsScrollbar();
 

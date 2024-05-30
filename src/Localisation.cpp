@@ -715,6 +715,9 @@ QString Localisation::getSpellName( int idx )
     if (idx == -1)
         return "";
 
+    // Index 0 is a "None" spell in the base game. Some mods set it
+    // as the spell to use on an item instead of setting it to -1.
+
     if (isLocalisationActive())
     {
         // See if there is an explicit localisation string

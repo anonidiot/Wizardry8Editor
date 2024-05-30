@@ -142,7 +142,8 @@ typedef enum
 ScreenLevels::ScreenLevels(character *c, QWidget *parent) :
     Screen(parent),
     m_char(c),
-    m_inspectMode(false)
+    m_inspectMode(false),
+    m_initialPopulate(0)
 {
     m_metaProf        = QMetaEnum::fromType<character::profession>();
 
@@ -589,7 +590,7 @@ void ScreenLevels::portalEnable(int state)
                   LBL_HEADING, VAL_HEADING,
                   LBL_MAP, DDL_MAP, BTN_NAVIGATOR};
 
-    for (int k=0; k < sizeof(ids) / sizeof(int); k++)
+    for (unsigned int k=0; k < sizeof(ids) / sizeof(int); k++)
     {
         if (QWidget *q = qobject_cast<QWidget *>(m_widgets[ ids[k] ]))
         {
@@ -619,6 +620,14 @@ void ScreenLevels::portalEnable(int state)
     {
         resetPortal();
     }
+
+    // Force the checkbox change of state to actually be saved
+    int    mapId;
+    float  xyzhead[4];
+    bool   on;
+
+    m_char->getPortalPosition( &on, &mapId, &xyzhead[0], &xyzhead[1], &xyzhead[2], &xyzhead[3] );
+    m_char->setPortalPosition( (state == Qt::Checked), mapId, xyzhead[0], xyzhead[1], xyzhead[2], xyzhead[3] );
 }
 
 void ScreenLevels::setCb(int state)
@@ -646,7 +655,6 @@ void ScreenLevels::setCb(int state)
                     int hp = ((state == Qt::Checked) ? 0 : 1);
 
                     q->setValue( hp );
-                    hpChanged( hp );
                     q->setEnabled( ((state == Qt::Checked) ? false : true) );
                 }
             }
@@ -890,18 +898,24 @@ void ScreenLevels::spinnerChanged(int value)
 
         emit changedLevel();
 
-        // Changing the level affects just about everything, including the
-        // HP, Stamina and Spell Point maximums shown by this screen
+        if (!m_initialPopulate)
+        {
+            // Changing the level affects just about everything, including the
+            // HP, Stamina and Spell Point maximums shown by this screen
 
-        m_char->recomputeEverything();
+            m_char->recomputeEverything();
 
-        resetHPStaminaSP();
+            resetHPStaminaSP();
+        }
     }
 }
 
 void ScreenLevels::hpChanged(int value)
 {
-    m_char->setHp( character::atIdx::Current, value );
+    if (!m_initialPopulate)
+    {
+        m_char->setHp( character::atIdx::Current, value );
+    }
 
     if (WStatBar *clc = qobject_cast<WStatBar *>( m_widgets[ CLC_HP ]))
     {
@@ -911,7 +925,10 @@ void ScreenLevels::hpChanged(int value)
 
 void ScreenLevels::staminaChanged(int value)
 {
-    m_char->setStamina( character::atIdx::Current, value );
+    if (!m_initialPopulate)
+    {
+        m_char->setStamina( character::atIdx::Current, value );
+    }
 
     if (WStatBar *clc = qobject_cast<WStatBar *>( m_widgets[ CLC_STAMINA ]))
     {
@@ -921,7 +938,10 @@ void ScreenLevels::staminaChanged(int value)
 
 void ScreenLevels::spChanged(int value)
 {
-    m_char->setMp( character::realm::REALM_SIZE, character::atIdx::Current, value );
+    if (!m_initialPopulate)
+    {
+        m_char->setMp( character::realm::REALM_SIZE, character::atIdx::Current, value );
+    }
 
     if (WStatBar *clc = qobject_cast<WStatBar *>( m_widgets[ CLC_SP ]))
     {
@@ -990,7 +1010,7 @@ void ScreenLevels::ddlChanged(int value)
 
         m_char->getPortalPosition( &on, &mapId, &x, &y, &z, &heading );
         mapId = value;
-        m_char->setPortalPosition( on, mapId, x, y, z, heading );
+        m_char->setPortalPosition( true, mapId, x, y, z, heading );
     }
 }
 
@@ -1081,7 +1101,7 @@ void ScreenLevels::openNavigator(bool /* checked */)
                     map.getPosition( &x, &y, &z);
                     heading = map.getHeading();
 
-                    m_char->setPortalPosition( on, mapId, x, y, z, heading );
+                    m_char->setPortalPosition( true, mapId, x, y, z, heading );
                     resetPortal();
                     break;
                 }
@@ -1095,6 +1115,7 @@ void ScreenLevels::openNavigator(bool /* checked */)
 
 void ScreenLevels::resetHPStaminaSP()
 {
+    m_initialPopulate++;
     for (int k=VAL_HP; k<=VAL_SP; k++)
     {
         int initial = 0;
@@ -1133,6 +1154,7 @@ void ScreenLevels::resetHPStaminaSP()
             }
         }
     }
+    m_initialPopulate--;
 }
 
 void ScreenLevels::resetConditions()
@@ -1185,6 +1207,7 @@ void ScreenLevels::resetConditions()
 
 void ScreenLevels::resetLevels()
 {
+    m_initialPopulate++;
     for (int k=0; k < m_metaProf.keyCount(); k++)
     {
         character::profession prof = static_cast<character::profession>(m_metaProf.value(k));
@@ -1205,6 +1228,7 @@ void ScreenLevels::resetLevels()
             }
         }
     }
+    m_initialPopulate--;
 }
 
 void ScreenLevels::lineeditChanged(const QString &)
@@ -1265,7 +1289,7 @@ void ScreenLevels::setPosition(bool)
                 m_char->getPortalPosition( &on, &mapId, &xyzhead[0], &xyzhead[1], &xyzhead[2], &xyzhead[3] );
                 xyzhead[ vals[k].idx ] = tb->text().toFloat();
 
-                m_char->setPortalPosition( on, mapId, xyzhead[0], xyzhead[1], xyzhead[2], xyzhead[3] );
+                m_char->setPortalPosition( true, mapId, xyzhead[0], xyzhead[1], xyzhead[2], xyzhead[3] );
             }
             break;
         }

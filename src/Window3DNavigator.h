@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,6 +32,7 @@
 #include <Urho3D/Graphics/Graphics.h>
 #include <Urho3D/Graphics/Material.h>
 #include <Urho3D/Math/StringHash.h>
+#include <Urho3D/Scene/LogicComponent.h>
 #include <Urho3D/Scene/Node.h>
 #include <Urho3D/Scene/Scene.h>
 #include <Urho3D/UI/Sprite.h>
@@ -65,10 +66,12 @@ struct map
     struct map      *next;
 };
 
+typedef struct face   face_t;
+
 class WizardryMaterial
 {
 public:
-    WizardryMaterial() { isWater_ = false; currentTextureIdx_ = 0; }
+    WizardryMaterial(Urho3D::String hash) { hash_ = hash; isWater_ = false; currentTextureIdx_ = 0; mapsTo_ = -1;}
 
     void SetMaterial(Urho3D::SharedPtr<Urho3D::Material> material) { material_ = material; }
     bool IsWater()      { return isWater_;      }
@@ -78,12 +81,34 @@ public:
 
     Urho3D::Vector<Urho3D::String> textureNames_;
 
-    bool   isCollidable_;
-    bool   isWater_;
-    float  y_;
-    int    currentTextureIdx_;
-    float  textureUpdateRate_;
-    float  textureUpdateCounter_;
+    Urho3D::String  hash_;
+    bool            isCollidable_;
+    bool            isWater_;
+    float           y_;
+    int             currentTextureIdx_;
+    float           textureUpdateRate_;
+    float           textureUpdateCounter_;
+    int             mapsTo_;
+};
+
+class WizardryAnimatedMesh : public Urho3D::LogicComponent
+{
+    URHO3D_OBJECT(WizardryAnimatedMesh, Urho3D::LogicComponent);
+
+public:
+    explicit WizardryAnimatedMesh(Urho3D::Context* context);
+
+    ~WizardryAnimatedMesh();
+
+    void Update(float timeStep) override;
+
+public:
+    int           num_frames_;
+    int           num_vertices_;
+    float        *frames_;
+    int           next_frame_;
+    float         frame_delay_;
+    float         time_counter_;
 };
 
 class Window3DNavigator : public Urho3D::Object
@@ -123,7 +148,7 @@ private:
     void ScaleForHiDPI();
     void NewMap( int map_id );
     int  LoadPVL( int map_id );
-    void LoadMaterials( Urho3D::String foldername, int num_materials, SLFFile *f );
+    int  LoadMaterial( Urho3D::String foldername, uint8_t *material_buf );
     void LoadMesh( SLFFile *f );
     void LoadLights( SLFFile *f );
     void LoadTriggers( SLFFile *f );
@@ -133,16 +158,21 @@ private:
     void SkipCameras( SLFFile *f );
     void SkipFogOptions( SLFFile *f );
 
-    void processProperties( SLFFile *f );
+    void processProperties( SLFFile *f, bool expect_matrix, void *v );
     void processXRefs( SLFFile *f, char *trigger_name_OUT, float *xyz_OUT );
 
     bool isTGAFile32Bit( Urho3D::String tga_file );
 
-    void                 UpdateAnimatedTextures(float timeStep);
+    void UpdateAnimatedMeshes(float timeStep);
+    void UpdateAnimatedTextures(float timeStep);
 
-    void                 AddWaterMaterialPlaneAt(float y, Urho3D::SharedPtr<Urho3D::Material> m);
+    void AddWaterMaterialPlaneAt(float y, Urho3D::SharedPtr<Urho3D::Material> m);
+
     Urho3D::SharedPtr<Urho3D::Material>  FindWaterMaterialPlaneAt(float y);
     Urho3D::SharedPtr<Urho3D::Texture2D> CreateReflectionTextureAtPlane(float y);
+
+    Urho3D::Vector<int32_t> CollateMaterials(face_t *faces, int num_faces);
+
 
     /// Create static scene content.
     void CreateScene(int mapId);
@@ -250,6 +280,8 @@ private:
     int32_t *visitedMaps_;
     /// Id of the map loaded
     int mapId_;
+
+    Urho3D::String pvlFilename_;
 
     bool   newMap_;
     bool   saveChanges_;

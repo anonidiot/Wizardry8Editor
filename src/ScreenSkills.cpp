@@ -75,7 +75,8 @@ ScreenSkills::ScreenSkills(party *p, character *c, QWidget *parent) :
     Screen(parent),
     m_char(c),
     m_party(p),
-    m_inspectMode(false)
+    m_inspectMode(false),
+    m_initialPopulate(0)
 {
     QPixmap rowImg = makeRowPixmap();
 
@@ -430,7 +431,10 @@ void ScreenSkills::spinnerChanged(int value)
     {
         int   skill = m_widgets.key( q ) - VAL_SKILLS_START;
 
-        m_char->setSkill( static_cast<character::skill>(skill), value );
+        if (!m_initialPopulate)
+        {
+            m_char->setSkill( static_cast<character::skill>(skill), value );
+        }
         if (WStatBar *clc = qobject_cast<WStatBar *>( m_widgets[ CLC_SKILLS + skill ]))
         {
             clc->setValue( value, m_char->getSkill( static_cast<character::skill>(skill), character::atIdx::Current ), 125 );
@@ -446,6 +450,7 @@ void ScreenSkills::resetScreen( void *char_tag, void *party_tag )
     character::skill         bonus_skill  = m_char->getProfessionalSkill();
     QList<character::skill>  class_skills = m_char->getTrainableSkills();
 
+    m_initialPopulate++;
     for (int k=0; k < character::skill::SKILL_SIZE; k++)
     {
         character::skill skill = static_cast<character::skill>(k);
@@ -499,4 +504,5 @@ void ScreenSkills::resetScreen( void *char_tag, void *party_tag )
             q->setProperty( "base_style", q->styleSheet() );
         }
     }
+    m_initialPopulate--;
 }

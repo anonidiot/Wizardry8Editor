@@ -464,19 +464,22 @@ QString DialogItemInfo::htmlGenerateItemProps()
     {
         int power;
         spell s = m_item.getSpell(&power);
-        QString spell_name = s.getName();
-        if (spell_name.size() > 0)
+        if (! s.isNull() )
         {
-            if (m_item.getType() == item::type::Spellbook)
+            QString spell_name = s.getName();
+            if (spell_name.size() > 0)
             {
-                // Don't show a power level because spellbooks don't actually "cast" the spell
-                html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getBaseStringTable()->getString( StringList::Spell + StringList::APPEND_COLON )).arg(spell_name);
+                if (m_item.getType() == item::type::Spellbook)
+                {
+                    // Don't show a power level because spellbooks don't actually "cast" the spell
+                    html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getBaseStringTable()->getString( StringList::Spell + StringList::APPEND_COLON )).arg(spell_name);
 
-                html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getBaseStringTable()->getString( StringList::SpellCasterLevel + StringList::APPEND_COLON )).arg( s.getLevel() );
-            }
-            else
-            {
-                html += QString( "<p><font color=\"#916448\">%1</font> %2 (Pwr %3)" ).arg(::getBaseStringTable()->getString( StringList::Spell + StringList::APPEND_COLON )).arg(spell_name).arg(power);
+                    html += QString( "<p><font color=\"#916448\">%1</font> %2" ).arg(::getBaseStringTable()->getString( StringList::SpellCasterLevel + StringList::APPEND_COLON )).arg( s.getLevel() );
+                }
+                else
+                {
+                    html += QString( "<p><font color=\"#916448\">%1</font> %2 (Pwr %3)" ).arg(::getBaseStringTable()->getString( StringList::Spell + StringList::APPEND_COLON )).arg(spell_name).arg(power);
+                }
             }
         }
     }

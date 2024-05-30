@@ -100,6 +100,7 @@ typedef enum
 ScreenAttribs::ScreenAttribs(character *c, QWidget *parent) :
     Screen(parent),
     m_char(c),
+    m_initialPopulate(0),
     m_inspectMode(false)
 {
     QPixmap rowImg = makeRowPixmap();
@@ -534,28 +535,31 @@ void ScreenAttribs::spinnerChanged(int value)
             clc->setValue( value, m_char->getAttribute( static_cast<character::attribute>(attrib), character::atIdx::Current ), 125 );
         }
 
-        // Vitality affects HP
-        // Strength, Piety and Vitality all affect Stamina
-        // Piety affects Spell Points
-        // Speed affects AC Mod
-        // Vitality and Strength affect Carry Capacity
-        m_char->recomputeEverything();
-
-        struct { int id; int num; } vals[] =
+        if (!m_initialPopulate)
         {
-            { VAL_HP,        m_char->getHp(character::atIdx::Base)         },
-            { VAL_STAMINA,   m_char->getStamina(character::atIdx::Base)    },
-            { VAL_SP,        m_char->getMp(character::realm::REALM_SIZE, character::atIdx::Base) },
-            { VAL_AC,        m_char->getAC_Average()                       },
-            { VAL_CC,        (int)m_char->getLoad(character::atIdx::Base)  },
-            { -1, -1 }
-        };
+            // Vitality affects HP
+            // Strength, Piety and Vitality all affect Stamina
+            // Piety affects Spell Points
+            // Speed affects AC Mod
+            // Vitality and Strength affect Carry Capacity
+            m_char->recomputeEverything();
 
-        for (int k=0; vals[k].id != -1; k++)
-        {
-            if (WLabel *q = qobject_cast<WLabel *>(m_widgets[ vals[k].id ]))
+            struct { int id; int num; } vals[] =
             {
-                q->setNum( vals[k].num );
+                { VAL_HP,        m_char->getHp(character::atIdx::Base)         },
+                { VAL_STAMINA,   m_char->getStamina(character::atIdx::Base)    },
+                { VAL_SP,        m_char->getMp(character::realm::REALM_SIZE, character::atIdx::Base) },
+                { VAL_AC,        m_char->getAC_Average()                       },
+                { VAL_CC,        (int)m_char->getLoad(character::atIdx::Base)  },
+                { -1, -1 }
+            };
+
+            for (int k=0; vals[k].id != -1; k++)
+            {
+                if (WLabel *q = qobject_cast<WLabel *>(m_widgets[ vals[k].id ]))
+                {
+                    q->setNum( vals[k].num );
+                }
             }
         }
     }
@@ -592,6 +596,7 @@ void ScreenAttribs::resetScreen(void *char_tag, void *party_tag)
         }
     }
 
+    m_initialPopulate++;
     for (int k=0; k < character::attribute::ATTRIBUTE_SIZE; k++)
     {
         int base    = m_char->getAttribute( static_cast<character::attribute>(k), character::atIdx::Base    );
@@ -610,6 +615,7 @@ void ScreenAttribs::resetScreen(void *char_tag, void *party_tag)
             }
         }
     }
+    m_initialPopulate--;
 
     if (WListWidget *abilities = qobject_cast<WListWidget *>(m_widgets[ SCROLL_ABILITIES ] ))
     {

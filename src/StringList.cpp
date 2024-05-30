@@ -152,6 +152,9 @@ const QString StringList::getUnlocalisedString( int idx ) const
             case OpenExistingSave:
                 s = QObject::tr("Edit an existing saved game");
                 break;
+            case HideThisMessage:
+                s = QObject::tr("Don't warn in future.");
+                break;
 
             case Copy:
                 s = QObject::tr("Copy");
@@ -261,6 +264,9 @@ const QString StringList::getUnlocalisedString( int idx ) const
                 break;
             case DropCharacter:
                 s = QObject::tr("Drop Character");
+                break;
+            case RecruitRPC:
+                s = QObject::tr("Recruit RPC");
                 break;
 
             case ExpLast:

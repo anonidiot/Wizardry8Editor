@@ -1,3 +1,16 @@
+0.2.1
+BUGFIX: Correctly recognise the different storage technique used for character spells in Wizardry 1.2.8, and support the increased number of spells
+BUGFIX: Try to stop some of the settings going negative when controlling attributes are lowered.
+BUGFIX: Portal enabled was using wrong storage location in character
+BUGFIX: Reset original profession if character only has levels for one class
+BUGFIX: Correct the poison strength offset location of an item
+BUGFIX: Stop feedback loops on some attributes.
+BUGFIX: Stop item edit from duplicating prior item
+BUGFIX: Stop hiding 0 cost spells (apparently they're a thing) and hide 0 level spells as well (need some way to suppress unused spell slots still)
+FEATURE: Add ability to recruit RPCs as similarly as possible to how it works in game. Intention is to be able to use it to work around in-game bugs that sometimes make a dropped RPC non-rerecruitable.
+FEATURE: Add basic support for non-interactive dynamic objects in the 3D Navigator - eg. lava flows.
+FEATURE: Try to make the --identifyExeVersion cmd line switch switch more useful with patch information.
+
 0.2.0
 FEATURE: Add support for recognising Wizardry 1.2.8 trees
 FEATURE: Add support for reading Wizardry 1.2.8 save game files

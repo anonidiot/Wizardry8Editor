@@ -39,6 +39,7 @@
 #include "Screen.h"
 
 class QButtonGroup;
+class QMenu;
 
 class ScreenCommon : public Screen
 {
@@ -73,6 +74,8 @@ signals:
     void exit();
     void languageReset();
 
+    void loadRPCintoSlot( int npc_idx, int slot_idx );
+
 public slots:
     void charswap(bool checked);    // new character in party selected
     void professionLevels(bool down);
@@ -100,6 +103,7 @@ public slots:
     void cmImportChar();
     void cmExportChar();
     void cmDropChar();
+    void cmRecruitRPC();
     void cmCopyChar();
     void cmPasteChar();
 
@@ -109,6 +113,7 @@ protected:
 
 private:
     QPixmap     makeAttribsButton(int state);
+    void        rebuildRPCMenu( QMenu *m);
 
     void        setSumWeapon( character::worn weapon );
     void        showLevelsOverlay( bool show );
@@ -126,6 +131,7 @@ private:
     QAction          *m_cmImportChar;
     QAction          *m_cmExportChar;
     QAction          *m_cmDropChar;
+    QMenu            *m_cmRecruitRPCs;
     QAction          *m_cmCopyChar;
     QAction          *m_cmPasteChar;
 };

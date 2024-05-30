@@ -73,6 +73,9 @@ private:
     void        populateDDLGenders(WDDL *ddl);
 
     character  *m_char;
+
+    int         m_initialPopulate;
+
     bool        m_inspectMode;
 };
 #endif

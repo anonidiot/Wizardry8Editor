@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,7 +28,7 @@
 
 #define SIMPLIFIED_BONUSES  1
 
-#define MAXIMUM_CHARACTER_SPELLS   114
+#define MAXIMUM_CHARACTER_SPELLS   456 // Wizardry 1.2.8 supports 4 times as many spells as Wizardry 1.2.4
 
 #include <QMetaEnum>
 #include <QMap>
@@ -253,17 +253,18 @@ public:
 
     character();
     character(const character &other);
-    character(QByteArray c, QByteArray cx);
+    character(QByteArray c, QByteArray cx, bool isWizardry128File );
     ~character();
 
     static void   lkupControllingAttribs( character::skill sk, character::attribute *a1, character::attribute *a2);
 
-    QByteArray    serialize() const;
+    QByteArray    serialize( bool isWizardry128File ) const;
     QByteArray    getCharExtra() const;
     void          resetCharExtra();
 
     bool          isNull() const;
     bool          isRPC() const;
+    int           getRPCId() const;
 
     void          setColorIdx(int idx);
     int           getColorIdx() const;
@@ -421,7 +422,7 @@ protected:
     };
 
 
-    void unpackCharacter(const QByteArray &c, const QByteArray &pa);
+    void unpackCharacter(const QByteArray &c, const QByteArray &pa, bool isWizardry128File);
     void loadItem( character::worn idx, const quint8 *cdata);
     void assignItem( quint8 *cdata, character::worn idx ) const;
 
@@ -572,7 +573,7 @@ private:
     quint32           m_conditions[  condition::CONDITION_SIZE ];
     quint32           m_poison_strength;
 
-    qint32            m_spell[MAXIMUM_CHARACTER_SPELLS];
+    qint8             m_spell[MAXIMUM_CHARACTER_SPELLS];
 
     quint32           m_xp;
     quint32           m_xp_needed;
@@ -654,6 +655,7 @@ private:
 
     item             *m_item[WORN_SIZE];
 
+    bool              m_portal_set;
     double            m_portal_x;
     double            m_portal_y;
     double            m_portal_z;

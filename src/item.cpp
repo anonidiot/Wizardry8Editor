@@ -112,7 +112,7 @@ QString item::getDesc() const
     return loc->getItemDesc( m_id );
 }
 
-// 0x003c--0x003d: UNKNOWN
+// 0x003c--0x003d: Wizardry 7 id (starts from 1, 0 for items not in Wizardry 7)
 
 // 0x003e: Type of item
 item::type item::getType() const
@@ -679,7 +679,7 @@ int item::getPoisonStrength() const
     {
         quint8 *data = (quint8 *)m_db_record.constData();
 
-        return data[0x50];
+        return data[0x60];
     }
     return 0;
 }
@@ -948,7 +948,7 @@ QString item::getArmorWeightClassString() const
     return ::getBaseStringTable()->getString( StringList::LISTArmorWeights + static_cast<int>(k) );
 }
 
-// 0x0076: usable by professions
+// 0x0076-0x0077: usable by professions
 character::professions item::getUsableProfessions() const
 {
     if (m_id != 0xffffffff)
@@ -960,9 +960,7 @@ character::professions item::getUsableProfessions() const
     return character::professions();
 }
 
-// 0x0077: UNKNOWN
-
-// 0x0078: usable by races
+// 0x0078-0x0079: usable by races
 character::races item::getUsableRaces() const
 {
     if (m_id != 0xffffffff)
@@ -973,8 +971,6 @@ character::races item::getUsableRaces() const
     }
     return character::races();
 }
-
-// 0x0079: UNKNOWN
 
 // 0x007a-0x007b: 00 00 for every single item
 
@@ -1255,7 +1251,7 @@ bool item::isCursed() const
 
 // 0x008d--0x00ac: UNKNOWN
 
-// 0x00ad: bonus number of swings
+// 0x00ad: bonus number of swings - triple shot crossbow puts 2 in here for extra shots
 int item::getBonusSwings() const
 {
     if (m_id != 0xffffffff)

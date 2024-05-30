@@ -180,17 +180,26 @@ QString RIFFFile::getSegmentCode(int segment)
     return "";
 }
 
-bool RIFFFile::seekSegment(int segment)
+int RIFFFile::getSegmentSize(int segment)
+{
+    if (segment < m_segments.size())
+    {
+        return (int)(m_segments.at(segment).size);
+    }
+    return -1;
+}
+
+int RIFFFile::seekSegment(int segment)
 {
     if (segment < m_segments.size())
     {
         seek(m_segments.at(segment).offset);
-        return true;
+        return segment;
     }
-    return false;
+    return -1;
 }
 
-bool RIFFFile::seekSegment(QString segment_code)
+int RIFFFile::seekSegment(QString segment_code)
 {
     for (int k=0; k<m_segments.size(); k++)
     {
@@ -199,7 +208,7 @@ bool RIFFFile::seekSegment(QString segment_code)
             return seekSegment(k);
         }
     }
-    return false;
+    return -1;
 }
 
 QVector<qint32> RIFFFile::getVisitedMapsList()
@@ -352,7 +361,7 @@ bool RIFFFile::writeFacts(const QByteArray &fa)
 
 bool RIFFFile::seekPartySegment()
 {
-    return seekSegment("GSTA");
+    return (seekSegment("GSTA") >= 0);
 }
 
 qint8 RIFFFile::readByte()

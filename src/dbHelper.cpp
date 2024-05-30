@@ -27,7 +27,6 @@
 #include "dbHelper.h"
 #include "Localisation.h"
 
-#include <QSettings>
 #include <QTextCodec>
 
 #define  ITEM_START_OFFSET 0x0004
@@ -136,62 +135,72 @@ QString dbHelper::getItemDesc(quint32 item_id)
 {
     qint32 item_offset;
 
-    m_itemdesc_db->seek( m_itemdesc_idx_pos + item_id * sizeof(qint32) );
+    if (m_itemdesc_db->seek( m_itemdesc_idx_pos + item_id * sizeof(qint32) ))
+    {
+        item_offset = m_itemdesc_db->readLEULong();
+        if (m_itemdesc_db->seek( item_offset ))
+        {
+            // All items seem to have the same byte sequence for the first 8 bytes:
+            // 01 00 00 00 00 ff ff ff
+            // No idea what they mean
 
-    item_offset = m_itemdesc_db->readLEULong();
-    m_itemdesc_db->seek( item_offset );
+            m_itemdesc_db->skip( 8 );
 
-    // All items seem to have the same byte sequence for the first 8 bytes:
-    // 01 00 00 00 00 ff ff ff
-    // No idea what they mean
+            // Next 4 bytes give the character length of the UTF-16LE text description that
+            // follows. Usually it is 0, but sometimes empty descriptions are indicated
+            // by 1 as well
+            qint32 str_len = m_itemdesc_db->readLEULong();
 
-    m_itemdesc_db->skip( 8 );
+            QByteArray desc = m_itemdesc_db->read( str_len*2 );
 
-    // Next 4 bytes give the character length of the UTF-16LE text description that
-    // follows. Usually it is 0, but sometimes empty descriptions are indicated
-    // by 1 as well
-    qint32 str_len = m_itemdesc_db->readLEULong();
-
-    QByteArray desc = m_itemdesc_db->read( str_len*2 );
-
-    return Localisation::decode( desc.constData(), str_len*2, true );
+            return Localisation::decode( desc.constData(), str_len*2, true );
+        }
+    }
+    return "";
 }
 
 QByteArray dbHelper::getItemRecord(quint32 item_id)
 {
-    m_item_db->seek(ITEM_START_OFFSET + item_id * ITEM_RECORD_SIZE);
-
-    return m_item_db->read(ITEM_RECORD_SIZE);
+    if (m_item_db->seek(ITEM_START_OFFSET + item_id * ITEM_RECORD_SIZE))
+    {
+        return m_item_db->read(ITEM_RECORD_SIZE);
+    }
+    return QByteArray();
 }
 
 QString dbHelper::getSpellDesc(quint32 spell_id)
 {
     qint32 spell_offset;
 
-    m_spelldesc_db->seek( m_spelldesc_idx_pos + spell_id * sizeof(qint32) );
+    if (m_spelldesc_db->seek( m_spelldesc_idx_pos + spell_id * sizeof(qint32) ))
+    {
+        spell_offset = m_spelldesc_db->readLEULong();
+        if (m_spelldesc_db->seek( spell_offset ))
+        {
+            // Same as items, all spells seem to have the same byte sequence for the first 8 bytes:
+            // 01 00 00 00 00 ff ff ff
+            // No idea what they mean
 
-    spell_offset = m_spelldesc_db->readLEULong();
-    m_spelldesc_db->seek( spell_offset );
+            m_spelldesc_db->skip( 8 );
 
-    // Same as items, all spells seem to have the same byte sequence for the first 8 bytes:
-    // 01 00 00 00 00 ff ff ff
-    // No idea what they mean
+            // Next 4 bytes give the character length of the UTF-16LE text description that
+            // follows. Usually it is 0, but sometimes empty descriptions are indicated
+            // by 1 as well
+            qint32 str_len = m_spelldesc_db->readLEULong();
 
-    m_spelldesc_db->skip( 8 );
+            QByteArray desc = m_spelldesc_db->read( str_len*2 );
 
-    // Next 4 bytes give the character length of the UTF-16LE text description that
-    // follows. Usually it is 0, but sometimes empty descriptions are indicated
-    // by 1 as well
-    qint32 str_len = m_spelldesc_db->readLEULong();
-
-    QByteArray desc = m_spelldesc_db->read( str_len*2 );
-
-    return Localisation::decode( desc.constData(), str_len*2, true );
+            return Localisation::decode( desc.constData(), str_len*2, true );
+        }
+    }
+    return "";
 }
 
 QByteArray dbHelper::getSpellRecord(quint32 spell_id)
 {
-    m_spell_db->seek(m_spell_idx_pos + spell_id * SPELL_RECORD_SIZE);
-
-    return m_spell_db->read(SPELL_RECORD_SIZE);
+    if (m_spell_db->seek(m_spell_idx_pos + spell_id * SPELL_RECORD_SIZE))
+    {
+        return m_spell_db->read(SPELL_RECORD_SIZE);
+    }
+    return QByteArray();
 }

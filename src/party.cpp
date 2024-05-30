@@ -334,6 +334,16 @@ QByteArray party::serialize()
     // [22cb-22ce] Current location: heading
     ASSIGN_FLOAT(cdata + 0x22cb, m_heading);
 
+    // FIXME: There's something not quite right with the formation logic here
+    // A "New Game" can crash when you go to recruit an RPC (Assert iChar == -1 is false)
+    // if the player hasn't gone in and manually reset the formation to something
+    // else themselves first.
+    // In the game, if a formation slot has only one character that character is
+    // in the centre (1st byte in each triplet). If there are 2, then they space to
+    // each side (bytes 2 and 3 in each triplet). And if there are 3 they take all 3.
+    // But if I try to distribute the allocations this way here it asserts on load
+    // game. So it's depending on other bytes not yet decoded in order to work.
+
     // [23a1-23af] player formation in the party
     quint8 *fdata = cdata + 0x23a1;
     for (int posn = 0; posn < FORMATION_SIZE; posn++)

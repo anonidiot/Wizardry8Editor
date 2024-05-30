@@ -45,6 +45,8 @@
 #include "ScreenPersonality.h"
 #include "PortraitsDb.h"
 
+#include "DialogRUSure.h"
+
 #include "common.h"
 #include "main.h"
 #include "character.h"
@@ -353,8 +355,6 @@ ScreenCommon::ScreenCommon(party *p, int charIdx, QWidget *parent) :
     // Set the buttons to reflect selected page
     qobject_cast<QPushButton *>(m_widgets[ PAGE_ATTRIBS ])->setChecked( true );
 
-    resetScreen( m_party->m_chars[ m_charIdx], m_party );
-
     // Popup menu for the characters
     m_cmImportChar = new QAction( ::getBaseStringTable()->getString( StringList::ImportCharacter ), this);
     m_cmImportChar->setStatusTip(tr("Import new character file to party, replacing any existing character."));
@@ -368,6 +368,8 @@ ScreenCommon::ScreenCommon(party *p, int charIdx, QWidget *parent) :
     m_cmDropChar->setStatusTip(tr("Drop character from party."));
     connect(m_cmDropChar, SIGNAL(triggered()), this, SLOT(cmDropChar()));
 
+    m_cmRecruitRPCs = new QMenu( ::getBaseStringTable()->getString( StringList::RecruitRPC ) );
+
     m_cmCopyChar = new QAction( ::getBaseStringTable()->getString( StringList::Copy ), this);
     m_cmCopyChar->setStatusTip(tr("Copy character."));
     connect(m_cmCopyChar, SIGNAL(triggered()), this, SLOT(cmCopyChar()));
@@ -375,6 +377,8 @@ ScreenCommon::ScreenCommon(party *p, int charIdx, QWidget *parent) :
     m_cmPasteChar = new QAction( ::getBaseStringTable()->getString( StringList::Paste ), this);
     m_cmPasteChar->setStatusTip(tr("Paste previously copied character into this slot."));
     connect(m_cmPasteChar, SIGNAL(triggered()), this, SLOT(cmPasteChar()));
+
+    resetScreen( m_party->m_chars[ m_charIdx], m_party );
 
     this->update();
 }
@@ -391,8 +395,45 @@ ScreenCommon::~ScreenCommon()
     m_cmImportChar->deleteLater();
     m_cmExportChar->deleteLater();
     m_cmDropChar->deleteLater();
+    m_cmRecruitRPCs->deleteLater();
     m_cmCopyChar->deleteLater();
     m_cmPasteChar->deleteLater();
+}
+
+void ScreenCommon::rebuildRPCMenu( QMenu *m)
+{
+    QStringList s;
+
+    m->clear();
+
+    QMapIterator<int, QString>  i( m_party->getKnownRPCs() );
+    while (i.hasNext())
+    {
+        QString rpcName;
+
+        i.next();
+        if (! s.contains( i.value() ) )
+            rpcName = i.value();
+        else
+        {
+            // Obviously this only deals with a single level of duplication.
+            // It's intended for RFS-81 which has a 'broken' and 'repaired' version
+            rpcName = QString("%1 (2)").arg(i.value());
+        }
+        s << rpcName;
+
+        QAction *r = new QAction( rpcName, NULL );
+        r->setData( i.key() );
+        r->setStatusTip(tr("Install RPC character into this slot."));
+        connect( r, SIGNAL(triggered()), this, SLOT(cmRecruitRPC()));
+
+        m->addAction( r );
+    }
+
+    // Disable the menu if there are no RPCs listed (ie. most likely a NEW game)
+    // Enable it otherwise
+
+    m->setEnabled( s.isEmpty() ? false : true );
 }
 
 QPixmap ScreenCommon::getPortraitFromFilePath( QString portraitPath )
@@ -1096,7 +1137,7 @@ void ScreenCommon::resetScreen(void *char_tag, void *party_tag)
         m_currentScreen->resetScreen( c, p );
         m_currentScreen->setVisible( true );
 
-        // Disable and hide all the page buttons
+        // Enable and show all the page buttons
         if (WButton *w = qobject_cast<WButton *>(m_widgets[ PAGE_ATTRIBS ]))
         {
             w->setDisabled( false );
@@ -1123,6 +1164,8 @@ void ScreenCommon::resetScreen(void *char_tag, void *party_tag)
             w->setVisible( true );
         }
     }
+
+    rebuildRPCMenu( m_cmRecruitRPCs );
 }
 
 void ScreenCommon::professionLevels(bool down)
@@ -1271,8 +1314,9 @@ void ScreenCommon::characterMoved(int tag)
                 // but sometimes that's nice. RPCs stop abandoning you or suffering Hex
                 // derangements when they go somewhere they don't want to go for example.
 
-                // TODO: A warning
-
+                // At least in 1.2.4 - not sure what happens in 1.2.8. Certainly RPCs
+                // recruited _normally_ in 1.2.8 and put into player slots continue to
+                // behave as normal, so assume RPCs moved by us in 1.2.8 do the same.
             }
 
             character *selectedChar = m_party->m_chars[m_charIdx];
@@ -1354,11 +1398,44 @@ void ScreenCommon::characterPopup(QPoint point)
         menu.addAction(m_cmImportChar);
         menu.addAction(m_cmExportChar);
         menu.addAction(m_cmDropChar);
+        menu.addMenu(m_cmRecruitRPCs);
+
         menu.addSeparator();
+
         menu.addAction(m_cmCopyChar);
         menu.addAction(m_cmPasteChar);
 
         menu.exec( point );
+    }
+}
+
+void ScreenCommon::cmRecruitRPC()
+{
+    if (QAction *src = qobject_cast<QAction *>( sender() ) )
+    {
+        int npc_idx = src->data().toInt();
+
+        // Make sure there are no gaps in front of this character if it is in the PC Area
+        while ((m_cmTargetCharIdx > 2) && m_party->m_chars[m_cmTargetCharIdx-1]->isNull())
+        {
+            m_cmTargetCharIdx--;
+        }
+
+        DialogRUSure check(tr("This option can crash the Wizardry game if misused. "
+                              "The crash can occur when the party contacts an RPC already "
+                              "in the party. Any maps already visited are therefore automatically "
+                              "filtered to prevent this, but if you recruit an RPC here before "
+                              "having met them the first time in a game, the crash can happen "
+                              "much later on when you do meet them.\n\n"
+                              "It is intended to be used to recover a dismissed RPC who "
+                              "can't be re-recruited due to in-game bug causing them to "
+                              "vanish or not respond to conversation.\n\n"
+                              "Please only use with a backup of your game. Proceed?"), "SuppressWarningRPC", 420, 260);
+
+        if (check.exec() == QDialog::Accepted)
+        {
+            emit loadRPCintoSlot( npc_idx, m_cmTargetCharIdx );
+        }
     }
 }
 
@@ -1397,14 +1474,15 @@ void ScreenCommon::cmImportChar()
             ASSIGN_LE32( cbytes+0x0000, 0); // and turn this one off
 
             // We don't have any character extra info to restore, so if the player
-            // has restored a RPC all that info has been lost.
+            // has restored a RPC all that info has been lost - the better option
+            // is to Recruit an RPC from the existing game.
             QByteArray newCharX   = QByteArray( RIFFFile::CHARACTER_EXTRA_SIZE, 0 );
             qint8     *charx_data = (qint8 *) newCharX.data();
 
             // Don't actually know what these fields represent
             ASSIGN_LE32( charx_data+0x0071, -1 );
             ASSIGN_LE8(  charx_data+0x00d0, -1 );
-            ASSIGN_LE32( charx_data+0x00fa, -1 ); // _possibly_ an RPC id
+            ASSIGN_LE32( charx_data+0x00fa, -1 ); // RPC idx (order in NPCT segment)
 
             // Make sure there are no gaps in front of this character if it is in the PC Area
             while ((m_cmTargetCharIdx > 2) && m_party->m_chars[m_cmTargetCharIdx-1]->isNull())
@@ -1413,7 +1491,7 @@ void ScreenCommon::cmImportChar()
             }
 
             delete m_party->m_chars[m_cmTargetCharIdx];
-            m_party->m_chars[m_cmTargetCharIdx] = new character( chr, newCharX );
+            m_party->m_chars[m_cmTargetCharIdx] = new character( chr, newCharX, isWizardry128() );
             m_party->resetCharacterColors();
 
             // And you need to refresh the screen afterwards
@@ -1461,7 +1539,8 @@ void ScreenCommon::cmExportChar()
 
     if (chrFile.open(QIODevice::WriteOnly))
     {
-        QByteArray  chr = m_party->m_chars[m_cmTargetCharIdx]->serialize();
+        // The format of the CHR file is determined based on the EXE - 1.2.8 or 1.2.4 in this case
+        QByteArray  chr = m_party->m_chars[m_cmTargetCharIdx]->serialize( isWizardry128() );
         QByteArray  header(4, 0);
         quint8     *hbytes = (quint8 *) header.data();
         quint8     *cbytes = (quint8 *) chr.data();
@@ -1592,22 +1671,27 @@ void ScreenCommon::resetLanguage()
 
     if (ScreenAttribs *s = qobject_cast<ScreenAttribs *> (m_currentScreen))
     {
+        Q_UNUSED(s);
         reviewAttribs(true);
     }
     else if (ScreenLevels *s = qobject_cast<ScreenLevels *> (m_currentScreen))
     {
+        Q_UNUSED(s);
         reviewLevels(true);
     }
     else if (ScreenItems *s = qobject_cast<ScreenItems *> (m_currentScreen))
     {
+        Q_UNUSED(s);
         reviewItems(true);
     }
     else if (ScreenMagic *s = qobject_cast<ScreenMagic *> (m_currentScreen))
     {
+        Q_UNUSED(s);
         reviewMagic(true);
     }
     else if (ScreenSkills *s = qobject_cast<ScreenSkills *> (m_currentScreen))
     {
+        Q_UNUSED(s);
         reviewSkills(true);
     }
 

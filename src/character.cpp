@@ -41,6 +41,7 @@
 // eg. the one used for levels by profession - we only include professions the character
 // has actually been.
 #define CHECK_SET(A, B)   { if (B) { A = B; } }
+#define MIN(A, B)         ( (A<B) ? (A) : (B) )
 
 static const float kEpsilon               = 1e-9;
 
@@ -57,11 +58,11 @@ character::character() : QObject(),
 }
 
 // Character specific information is split into 2 separate areas.
-// A block of 0x1866 bytes and a block of 0x106 bytes
+// A block of 0x1862 bytes and a block of 0x106 bytes
 // We keep an exact copy of the data passed into us because there
 // are a lot of fields we _don't_ parse and we'd like to preserve
 // those as far as possible on save.
-character::character(QByteArray c, QByteArray cx) : QObject(),
+character::character(QByteArray c, QByteArray cx, bool isWizardry128File) : QObject(),
     m_data(c),
     m_charExtra(cx),
     m_profession(profession::Fighter),
@@ -73,7 +74,20 @@ character::character(QByteArray c, QByteArray cx) : QObject(),
     m_metaRace        = QMetaEnum::fromType<character::race>();
     m_metaGender      = QMetaEnum::fromType<character::gender>();
 
-    unpackCharacter( m_data, m_charExtra );
+    // When unpacking a character from a file we need to know if we are
+    // unpacking a Wizardry 1.2.8 file or a Wizardry 1.2.4 file - because
+    // the spells known by the character are stored differently.
+
+    // We don't store this state information persistently in a character.
+    // ie. when it comes time to serialize the character out in a save
+    // file, we use the state information from the file being written.
+
+    // And if the character is exported to a CHR file, it uses the global
+    // state of the EXE being used.
+
+    // This inconsistent usage has been done so that hopefully you end up
+    // with the most useable character in all relevant situations.
+    unpackCharacter( m_data, m_charExtra, isWizardry128File );
 
     // Shouldn't have to do this except someone could have hexedited the save game
     // and left it in an inconsistent state
@@ -86,14 +100,18 @@ character::character(const character &other) : QObject(),
     m_gender(gender::Male),
     m_combinedLevel(-1)
 {
-    m_data            = other.serialize();
+    // Assume Wizardry 1.2.8 file for the purposes of serialization and re-deserialization
+    // as that results in no loss of information if incorrect; assuming Wizardry 1.2.4 on
+    // the other hand will lose information, if 1.2.8 is actually in use.
+
+    m_data            = other.serialize( true );
     m_charExtra       = other.getCharExtra();
 
     m_metaProf        = QMetaEnum::fromType<character::profession>();
     m_metaRace        = QMetaEnum::fromType<character::race>();
     m_metaGender      = QMetaEnum::fromType<character::gender>();
 
-    unpackCharacter( m_data, m_charExtra );
+    unpackCharacter( m_data, m_charExtra, true );
     recomputeEverything();
 }
 
@@ -354,7 +372,7 @@ void character::resetCharExtra()
     }
 }
 
-QByteArray character::serialize() const
+QByteArray character::serialize( bool isWizardry128File ) const
 {
     if (!m_in_party)
     {
@@ -588,20 +606,20 @@ QByteArray character::serialize() const
     ASSIGN_LE32( cdata+0x0b21, m_stamina_drain           );
 
     /* [0x0b25--0x0b3c] */
-    ASSIGN_LE32( cdata+0x0b25, m_mp[realm::Fire][atIdx::Base]      );
-    ASSIGN_LE32( cdata+0x0b29, m_mp[realm::Water][atIdx::Base]     );
-    ASSIGN_LE32( cdata+0x0b2d, m_mp[realm::Air][atIdx::Base]       );
-    ASSIGN_LE32( cdata+0x0b31, m_mp[realm::Earth][atIdx::Base]     );
-    ASSIGN_LE32( cdata+0x0b35, m_mp[realm::Mental][atIdx::Base]    );
-    ASSIGN_LE32( cdata+0x0b39, m_mp[realm::Divine][atIdx::Base]    );
+    ASSIGN_LE32( cdata+0x0b25, MIN(0, m_mp[realm::Fire][atIdx::Base]      ) );
+    ASSIGN_LE32( cdata+0x0b29, MIN(0, m_mp[realm::Water][atIdx::Base]     ) );
+    ASSIGN_LE32( cdata+0x0b2d, MIN(0, m_mp[realm::Air][atIdx::Base]       ) );
+    ASSIGN_LE32( cdata+0x0b31, MIN(0, m_mp[realm::Earth][atIdx::Base]     ) );
+    ASSIGN_LE32( cdata+0x0b35, MIN(0, m_mp[realm::Mental][atIdx::Base]    ) );
+    ASSIGN_LE32( cdata+0x0b39, MIN(0, m_mp[realm::Divine][atIdx::Base]    ) );
 
     /* [0x0b45--0x0b5c] */
-    ASSIGN_LE32( cdata+0x0b45, m_mp[realm::Fire][atIdx::Current]   );
-    ASSIGN_LE32( cdata+0x0b49, m_mp[realm::Water][atIdx::Current]  );
-    ASSIGN_LE32( cdata+0x0b4d, m_mp[realm::Air][atIdx::Current]    );
-    ASSIGN_LE32( cdata+0x0b51, m_mp[realm::Earth][atIdx::Current]  );
-    ASSIGN_LE32( cdata+0x0b55, m_mp[realm::Mental][atIdx::Current] );
-    ASSIGN_LE32( cdata+0x0b59, m_mp[realm::Divine][atIdx::Current] );
+    ASSIGN_LE32( cdata+0x0b45, MIN(0, m_mp[realm::Fire][atIdx::Current]   ) );
+    ASSIGN_LE32( cdata+0x0b49, MIN(0, m_mp[realm::Water][atIdx::Current]  ) );
+    ASSIGN_LE32( cdata+0x0b4d, MIN(0, m_mp[realm::Air][atIdx::Current]    ) );
+    ASSIGN_LE32( cdata+0x0b51, MIN(0, m_mp[realm::Earth][atIdx::Current]  ) );
+    ASSIGN_LE32( cdata+0x0b55, MIN(0, m_mp[realm::Mental][atIdx::Current] ) );
+    ASSIGN_LE32( cdata+0x0b59, MIN(0, m_mp[realm::Divine][atIdx::Current] ) );
 
     /* [0x0b69--0x0b6c] */
     ASSIGN_FLOAT( cdata+0x0b69, m_healing_rate );
@@ -628,10 +646,21 @@ QByteArray character::serialize() const
     /* [0x0bc9--0x0bcc] */
     ASSIGN_LE32( cdata+0x0bc9, m_load_category  );
 
-    /* [0x0bcd--0x0d91] */ // Spells known
+    /* [0x0bcd--0x0d94] */ // Spells known
     for (int k = 0; k < MAXIMUM_CHARACTER_SPELLS; k++)
     {
-        ASSIGN_LE32( cdata+0x0bcd + k*4, m_spell[k] );
+        if (isWizardry128File)
+        {
+            ASSIGN_LE8(  cdata+0x0bcd + k, m_spell[k] );
+        }
+        else
+        {
+            if (0x0bcd + k*4 <= 0x0d94)
+            {
+                ASSIGN_LE32( cdata+0x0bcd + k*4, m_spell[k] );
+            }
+            // and spells over 114 get discarded
+        }
     }
 
     /* [0x0e5d--0x0e74] */
@@ -827,10 +856,13 @@ QByteArray character::serialize() const
     /* [0x1830        ] */
     ASSIGN_LE8( cdata+0x1830, m_unknown_0x1830 );
 
+    /* [0x1861        ] */
+    ASSIGN_LE8( cdata+0x1861, (m_portal_set ? 1 : 0) );
+
     return response;
 }
 
-void character::unpackCharacter(const QByteArray &c, const QByteArray &cx)
+void character::unpackCharacter(const QByteArray &c, const QByteArray &cx, bool isWizardry128File)
 {
     const quint8 *cdata = (const quint8 *) c.constData();
 
@@ -993,6 +1025,14 @@ void character::unpackCharacter(const QByteArray &c, const QByteArray &cx)
     /* [0x0b51--0x0b54] */ m_mp[realm::Earth][atIdx::Current]  = FORMAT_LE32( cdata+0x0b51 );
     /* [0x0b55--0x0b58] */ m_mp[realm::Mental][atIdx::Current] = FORMAT_LE32( cdata+0x0b55 );
     /* [0x0b59--0x0b5c] */ m_mp[realm::Divine][atIdx::Current] = FORMAT_LE32( cdata+0x0b59 );
+    for (int k=0; k < realm::REALM_SIZE; k++)
+    {
+        if (m_mp[k][atIdx::Base] < 0)
+            m_mp[k][atIdx::Base] = 0;
+
+        if (m_mp[k][atIdx::Current] < 0)
+            m_mp[k][atIdx::Current] = 0;
+    }
                            m_mp[realm::Fire][atIdx::Initial]   = m_mp[realm::Fire][atIdx::Current];
                            m_mp[realm::Water][atIdx::Initial]  = m_mp[realm::Water][atIdx::Current];
                            m_mp[realm::Air][atIdx::Initial]    = m_mp[realm::Air][atIdx::Current];
@@ -1020,17 +1060,35 @@ void character::unpackCharacter(const QByteArray &c, const QByteArray &cx)
     /* [0x0bc9--0x0bcc] */ m_load_category     = FORMAT_LE32( cdata+0x0bc9 ); // extent of penalty the load imparts to combat etc.
 
     // Spells Known
-    /* [0x0bcd--0x0d91] */ // Spells known
+    /* [0x0bcd--0x0d94] */ // Spells known
     for (int k = 0; k < MAXIMUM_CHARACTER_SPELLS; k++)
     {
-        // all spells known by the character have '1' in the LE32 field
-        // unknown spells are either 0xffffffff or 0x00000000 - and I can't
-        // discern the meaning behind it. It isn't about spells not being
-        // available or anything because my Bishop has both values, even on
-        // low level spells
-        // Seen values of 2 checked for in code too, and don't know what they
-        // are for either, except usually treated the same as '1'.
-        m_spell[k] = FORMAT_LE32( cdata+0x0bcd + k*4 );
+        // Wizardry 1.2.8 squeezed in 4 times the number of spells by reducing the size
+        // of the spell field from 4 to 1 bytes.
+        if (isWizardry128File)
+        {
+            // 00 = spell not available to character - either due to level or spell class
+            // 01 = spell known by character
+            // FF = spell is learnable but not currently known
+
+            m_spell[k] = FORMAT_8( cdata+0x0bcd + k );
+        }
+        else
+        {
+            // 00000000 = spell not available to character - either due to level or spell class
+            // 00000001 = spell known by character
+            // 00000002 = ?? (I treat as if it is 1)
+            // FFFFFFFF = spell is learnable but not currently known
+
+            if (0x0bcd + k*4 <= 0x0d94)
+            {
+                m_spell[k] = (qint8) FORMAT_LE32( cdata+0x0bcd + k*4 );
+            }
+            else
+            {
+                m_spell[k] = 0;
+            }
+        }
     }
     /* [0x0d95--0x0e5c] */ // UNKNOWN
 
@@ -1278,8 +1336,9 @@ void character::unpackCharacter(const QByteArray &c, const QByteArray &cx)
 
     // [0x1817--0x1829] UNKNOWN
     // looks like might be a group of 17 values uint8_t 0x181f[2][17];
-    /* [0x1830        ] */ m_unknown_0x1830                                        = FORMAT_8( cdata+0x1830 );
-    // [0x1831--0x1861] UNKNOWN
+    /* [0x1830        ] */ m_unknown_0x1830                        = FORMAT_8( cdata+0x1830 );
+    // [0x1831--0x1860] UNKNOWN
+    /* [0x1861        ] */ m_portal_set                            = (FORMAT_8( cdata+0x1861 ) > 0);
 
     const quint8 *pdata = (const quint8 *) cx.constData();
 
@@ -1295,20 +1354,7 @@ void character::unpackCharacter(const QByteArray &c, const QByteArray &cx)
 
 void character::getPortalPosition(bool *on, int *mapId, float *x, float *y, float *z, float *heading) const
 {
-    if ((m_portal_map == 0)     &&
-        (m_portal_x < kEpsilon) &&
-        (m_portal_y < kEpsilon) &&
-        (m_portal_z < kEpsilon) &&
-        (m_portal_heading < kEpsilon) &&
-        (m_portal_pitch < kEpsilon))
-    {
-        *on = false;
-    }
-    else
-    {
-        *on = true;
-    }
-
+    *on      = m_portal_set;
     *mapId   = m_portal_map;
     *x       = m_portal_x;
     *y       = m_portal_y;
@@ -1318,24 +1364,13 @@ void character::getPortalPosition(bool *on, int *mapId, float *x, float *y, floa
 
 void character::setPortalPosition(bool on, int mapId, float x, float y, float z, float heading)
 {
-    if (on)
-    {
-        m_portal_map     = mapId;
-        m_portal_x       = x;
-        m_portal_y       = y;
-        m_portal_z       = z;
-        m_portal_heading = heading;
-        m_portal_pitch   = 0.0;
-    }
-    else
-    {
-        m_portal_map     = 0;
-        m_portal_x       = 0.0;
-        m_portal_y       = 0.0;
-        m_portal_z       = 0.0;
-        m_portal_heading = 0.0;
-        m_portal_pitch   = 0.0;
-    }
+    m_portal_set     = on;
+    m_portal_map     = mapId;
+    m_portal_x       = x;
+    m_portal_y       = y;
+    m_portal_z       = z;
+    m_portal_heading = heading;
+    m_portal_pitch   = 0.0;
 }
 
 int character::getCondition(condition c) const
@@ -2049,6 +2084,8 @@ void character::setMp(realm r, atIdx idx, int mp)
                             mp -= room_free;
                         }
                     }
+                    if (m_mp[k][atIdx::Current] < 0)
+                        m_mp[k][atIdx::Current] = 0;
                 }
             }
             else if (mp < mp_current)
@@ -2070,6 +2107,8 @@ void character::setMp(realm r, atIdx idx, int mp)
                             mp += room_free;
                         }
                     }
+                    if (m_mp[k][atIdx::Current] < 0)
+                        m_mp[k][atIdx::Current] = 0;
                 }
             }
             /* else do nothing because it's equal */
@@ -2667,6 +2706,8 @@ void character::setProfessionLevel( character::profession prof, int level )
         m_currentLevels[ prof ] = level;
     }
 
+    int profs_occupied = 0;
+
     m_combinedLevel = 0;
 
     QMapIterator<profession, int>  i(m_currentLevels);
@@ -2674,6 +2715,13 @@ void character::setProfessionLevel( character::profession prof, int level )
     {
         i.next();
         m_combinedLevel += i.value();
+        if (i.value())
+            profs_occupied++;
+    }
+
+    if (profs_occupied == 1)
+    {
+        m_origProfession = m_profession;
     }
 }
 
@@ -3432,8 +3480,19 @@ void character::setSpellKnown( int idx, bool known )
         if (known)
             m_spell[idx] = 1;
         else
+        {
+            // This should be set to 0 if a spell is unlearnable
+            // by a character at the current time - either due to
+            // not being supported by the character's class !(spell->getClasses() & m_profession)
+            // or current level (spell->getLevelAsPureClass() or spell->getLevelAsHybridClass())
+            // or current skills in the relevant realm and class
+
+            // This app has never actually done this, and just used -1
+            // I'm unaware of this causing any issues and don't intend to fix it unless it does
             m_spell[idx] = -1;
+        }
     }
+    recomputeManaPoints();
 }
 
 double character::getLoad(atIdx idx) const
@@ -4378,4 +4437,9 @@ bool character::isRPC() const
         return false;
 
     return true;
+}
+
+int character::getRPCId() const
+{
+    return m_rpc_id;
 }

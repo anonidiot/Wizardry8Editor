@@ -228,65 +228,116 @@ bool isParallelWorlds()
 //    false = keep going
 bool identifyWizardryVersion( bool techIdentify, QString customExe )
 {
-    QString                       errorStr;
-    char                         *exePath;
-    char                          md5Hash[33];
-    DialogPatchExe::wizardry_ver  ver;
+    QList<struct DialogPatchExe::exe_info>        exeIds;
 
     bool     rv = false;
 
-    errorStr = DialogPatchExe::identifyWizardryExeVersion( customExe, &ver, md5Hash, &exePath );
+    exeIds = DialogPatchExe::identifyWizardryExeVersion( customExe );
 
     if (techIdentify)
     {
         rv = true;
 
 #if defined( Q_OS_WIN )
-        if (errorStr.isEmpty())
+        if (exeIds.size() < 1)
         {
+            QMessageBox::critical(NULL, "ERROR", "Couldn't process Wizardry folder");
+        }
+        else if (exeIds[0].exePath.isEmpty() && !exeIds[0].error.isEmpty())
+        {
+            QMessageBox::critical(NULL, "ERROR", exeIds[0].error);
+        }
+        else
+        {
+            QString txt;
+
+            if (!exeIds[0].exePath.isEmpty())
+            {
+                 QFileInfo fi( exeIds[0].exePath );
+
+                 txt = QString("Wizardry Folder: %1\n").arg( QDir::toNativeSeparators( fi.dir().absolutePath() ) );
+            }
+
+            for (int k=0; k<exeIds.size(); k++)
+            {
+                if (!exeIds[k].exePath.isEmpty())
+                {
+                    QFileInfo fi( exeIds[k].exePath );
+
+                    txt += QString("\nExecutable: %1\n").arg( fi.fileName() );
+                }
+                if (! exeIds[k].error.isEmpty())
+                {
+                    txt += QString("Error: %1\n").arg( exeIds[k].error );
+                }
+                else
+                {
+                    txt += QString("Identified as %1\n").arg( DialogPatchExe::getVersionStr(exeIds[k].ver) );
+                    if (! exeIds[k].patchesApplied.empty())
+                    {
+                        QString  patches;
+
+                        for (int j=0; j<exeIds[k].patchesApplied.size(); j++)
+                            patches += ", " + exeIds[k].patchesApplied[j];
+                        
+                        txt += "Recognised Patches: " + patches.mid(2) + "\n";
+                    }
+                    txt += QString("Modified MD5Hash: %1\n").arg( exeIds[k].md5Hash );
+                }
+            }
             QMessageBox m( QMessageBox::NoIcon, QCoreApplication::applicationName(), QString(), QMessageBox::Ok );
 
-            m.setText( QString("Wizardry Exe identified as %1\n\n"
-                           "Modified MD5Hash: %2\n"
-                           "Path to EXE: %3\n").arg(DialogPatchExe::getVersionStr(ver)).arg(md5Hash).arg(exePath));
+            m.setText( txt );
             m.exec();
         }
-        else
-        {
-            QMessageBox::critical(NULL, "ERROR", errorStr);
-        }
 #else
-        if (errorStr.isEmpty())
+        for (int k=0; k<exeIds.size(); k++)
         {
-            QByteArray v = DialogPatchExe::getVersionStr(ver).toLatin1();
-
-            printf("Wizardry Executable at location: %s\n", exePath);
-            printf("Identified as: %s\n", v.data());
-            printf("Modified MD5Hash: %s\n", md5Hash);
-        }
-        else
-        {
-            QByteArray err = errorStr.toLatin1();
-
-            if (exePath)
+            if (exeIds[k].error.isEmpty())
             {
-                printf("Wizardry Executable at location: %s\n", exePath);
+                QByteArray v = DialogPatchExe::getVersionStr(exeIds[k].ver).toLatin1();
+                QByteArray e = exeIds[k].exePath.toLatin1();
+
+                printf("Wizardry Executable at location: %s\n", e.data());
+                printf("Identified as: %s\n", v.data());
+                if (! exeIds[k].patchesApplied.empty())
+                {
+                    QString  patches;
+
+                    for (int j=0; j<exeIds[k].patchesApplied.size(); j++)
+                        patches += ", " + exeIds[k].patchesApplied[j];
+                    
+                    QByteArray p = patches.toLatin1();
+                    printf("Recognised Patches: %s\n", p.data()+2);
+                }
+                printf("Modified MD5Hash: %s\n\n", exeIds[k].md5Hash);
             }
-            fprintf(stderr, "%s\n", err.data());
+            else
+            {
+                QByteArray err = exeIds[k].error.toLatin1();
+
+                if (! exeIds[k].exePath.isEmpty())
+                {
+                    QByteArray e = exeIds[k].exePath.toLatin1();
+
+                    fprintf(stderr, "Wizardry Executable at location: %s\n", e.data());
+                }
+                fprintf(stderr, "%s\n", err.data());
+            }
         }
 #endif
     }
     else
     {
-        if (! errorStr.isEmpty())
+        if (! exeIds[0].error.isEmpty())
         {
-            QMessageBox::critical(NULL, "ERROR", errorStr);
+            QMessageBox::critical(NULL, "ERROR", exeIds[0].error);
             
             rv = true;
         }
         else
         {
-            s_app_version = ver;
+            s_app_version = exeIds[0].ver;
             s_parallel_worlds.clear();
 
             if (isWizardry128()) // this will work now s_app_version is set
@@ -380,8 +431,6 @@ bool identifyWizardryVersion( bool techIdentify, QString customExe )
             }
         }
     }
-
-    free(exePath);
 
     return rv;
 }

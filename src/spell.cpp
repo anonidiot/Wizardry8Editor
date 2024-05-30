@@ -43,6 +43,10 @@ spell::spell(quint32 id) :
     m_helper = dbHelper::getHelper();
 
     m_db_record = m_helper->getSpellRecord(m_id);
+    if (m_db_record.size() == 0)
+    {
+        m_id = 0xffffffff;
+    }
 }
 
 // 0x019c: Spell name (maximum length unknown)

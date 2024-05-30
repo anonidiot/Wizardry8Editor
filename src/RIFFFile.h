@@ -50,12 +50,14 @@ public:
     ~RIFFFile();
 
     bool       isGood() { if (m_numSegs != 0) return true; else return false; }
+    bool       isWizardry128File() { return m_WIZ8variant; }
     QString    getError();
 
     int        getNumSegments();
     QString    getSegmentCode(int segment);
-    bool       seekSegment(int segment);
-    bool       seekSegment(QString segment_code);
+    int        getSegmentSize(int segment);
+    int        seekSegment(int segment);
+    int        seekSegment(QString segment_code);
     bool       seekPartySegment();
 
     QVector<qint32> getVisitedMapsList();
@@ -82,13 +84,13 @@ public:
     bool       writeLELong(qint32 value);
     bool       writeLEULong(quint32 value);
 
+    QList<riff_entry>   readLVLS();
 
 protected:
     bool isRIFF(QFile &file);
 
 private:
     void                readDirectory();
-    QList<riff_entry>   readLVLS();
 
     QString             m_error;
     qint64              m_filesize;

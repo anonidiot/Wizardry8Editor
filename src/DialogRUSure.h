@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2024 Anonymous Idiot
+ * Copyright (C) 2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,62 +23,29 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef DLGPATCHEXE_H
-#define DLGPATCHEXE_H
+#ifndef DLGRUSURE_H
+#define DLGRUSURE_H
 
 #include "Dialog.h"
 #include "Wizardry8Scalable.h"
 
-class QListWidgetItem;
 
-class DialogPatchExe : public Dialog
+class DialogRUSure : public Dialog
 {
     Q_OBJECT
 
 public:
-    DialogPatchExe(QWidget *parent = nullptr);
-    ~DialogPatchExe();
+    DialogRUSure(QString message, QString name="", int width=290, int height=215, QWidget *parent = nullptr);
 
-    enum wizardry_ver
-    {
-        WIZ_VER_UNKNOWN,
-        WIZ_VER_1_0,
-        WIZ_VER_1_2_4,
-        WIZ_VER_1_2_4_PATCHED,
-        WIZ_VER_1_2_8_UNKNOWN,
-        WIZ_VER_1_2_8_BUILD_6200,
-        WIZ_VER_1_2_8_BUILD_6200_PATCHED
-    };
-    Q_ENUM(wizardry_ver);
-
-    struct exe_info
-    {
-        QString       exePath;
-        char          md5Hash[33];
-        wizardry_ver  ver;
-        QStringList   patchesApplied;
-        QString       error;
-    };
-
-    static QList<struct exe_info> identifyWizardryExeVersion( QString exeFileOrPath );
-    static quint64 getExpectedExeSize(wizardry_ver ver);
-    static QString getVersionStr(wizardry_ver ver);
+    ~DialogRUSure();
 
 public slots:
-    void patchHighlighted(int);
-
-    void patchAway(bool checked);
-
-protected:
-    void updateList();
+    virtual int exec();
 
 private:
-    QPixmap    makeDialogForm();
+    QPixmap    makeDialogForm(int width, int height);
 
-    static struct exe_info identifyWizardryFile( QFile *src );
-
-    wizardry_ver    m_myWizVer;
-    QString         m_exePath;
+    QString    m_name;
 };
 
 #endif

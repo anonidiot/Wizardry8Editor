@@ -97,6 +97,8 @@ private:
     character  *m_char;
     bool        m_inspectMode;
 
+    int         m_initialPopulate;
+
     QMetaEnum         m_metaProf;
 };
 #endif

@@ -56,6 +56,7 @@ public:
         ///// Ids over 5000 are created by us
         NewSaveFile            =  5001,
         OpenExistingSave       =  5002,
+        HideThisMessage        =  5003,
 
         Copy                   =  5010,
         Paste                  =  5011,
@@ -101,6 +102,7 @@ public:
         ImportCharacter        =  5300,
         ExportCharacter        =  5301,
         DropCharacter          =  5302,
+        RecruitRPC             =  5303,
 
         ExpLast                =  5350,
         ExpNext                =  5351,

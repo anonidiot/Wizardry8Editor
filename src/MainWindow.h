@@ -25,6 +25,7 @@
 
 #include <QAbstractNativeEventFilter>
 #include <QMainWindow>
+#include <QMap>
 #include <QSize>
 #include "common.h"
 #include "facts.h"
@@ -108,11 +109,26 @@ private slots:
     void about();
     void aboutUrho3D();
 
+    void       loadRPCfromNPCT( int npc_idx, int slot_idx );
+
 private:
     QByteArray makeSnapshot( wiz7_end clip_id );
 
     void createActions();
     void createMenus();
+
+    void       siftNPCs();
+    QByteArray getRPC(int target_idx);
+    bool       writeRPCinNPCT(int target_idx);
+    void       addRPC(QByteArray rpc, int npc_idx, int npc_id);
+    void       removeNpcFromLVLS(int npc_id);
+
+    int        readMonsterIdxRecord();
+    int        readMonsterDataRecord();
+
+    QMap<int, int> buildMonsterNpcTable();
+
+    QMap<int, int> m_npcMonsters;
 
     QMenu *fileMenu;
     QMenu *editMenu;
@@ -155,6 +171,8 @@ private:
     RIFFFile  *m_loadedGame;
     party     *m_party;
     facts      m_facts;
+
+    QMap<int, QString>   m_rpcMap;
 
     // only used if we're making a 'New' game (ie. m_loadedGame == NULL
     wiz7_end   m_w7_ending;

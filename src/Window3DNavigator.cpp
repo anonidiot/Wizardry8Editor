@@ -111,10 +111,68 @@ static const float kSloppyEpsilon         = 1e-3;
 
 static const float TOUCH_SENSITIVITY      = 2.0f;
 
+static const int   VERTICES_PER_FACE      = 3;
+
 using namespace Urho3D;
 
-static void bitmapDetails(SLFFile *f, bool bBitmapDirSet);
-static void bitmapMore(SLFFile *f, bool bBitmapDirSet, bool a3);
+
+typedef struct
+{
+    float  x;
+    float  y;
+    float  z;
+    float  nx;
+    float  ny;
+    float  nz;
+    float  u;
+    float  v;
+} vertex_t;
+
+typedef struct
+{
+    int    idx;
+    float  u;
+    float  v;
+} vertref_t;
+
+struct face
+{
+    vertref_t   vert[VERTICES_PER_FACE];
+    int         material_idx;
+};
+
+typedef struct
+{
+    float  u;
+    float  v;
+} uv_t;
+
+struct animated_mesh
+{
+    char      object_name[64];
+    char      trigger_name[128];
+
+    float     origin_x;
+    float     origin_y;
+    float     origin_z;
+
+    float     fps;
+
+    bool      expect_matrix;
+
+    uint16_t  num_frames;
+    uint32_t  num_vertices;
+    uint32_t  num_faces;
+    uint32_t  num_materials;
+    
+    vertex_t    **frames;
+    face_t       *faces; 
+    uint8_t     **material_buf;
+};
+
+
+static void bitmapDetails(SLFFile *f, bool bBitmapDirSet, struct animated_mesh *ani_ptr);
+static void duplicateVerticesForUVs( face_t *faces, int num_faces, vertex_t **vertices, uint32_t *num_vertices, int num_frames );
 
 extern bool  getBoolSetting(char *setting);
 extern void  setBoolSetting(char *setting, bool value);
@@ -181,6 +239,8 @@ Window3DNavigator::Window3DNavigator( int mapId, float x, float y, float z, floa
 
         // including this line hides our toolbar
         Avatar::RegisterObject(context_);
+
+        context_->RegisterFactory<WizardryAnimatedMesh>();
 
         if (GetSubsystem<Input>()->GetNumJoysticks() == 0)
             // On desktop platform, do not detect touch when we already got a joystick
@@ -356,347 +416,451 @@ void Window3DNavigator::AddTgaToResourceCache( String folder, String slf, String
     if (renderTexture)
     {
         SLFFile         tga( folder.CString(), slf.CString(), texture_name.CString(), false );
-        SLFDeserializer tgaDeserial( tga );
 
-        SharedPtr<Resource> resource = DynamicCast<Resource>(renderTexture);
-        if (resource)
+        if (tga.isGood())
         {
-            resource->SetName( texture_name );
-            resource->Load( tgaDeserial );
+            SLFDeserializer tgaDeserial( tga );
 
-            cache->AddManualResource( resource );
+            SharedPtr<Resource> resource = DynamicCast<Resource>(renderTexture);
+            if (resource)
+            {
+                resource->SetName( texture_name );
+                resource->Load( tgaDeserial );
+
+                cache->AddManualResource( resource );
+            }
         }
     }
 }
 
-void Window3DNavigator::LoadMaterials( String pvlFolderName, int num_materials, SLFFile *f )
+int Window3DNavigator::LoadMaterial( String pvlFolderName, uint8_t *material_buf )
 {
+    bool    emissive = false;
+
+    String material_name = String((char *)material_buf).ToUpper();
+    String texture_file  = String();
+
+    if (*(material_buf+40))
+        texture_file = String((char *)material_buf+40).ToUpper();
+    else if (*(material_buf+80))
+        texture_file = String((char *)material_buf+80).ToUpper();
+    else if (*(material_buf+120))
+        texture_file = String((char *)material_buf+120).ToUpper();
+    else if (*(material_buf+160))
+    {
+        texture_file = String((char *)material_buf+160).ToUpper();
+        emissive = true;
+    }
+
+    // FIXME:
+    // is_non_collidable is NOT entirely the same as transparent. There are textures, eg Cemetary gate
+    // which need to be transparent and are collidable. There doesn't seem to be any flag for
+    // transparency - you're going to have to inspect each and every TGA
+    // Others like the moss under the Trangporter house should be both transparent and non-collidable
+    // (unless you can fix it with a height adjustment of Jack)
+    bool has_alpha         = material_buf[0x115]; // not _reliably_ trustworthy though
+
+  //float *ambient      = (float *)(material_buf+0xc8); //[r,g,b]
+    float *diffuse      = (float *)(material_buf+0xd4); //[r,g,b]
+    float *transmit     = (float *)(material_buf+0xe0); //[r,g,b]
+    float *specular     = (float *)(material_buf+0xec); //[r,g,b]
+
+    float alpha     = *(float *)(material_buf+0xfc);
+  //float shininess = *(float *)(material_buf+0x100);
+    float fps       = *(float *)(material_buf+0x111);
+
+    float  actualColor[4];
+
+    // If diffusion color not set but transmit color is
+    if ((fabsf(diffuse[0]) < kEpsilon) &&
+        (fabsf(diffuse[1]) < kEpsilon) &&
+        (fabsf(diffuse[2]) < kEpsilon) &&
+        ((fabsf(transmit[0]) >= kEpsilon) ||
+         (fabsf(transmit[1]) >= kEpsilon) ||
+         (fabsf(transmit[2]) >= kEpsilon)))
+    {
+        // I haven't had any success getting MatEmissiveColor to work correctly with any of the shaders
+        // so just override diffuse with it
+        actualColor[0] = transmit[0];
+        actualColor[1] = transmit[1];
+        actualColor[2] = transmit[2];
+        actualColor[3] = 0.5;
+    }
+    else
+    {
+      //renderMaterial->SetShaderParameter( "AmbientColor",     Vector4( ambient[0],  ambient[1],  ambient[2],  alpha ) );
+        actualColor[0] = diffuse[0];
+        actualColor[1] = diffuse[1];
+        actualColor[2] = diffuse[2];
+        actualColor[3] = alpha;
+    }
+
+    StringHash hash( pvlFolderName + material_name + " " + texture_file + " " + (emissive?"T":"F") + " " + String(alpha) + " " + String(fps) + " " + String(actualColor[0]) + "," + String(actualColor[1]) + "," + String(actualColor[2]) + "," + String(actualColor[3]) + " " + String(specular[0]) + "," + String(specular[1]) + "," + String(specular[2]));
+    String hash_s = hash.ToString();
+
+    for (int k=0; k < (int)materials_.Size(); k++)
+    {
+        WizardryMaterial *m = materials_[k];
+
+        if (m->hash_ == hash_s)
+        {
+            // We already have a material for this texture - put in an empty record in this slot
+            // that maps through to an earlier record already created for it.
+            WizardryMaterial  *wm = new WizardryMaterial("");
+
+            wm->mapsTo_ = k;
+
+            materials_.Push( wm );
+            return materials_.Size()-1;
+        }
+    }
+
+    WizardryMaterial  *wm = new WizardryMaterial(hash_s);
+
     auto* cache = GetSubsystem<ResourceCache>();
 
-    for (int k=0; k<num_materials; k++)
+    SharedPtr<Material> renderMaterial(new Material(context_));
+
+    renderMaterial->SetShaderParameter( "MatDiffColor",     Vector4( actualColor[0],  actualColor[1],  actualColor[2],  actualColor[3] ) );
+
+    // Enabling this seriously messes up the rendering of untextured surfaces like the statue in Arnika
+    // _ANY_ alpha value at all (even 0.0) causes it to show up as bright white
+  //renderMaterial->SetShaderParameter( "MatEmissiveColor", Vector4( transmit[0], transmit[1], transmit[2], alpha ) );
+    renderMaterial->SetShaderParameter( "MatSpecColor",     Vector4( specular[0], specular[1], specular[2], alpha ) );
+  //renderMaterial->SetAlphaToCoverage(true);
+
+    // I can't find anything to help me know when something is solid or not.
+    wm->isCollidable_ = true;
+
+    // I think the collision detection in Wizardry is done entirely in the Octree. There's no field in the material
+    // or the mesh I can see for storing whether it is passthrough or not. I'm not doing an Octree parser just for
+    // this, so we have this ugly hack to just list certain materials as passthrough. Obviously it isn't going to
+    // work for custom levels unless they name their materials one of these.
+    // (the material file "water.ifl" comes up far more consistently than any texture name for water, so we use
+    //  that to keep this check shorted, rather than comparing material names)
+    if ((texture_file == "WATER.IFL")            ||
+        (texture_file == "WATER-0000.IFL")       ||
+        (texture_file == "WATER-0010.IFL")       ||
+        (texture_file == "WATERFLOW.IFL")        ||
+        (texture_file == "WATERFLOW0019.IFL")    ||
+        (texture_file == "MBWATER-001A.IFL")     ||
+        (texture_file == "S_WATER-0006.IFL")     ||
+        (texture_file == "DCWATER0000.IFL")      ||
+        (texture_file == "MUD.IFL")              ||
+        (texture_file == "SLIME-0000.IFL")       ||
+     // (texture_file == "B1-LIQUID0000.IFL")    || -- not this one because no floor beneath it in some places
+        (texture_file == "TR1-WATERFROTH_A.TGA") ||
+        (texture_file == "B-WATERFROTH_A.TGA")   ||
+        (texture_file == "B-WATER_A.TGA")        ||
+        (texture_file == "WATER_A.TGA")          ||
+        (texture_file == "WATER.TGA"))
     {
-        quint8  type;
-        quint8  material_buf[298];
-        bool    emissive = false;
+        wm->isCollidable_ = false;
 
-        type = f->readUByte();
+        // Water gets special treatment. It is rendered translucent so that a reflection can be
+        // drawn just below it (hard to see because of the brightness of our water, but it's there
+        // Rendering it with an alpha transparency isn't enough to get this to work on its own.
+        wm->isWater_      = true;
+    }
+    if (texture_file == "LAVA0000.IFL")
+    {
+        wm->isCollidable_ = false;
+    }
 
-        if (type == 0x04)
+    if ( texture_file.Empty() || (texture_file == "NOTEXTURE"))
+    {
+        renderMaterial->SetTechnique(0, cache->GetResource<Technique>("Techniques/NoTextureAOAlpha.xml"));
+    }
+    else // has a texture
+    {
+        if (texture_file.EndsWith(".IFL")) // animation
         {
-            if (298 - 1 != f->read((char *)material_buf, 298 - 1))
-                throw SLFFileException();
-        }
-        else
-        {
-            if (282 - 1 != f->read((char *)material_buf, 282 - 1))
-                throw SLFFileException();
-        }
+            String ifl_file = pvlFolderName + "/BITMAPS/" + texture_file;
+            SLFFile  ifl( "Levels", "LEVELS.SLF", ifl_file.CString(), false );
+            SLFDeserializer iflDeserial( ifl );
+            String line;
 
-        String material_name = String((char *)material_buf).ToUpper();
-        String texture_file  = String();
-
-        if (*(material_buf+40))
-            texture_file = String((char *)material_buf+40).ToUpper();
-        else if (*(material_buf+80))
-            texture_file = String((char *)material_buf+80).ToUpper();
-        else if (*(material_buf+120))
-            texture_file = String((char *)material_buf+120).ToUpper();
-        else if (*(material_buf+160))
-        {
-            texture_file = String((char *)material_buf+160).ToUpper();
-            emissive = true;
-        }
-
-        // FIXME:
-        // is_non_collidable is NOT entirely the same as transparent. There are textures, eg Cemetary gate
-        // which need to be transparent and are collidable. There doesn't seem to be any flag for
-        // transparency - you're going to have to inspect each and every TGA
-        // Others like the moss under the Trangporter house should be both transparent and non-collidable
-        // (unless you can fix it with a height adjustment of Jack)
-        bool has_alpha         = material_buf[0x115]; // not _reliably_ trustworthy though
-
-      //float *ambient      = (float *)(material_buf+0xc8); //[r,g,b]
-        float *diffuse      = (float *)(material_buf+0xd4); //[r,g,b]
-        float *transmit     = (float *)(material_buf+0xe0); //[r,g,b]
-        float *specular     = (float *)(material_buf+0xec); //[r,g,b]
-
-        float alpha     = *(float *)(material_buf+0xfc);
-      //float shininess = *(float *)(material_buf+0x100);
-        float fps       = *(float *)(material_buf+0x111);
-
-        SharedPtr<Material> renderMaterial(new Material(context_));
-
-        // If diffusion color not set but transmit color is
-        if ((fabsf(diffuse[0]) < kEpsilon) &&
-            (fabsf(diffuse[1]) < kEpsilon) &&
-            (fabsf(diffuse[2]) < kEpsilon) &&
-            ((fabsf(transmit[0]) >= kEpsilon) ||
-             (fabsf(transmit[1]) >= kEpsilon) ||
-             (fabsf(transmit[2]) >= kEpsilon)))
-        {
-            // I haven't had any success getting MatEmissiveColor to work correctly with any of the shaders
-            // so just override diffuse with it
-            renderMaterial->SetShaderParameter( "MatDiffColor",     Vector4( transmit[0], transmit[1], transmit[2], 0.5 ) );
-        }
-        else
-        {
-          //renderMaterial->SetShaderParameter( "AmbientColor",     Vector4( ambient[0],  ambient[1],  ambient[2],  alpha ) );
-            renderMaterial->SetShaderParameter( "MatDiffColor",     Vector4( diffuse[0],  diffuse[1],  diffuse[2],  alpha ) );
-        }
-
-        // Enabling this seriously messes up the rendering of untextured surfaces like the statue in Arnika
-        // _ANY_ alpha value at all (even 0.0) causes it to show up as bright white
-      //renderMaterial->SetShaderParameter( "MatEmissiveColor", Vector4( transmit[0], transmit[1], transmit[2], alpha ) );
-        renderMaterial->SetShaderParameter( "MatSpecColor",     Vector4( specular[0], specular[1], specular[2], alpha ) );
-      //renderMaterial->SetAlphaToCoverage(true);
-
-        WizardryMaterial  *wm = new WizardryMaterial();
-        // I can't find anything to help me know when something is solid or not.
-        wm->isCollidable_ = true;
-
-        // I think the collision detection in Wizardry is done entirely in the Octree. There's no field in the material
-        // or the mesh I can see for storing whether it is passthrough or not. I'm not doing an Octree parser just for
-        // this, so we have this ugly hack to just list certain materials as passthrough. Obviously it isn't going to
-        // work for custom levels unless they name their materials one of these.
-        // (the material file "water.ifl" comes up far more consistently than any texture name for water, so we use
-        //  that to keep this check shorted, rather than comparing material names)
-        if ((texture_file == "WATER.IFL")            ||
-            (texture_file == "WATER-0000.IFL")       ||
-            (texture_file == "WATER-0010.IFL")       ||
-            (texture_file == "WATERFLOW.IFL")        ||
-            (texture_file == "WATERFLOW0019.IFL")    ||
-            (texture_file == "MBWATER-001A.IFL")     ||
-            (texture_file == "S_WATER-0006.IFL")     ||
-            (texture_file == "DCWATER0000.IFL")      ||
-            (texture_file == "MUD.IFL")              ||
-            (texture_file == "SLIME-0000.IFL")       ||
-         // (texture_file == "B1-LIQUID0000.IFL")    || -- not this one because no floor beneath it in some places
-            (texture_file == "TR1-WATERFROTH_A.TGA") ||
-            (texture_file == "B-WATERFROTH_A.TGA")   ||
-            (texture_file == "B-WATER_A.TGA")        ||
-            (texture_file == "WATER_A.TGA")          ||
-            (texture_file == "WATER.TGA"))
-        {
-            wm->isCollidable_ = false;
-
-            // Water gets special treatment. It is rendered translucent so that a reflection can be
-            // drawn just below it (hard to see because of the brightness of our water, but it's there
-            // Rendering it with an alpha transparency isn't enough to get this to work on its own.
-            wm->isWater_      = true;
-        }
-        if (texture_file == "LAVA0000.IFL")
-        {
-            wm->isCollidable_ = false;
-        }
-
-        if ( texture_file.Empty() || (texture_file == "NOTEXTURE"))
-        {
-            renderMaterial->SetTechnique(0, cache->GetResource<Technique>("Techniques/NoTextureAOAlpha.xml"));
-        }
-        else // has a texture
-        {
-            if (texture_file.EndsWith(".IFL")) // animation
+            while ((line = iflDeserial.ReadLine()) != "")
             {
-                String ifl_file = pvlFolderName + "/BITMAPS/" + texture_file;
-                SLFFile  ifl( "Levels", "LEVELS.SLF", ifl_file.CString(), false );
-                SLFDeserializer iflDeserial( ifl );
-                String line;
-
-                while ((line = iflDeserial.ReadLine()) != "")
-                {
-                    wm->textureNames_.Push( pvlFolderName + "/BITMAPS/" + line.ToUpper() );
-                }
-
-                wm->textureUpdateRate_ = (1.0 / fps) * 2.0; // Halving animation rate because it looks off at fullspeed
-            }
-            else // static texture
-            {
-                wm->textureNames_.Push( pvlFolderName + "/BITMAPS/" + texture_file );
+                wm->textureNames_.Push( pvlFolderName + "/BITMAPS/" + line.ToUpper() );
             }
 
-            // We add all textures to the cache - animated because they load so frequently, and
-            // static because some levels render terrible enough as it is without making it worse.
-            for (int k=0; k < (int)wm->textureNames_.Size(); k++)
+            wm->textureUpdateRate_ = (1.0 / fps);
+        }
+        else // static texture
+        {
+            wm->textureNames_.Push( pvlFolderName + "/BITMAPS/" + texture_file );
+        }
+
+        // We add all textures to the cache - animated because they load so frequently, and
+        // static because some levels render terrible enough as it is without making it worse.
+        for (int k=0; k < (int)wm->textureNames_.Size(); k++)
+        {
+            AddTgaToResourceCache( wm->textureNames_[k] );
+        }
+
+        if ((alpha == 0.0) || wm->isWater_)
+        {
+            renderMaterial->SetTechnique(0, cache->GetResource<Technique>("Techniques/DiffAlphaTranslucent.xml"));
+
+            if ((texture_file == "VOLUMECLIGHT.TGA") ||       // Large alpha areas at player height
+                (texture_file == "BEAM-000A.IFL"))
             {
-                AddTgaToResourceCache( wm->textureNames_[k] );
+                wm->isCollidable_ = false;
             }
+        }
+        else if ((alpha < 1.0) || isTGAFile32Bit( wm->textureNames_[0] ))
+        {
+            // DiffLitParticleAlpha.xml for fire particle ?
+            // DiffAOAlpha is too dark
+            renderMaterial->SetTechnique(0, cache->GetResource<Technique>("Techniques/DiffAlpha.xml"));
+            // The shadows of the trees don't render correctly with DiffAlpha - they are the
+            // shadows of the squares containing them. This can be fixed by copying the technique
+            // to a new file, eg. Techniques/DiffAlphaShadows.xml and adding in a psdefines="ALPHAMASK"
+            // parameter. We do the same thing here in code to avoid creating a custom technique
+            Pass *p = renderMaterial->GetTechnique(0)->GetPass("shadow");
+            p->SetPixelShaderDefines("ALPHAMASK");
 
-            if ((alpha == 0.0) || wm->isWater_)
+            // It's not perfect - the shadows update with a definite raster effect as you move
+            // past them, as the differing viewpoint on the tree causes alphas to change.
+            // At least it's better than the rectangular shadow for a round tree you get without it.
+
+            // Urho3d lacks the ability to make objects semi-collidable (ie. collide if textured
+            // in the area of collision but not collide if it is transparent). Possibly something
+            // could be implemented via the node collision event, but I can't see it being simple
+            // or efficient. Without remeshing the objects ourselves we have to choose between
+            // making an object completely collidable or non-collidable.
+            // Mostly this isn't too bad; we can make the trunks of the trees solid, and the leaves
+            // non-collidable, for instance. But irritatingly some of the trees just use the one
+            // texture for both leaves and trunk - so we either have a completely impassable tree
+            // (which makes some levels unnavigable) or we have a tree we can walk right through the
+            // middle of. Because this is an editor and not a game itself, the lesser evil appears to
+            // be letting some trees be walked through.
+            // Just don't set portals or save points inside trees please! There's no detection to
+            // prevent this but it will mess up the game.
+            if ((texture_file == "B-BAMBOOBUSH_A.TGA")    ||  // Large alpha areas at player height
+                (texture_file == "B-FANCORAL_A.TGA")      ||
+                (texture_file == "B-FANCORALRED_A.TGA")   ||
+                (texture_file == "B-FANFERN_A.TGA")       ||
+                (texture_file == "B-FANFERNDEAD_A.TGA")   ||
+                (texture_file == "B-SEAWEED_A.TGA")       ||
+                (texture_file == "B1-COBWEB_A.TGA")       ||
+                (texture_file == "B1-GREENSMOKE_A.TGA")   ||
+                (texture_file == "B1-MOSS-SINGLE_A.TGA")  ||
+                (texture_file == "B1-ROOTS_A.TGA")        ||
+                (texture_file == "B1-VINEANDMOSS_A.TGA")  ||
+                (texture_file == "B1-WEBPILLAR_A.TGA")    ||
+                (texture_file == "B1-WEBS_A.TGA")         ||
+                (texture_file == "B2-CLIFWEEDS_A.TGA")    ||
+                (texture_file == "BUSH_A.TGA")            ||
+                (texture_file == "BUSHES1_A.TGA")         ||
+                (texture_file == "CE-MIST_A.TGA")         ||
+                (texture_file == "CT-DROOPY_A.TGA")       ||
+                (texture_file == "CLIFWEEDS_A.TGA")       ||
+                (texture_file == "DROOPY_A.TGA")          ||
+                (texture_file == "EGG-WEB_A.TGA")         ||
+                (texture_file == "GRASSBLADE_A.TGA")      ||
+                (texture_file == "MT-BRANCHTREE_A.TGA")   ||
+                (texture_file == "S_BLUEFLOWERS.TGA")     ||
+                (texture_file == "S_BLUEFLOWERS2.TGA")    ||
+                (texture_file == "S_FLOWERSORANGE_A.TGA") ||
+                (texture_file == "S_PATCHWORK_01.TGA")    ||
+                (texture_file == "S_TALL_BUSH.TGA")       ||
+                (texture_file == "S_TALL_GRASS.TGA")      ||
+                (texture_file == "S_TREE_BITMAP2.TGA")    ||
+                (texture_file == "S_TREE_LEAVES.TGA")     ||
+                (texture_file == "S_WEEPING.TGA")         ||
+                (texture_file == "S_WEEPING_2.TGA")       ||
+                (texture_file == "S_YELFLOWERS.TGA")      ||
+                (texture_file == "SMOKE.TGA")             ||
+                (texture_file == "TR-DROOPY_A.TGA")       ||
+                (texture_file == "TR1-DEADTREE_A.TGA")    ||
+                (texture_file == "TR1-SHRUBBS_A.TGA")     ||
+                (texture_file == "TR1-TREEGREEN_A.TGA")   ||
+                (texture_file == "TR1-TREEGREEN.TGA")     ||
+                (texture_file == "TR1-TREERED_A.TGA")     ||
+                (texture_file == "TR1-TREERED.TGA")       ||
+                (texture_file == "TR1-WILLOW_A.TGA")      ||
+                (texture_file == "TR2_FLOWERS_A.TGA")     ||
+                (texture_file == "TR2_GARLIC_A.TGA")      ||
+                (texture_file == "TR2_SPIDERPLANT_A.TGA") ||
+                (texture_file == "TR2_VINEGROWTH_A.TGA")  ||
+                (texture_file == "TR2-VINEANDMOSS_A.TGA") ||
+                (texture_file == "UM1_HANGINGSLIME.TGA")  ||
+                (texture_file == "UM2-VINEANDMOSS_A.TGA") ||
+                (texture_file == "UM2-VINEGROWTH_A.TGA")  ||
+                (texture_file == "WEBS_A.TGA")            ||
+                (texture_file == "YU_WEEDS_A.TGA"))
             {
-                renderMaterial->SetTechnique(0, cache->GetResource<Technique>("Techniques/DiffAlphaTranslucent.xml"));
-
-                if ((texture_file == "VOLUMECLIGHT.TGA") ||       // Large alpha areas at player height
-                    (texture_file == "BEAM-000A.IFL"))
-                {
-                    wm->isCollidable_ = false;
-                }
+                wm->isCollidable_ = false;
             }
-            else if ((alpha < 1.0) || isTGAFile32Bit( wm->textureNames_[0] ))
-            {
-                // DiffLitParticleAlpha.xml for fire particle ?
-                // DiffAOAlpha is too dark
-                renderMaterial->SetTechnique(0, cache->GetResource<Technique>("Techniques/DiffAlpha.xml"));
-                // The shadows of the trees don't render correctly with DiffAlpha - they are the
-                // shadows of the squares containing them. This can be fixed by copying the technique
-                // to a new file, eg. Techniques/DiffAlphaShadows.xml and adding in a psdefines="ALPHAMASK"
-                // parameter. We do the same thing here in code to avoid creating a custom technique
-                Pass *p = renderMaterial->GetTechnique(0)->GetPass("shadow");
-                p->SetPixelShaderDefines("ALPHAMASK");
-
-                // It's not perfect - the shadows update with a definite raster effect as you move
-                // past them, as the differing viewpoint on the tree causes alphas to change.
-                // At least it's better than the rectangular shadow for a round tree you get without it.
-
-                // Urho3d lacks the ability to make objects semi-collidable (ie. collide if textured
-                // in the area of collision but not collide if it is transparent). Possibly something
-                // could be implemented via the node collision event, but I can't see it being simple
-                // or efficient. Without remeshing the objects ourselves we have to choose between
-                // making an object completely collidable or non-collidable.
-                // Mostly this isn't too bad; we can make the trunks of the trees solid, and the leaves
-                // non-collidable, for instance. But irritatingly some of the trees just use the one
-                // texture for both leaves and trunk - so we either have a completely impassable tree
-                // (which makes some levels unnavigable) or we have a tree we can walk right through the
-                // middle of. Because this is an editor and not a game itself, the lesser evil appears to
-                // be letting some trees be walked through.
-                // Just don't set portals or save points inside trees please! There's no detection to
-                // prevent this but it will mess up the game.
-                if ((texture_file == "B-BAMBOOBUSH_A.TGA")    ||  // Large alpha areas at player height
-                    (texture_file == "B-FANCORAL_A.TGA")      ||
-                    (texture_file == "B-FANCORALRED_A.TGA")   ||
-                    (texture_file == "B-FANFERN_A.TGA")       ||
-                    (texture_file == "B-FANFERNDEAD_A.TGA")   ||
-                    (texture_file == "B-SEAWEED_A.TGA")       ||
-                    (texture_file == "B1-COBWEB_A.TGA")       ||
-                    (texture_file == "B1-GREENSMOKE_A.TGA")   ||
-                    (texture_file == "B1-MOSS-SINGLE_A.TGA")  ||
-                    (texture_file == "B1-ROOTS_A.TGA")        ||
-                    (texture_file == "B1-VINEANDMOSS_A.TGA")  ||
-                    (texture_file == "B1-WEBPILLAR_A.TGA")    ||
-                    (texture_file == "B1-WEBS_A.TGA")         ||
-                    (texture_file == "B2-CLIFWEEDS_A.TGA")    ||
-                    (texture_file == "BUSH_A.TGA")            ||
-                    (texture_file == "BUSHES1_A.TGA")         ||
-                    (texture_file == "CE-MIST_A.TGA")         ||
-                    (texture_file == "CT-DROOPY_A.TGA")       ||
-                    (texture_file == "CLIFWEEDS_A.TGA")       ||
-                    (texture_file == "DROOPY_A.TGA")          ||
-                    (texture_file == "EGG-WEB_A.TGA")         ||
-                    (texture_file == "GRASSBLADE_A.TGA")      ||
-                    (texture_file == "MT-BRANCHTREE_A.TGA")   ||
-                    (texture_file == "S_BLUEFLOWERS.TGA")     ||
-                    (texture_file == "S_BLUEFLOWERS2.TGA")    ||
-                    (texture_file == "S_FLOWERSORANGE_A.TGA") ||
-                    (texture_file == "S_PATCHWORK_01.TGA")    ||
-                    (texture_file == "S_TALL_BUSH.TGA")       ||
-                    (texture_file == "S_TALL_GRASS.TGA")      ||
-                    (texture_file == "S_TREE_BITMAP2.TGA")    ||
-                    (texture_file == "S_TREE_LEAVES.TGA")     ||
-                    (texture_file == "S_WEEPING.TGA")         ||
-                    (texture_file == "S_WEEPING_2.TGA")       ||
-                    (texture_file == "S_YELFLOWERS.TGA")      ||
-                    (texture_file == "SMOKE.TGA")             ||
-                    (texture_file == "TR-DROOPY_A.TGA")       ||
-                    (texture_file == "TR1-DEADTREE_A.TGA")    ||
-                    (texture_file == "TR1-SHRUBBS_A.TGA")     ||
-                    (texture_file == "TR1-TREEGREEN_A.TGA")   ||
-                    (texture_file == "TR1-TREEGREEN.TGA")     ||
-                    (texture_file == "TR1-TREERED_A.TGA")     ||
-                    (texture_file == "TR1-TREERED.TGA")       ||
-                    (texture_file == "TR1-WILLOW_A.TGA")      ||
-                    (texture_file == "TR2_FLOWERS_A.TGA")     ||
-                    (texture_file == "TR2_GARLIC_A.TGA")      ||
-                    (texture_file == "TR2_SPIDERPLANT_A.TGA") ||
-                    (texture_file == "TR2_VINEGROWTH_A.TGA")  ||
-                    (texture_file == "TR2-VINEANDMOSS_A.TGA") ||
-                    (texture_file == "UM1_HANGINGSLIME.TGA")  ||
-                    (texture_file == "UM2-VINEANDMOSS_A.TGA") ||
-                    (texture_file == "UM2-VINEGROWTH_A.TGA")  ||
-                    (texture_file == "WEBS_A.TGA")            ||
-                    (texture_file == "YU_WEEDS_A.TGA"))
-                {
-                    wm->isCollidable_ = false;
-                }
-            }
-            else if (emissive)
-            {
-                // FIXME:
-                // These do not render correctly, even if the emissiveColor is set and disabling the diffuse
-                // color. I don't know enough to know how to fix it, but think it needs a custom shader.
-                // It's supposed to render so that the black parts are completely transparent and the lighter
-                // parts glow. There's no alpha channel in these images.
+        }
+        else if (emissive)
+        {
+            // FIXME:
+            // These do not render correctly, even if the emissiveColor is set and disabling the diffuse
+            // color. I don't know enough to know how to fix it, but think it needs a custom shader.
+            // It's supposed to render so that the black parts are completely transparent and the lighter
+            // parts glow. There's no alpha channel in these images.
 #if 0
-                renderMaterial->SetTechnique(0, cache->GetResource<Technique>("Techniques/DiffEmissive.xml"));
+            renderMaterial->SetTechnique(0, cache->GetResource<Technique>("Techniques/DiffEmissive.xml"));
 #else
-                renderMaterial->SetTechnique(0, cache->GetResource<Technique>("Techniques/Diff.xml"));
+            renderMaterial->SetTechnique(0, cache->GetResource<Technique>("Techniques/Diff.xml"));
 #endif
-                if ((texture_file == "B1-WEB_TILE.TGA")     ||  // Large alpha areas at player height
-                    (texture_file == "B1-WEB_TILE_END.TGA") ||
-                    (texture_file == "B1-WEB_TILE_T.TGA")   ||
-                    (texture_file == "B1-BEAMORANG.TGA"))
+            if ((texture_file == "B1-WEB_TILE.TGA")     ||  // Large alpha areas at player height
+                (texture_file == "B1-WEB_TILE_END.TGA") ||
+                (texture_file == "B1-WEB_TILE_T.TGA")   ||
+                (texture_file == "B1-BEAMORANG.TGA"))
+            {
+                wm->isCollidable_ = false;
+            }
+        }
+        else
+        {
+            // DiffAO is too dark
+            renderMaterial->SetTechnique(0, cache->GetResource<Technique>("Techniques/Diff.xml"));
+        }
+
+        Texture2D *renderTexture = cache->GetResource<Texture2D>( wm->textureNames_[0] );
+        renderMaterial->SetTexture(TU_DIFFUSE, renderTexture);
+    }
+
+
+    // Wizardry TGAs don't need UV flipping - Urrho3D wants them the same way;
+    // one of these should have done it if it WAS needed though
+
+    //   renderMaterial->SetShaderParameter( "VOffset",  Vector4( 0.0, -1.0, 0.0, 2.0 ) );
+    //   renderMaterial->SetShaderParameter( "VOffset",  Vector4( 0.0, -1.0, 0.0, 1.0 ) );
+    wm->SetMaterial( renderMaterial );
+
+    materials_.Push( wm );
+    return materials_.Size()-1;
+}
+
+Vector<int32_t> Window3DNavigator::CollateMaterials(face_t *faces, int num_faces)
+{
+    Vector<int32_t> collated_materials;
+
+    int last_tex_id = -1;
+    for (int k=0; k<num_faces; k++)
+    {
+        if (last_tex_id != faces[k].material_idx)
+        {
+            last_tex_id = faces[k].material_idx;
+
+            if (! collated_materials.Contains(last_tex_id))
+            {
+                collated_materials.Push(last_tex_id);
+            }
+        }
+    }
+    return collated_materials;
+}
+
+static void duplicateVerticesForUVs( face_t *faces, int num_faces, vertex_t **vertices, uint32_t *num_vertices, int num_frames )
+{
+    bool *uv_assigned = (bool *)calloc( *num_vertices, sizeof(bool) );
+
+    int orig_num_vertices = *num_vertices;
+
+    for (int k=0; k<num_faces; k++)
+    {
+        for (int j=0; j<VERTICES_PER_FACE; j++)
+        {
+            vertref_t *f_ptr = &(faces[k].vert[j]);
+
+            if (! uv_assigned[ f_ptr->idx ])
+            {
+                // unassigned vertex - take it
+                for (int j=0; j<num_frames; j++)
                 {
-                    wm->isCollidable_ = false;
+                    vertices[ j ][ f_ptr->idx ].u = f_ptr->u;
+                    vertices[ j ][ f_ptr->idx ].v = f_ptr->v;
                 }
+
+                uv_assigned[ f_ptr->idx ] = true;
             }
             else
             {
-                // DiffAO is too dark
-                renderMaterial->SetTechnique(0, cache->GetResource<Technique>("Techniques/Diff.xml"));
+                // Check if the entry that is already in there matches our
+                // desired UV
+                if ((fabsf(vertices[ 0 ][ f_ptr->idx ].u - f_ptr->u) < kEpsilon) &&
+                    (fabsf(vertices[ 0 ][ f_ptr->idx ].v - f_ptr->v) < kEpsilon))
+                {
+                    // sweet - can reuse original slot
+                }
+                else
+                {
+                    bool match = false;
+
+                    // already taken with a different value;
+                    // see if there is already a duplicated vertex for this
+                    // made for our new UV
+                    for (int i=orig_num_vertices; i<(int)*num_vertices; i++)
+                    {
+                        // floating point numbers don't fare well in equality tests, so look for small diffs
+                        if ((fabsf(vertices[0][i].x  - vertices[0][f_ptr->idx].x ) < kEpsilon) &&
+                            (fabsf(vertices[0][i].y  - vertices[0][f_ptr->idx].y ) < kEpsilon) &&
+                            (fabsf(vertices[0][i].z  - vertices[0][f_ptr->idx].z ) < kEpsilon) &&
+                            (fabsf(vertices[0][i].nx - vertices[0][f_ptr->idx].nx) < kEpsilon) &&
+                            (fabsf(vertices[0][i].ny - vertices[0][f_ptr->idx].ny) < kEpsilon) &&
+                            (fabsf(vertices[0][i].nz - vertices[0][f_ptr->idx].nz) < kEpsilon) &&
+                            (fabsf(vertices[0][i].u  - f_ptr->u) < kEpsilon) &&
+                            (fabsf(vertices[0][i].v  - f_ptr->v) < kEpsilon))
+                        {
+                            // match - use it
+                            match = true;
+                            f_ptr->idx = i;
+                            break;
+                        }
+                    }
+                    if (!match)
+                    {
+                        (*num_vertices)++;
+                        uv_assigned = (bool *)realloc( uv_assigned, sizeof(bool) * *num_vertices );
+
+                        for (int j=0; j<num_frames; j++)
+                        {
+                            vertices[j] = (vertex_t *)realloc( vertices[j], sizeof(vertex_t) * *num_vertices );
+
+                            vertices[j][*num_vertices-1].x  = vertices[j][f_ptr->idx].x;
+                            vertices[j][*num_vertices-1].y  = vertices[j][f_ptr->idx].y;
+                            vertices[j][*num_vertices-1].z  = vertices[j][f_ptr->idx].z;
+                            vertices[j][*num_vertices-1].nx = vertices[j][f_ptr->idx].nx;
+                            vertices[j][*num_vertices-1].ny = vertices[j][f_ptr->idx].ny;
+                            vertices[j][*num_vertices-1].nz = vertices[j][f_ptr->idx].nz;
+                            vertices[j][*num_vertices-1].u  = f_ptr->u;
+                            vertices[j][*num_vertices-1].v  = f_ptr->v;
+                        }
+                        uv_assigned[*num_vertices-1] = true;
+
+                        f_ptr->idx = *num_vertices-1;
+                    }
+                }
             }
-
-            Texture2D *renderTexture = cache->GetResource<Texture2D>( wm->textureNames_[0] );
-            renderMaterial->SetTexture(TU_DIFFUSE, renderTexture);
         }
-
-
-        // Wizardry TGAs don't need UV flipping - Urrho3D wants them the same way;
-        // one of these should have done it if it WAS needed though
-
-        //   renderMaterial->SetShaderParameter( "VOffset",  Vector4( 0.0, -1.0, 0.0, 2.0 ) );
-        //   renderMaterial->SetShaderParameter( "VOffset",  Vector4( 0.0, -1.0, 0.0, 1.0 ) );
-        wm->SetMaterial( renderMaterial );
-
-        materials_.Push( wm );
     }
+    free( uv_assigned );
 }
-
-typedef struct
-{
-    float  x;
-    float  y;
-    float  z;
-    float  nx;
-    float  ny;
-    float  nz;
-    float  u;
-    float  v;
-} vertex_t;
-
-typedef struct
-{
-    float  u;
-    float  v;
-} uv_t;
 
 void Window3DNavigator::LoadMesh( SLFFile *f )
 {
     auto* cache = GetSubsystem<ResourceCache>();
 
-    vertex_t *v         = NULL;
-    uv_t     *uv        = NULL;
-    int32_t  *puv       = NULL;
-    uint32_t *v_indices = NULL;
-    int32_t  *polytex   = NULL;
+    vertex_t *v           = NULL;
+    face_t   *p           = NULL;
+    uv_t     *uv          = NULL;
 
     try
     {
-        qint32  has_sunlight     = f->readLELong();
-        quint32 num_vertices     = f->readLEULong();
-        qint32  uv_count         = f->readLELong();
-        quint32 num_polys        = f->readLEULong();
+        int32_t  has_sunlight     = f->readLELong();
+        uint32_t num_vertices     = f->readLEULong();
+        int32_t  uv_count         = f->readLELong();
+        uint32_t num_polys        = f->readLEULong();
 
         f->skip(8);
 
-        qint32 vertex_materials  = f->readLELong();
+        int32_t vertex_materials  = f->readLELong();
 
         // printf("%08x: %d vertices, %d triangles, uv_count=%d has_sunlight=%d, vertex_materials=%d\n", f->pos(), num_vertices, num_polys, uv_count, has_sunlight, vertex_materials);
 
@@ -708,11 +872,7 @@ void Window3DNavigator::LoadMesh( SLFFile *f )
             v[k].y = f->readFloat() * kScale;
             v[k].z = f->readFloat() * kScale;
 
-            // Normals get setup below, but uv needs an invalid default
-            // assigned so we can tell when a uv has already been assigned
-            // to a vertex and has to be duplicated
-            // because 2 different polygons want different uvs
-            v[k].u = v[k].v = -1.0;
+            // Other fields get setup below
         }
 
         uv = (uv_t *)malloc(sizeof(uv_t)*uv_count);
@@ -728,30 +888,35 @@ void Window3DNavigator::LoadMesh( SLFFile *f )
             f->skip( num_vertices * 4 );
         }
 
+        p = (face_t *)malloc(sizeof(face_t)*num_polys);
+
         // poly uv array
-        puv = (int32_t *)malloc(sizeof(int32_t)*3*num_polys);
         for (int k=0; k<(int)num_polys; k++)
         {
-            puv[k*3+0] = f->readLELong();
-            puv[k*3+1] = f->readLELong();
-            puv[k*3+2] = f->readLELong();
+            for (int j=0; j<VERTICES_PER_FACE; j++)
+            {
+                uint32_t idx = f->readLELong();
+
+                p[k].vert[j].u = uv[ idx ].u;
+                p[k].vert[j].v = uv[ idx ].v;
+            }
         }
+        free( uv );
 
         // Poly vertex array
-        v_indices = (uint32_t *)malloc(sizeof(uint32_t)*3*num_polys);
         for (int k=0; k<(int)num_polys; k++)
         {
-            v_indices[k*3+0] = f->readLEULong();
-            v_indices[k*3+1] = f->readLEULong();
-            v_indices[k*3+2] = f->readLEULong();
+            for (int j=0; j<VERTICES_PER_FACE; j++)
+            {
+                p[k].vert[j].idx = f->readLEULong();
+            }
         }
 
         // Poly texture array
         // It is NOT safe to assume all polygons in a mesh use the same material; they don't
-        polytex = (int32_t *)malloc(sizeof(int32_t)*num_polys);
         for (int k=0; k<(int)num_polys; k++)
         {
-            polytex[k] = f->readLELong();
+            p[k].material_idx = f->readLELong();
         }
 
         // Vertex normal array
@@ -782,88 +947,13 @@ void Window3DNavigator::LoadMesh( SLFFile *f )
         // much as we can. Since we only do this within a single mesh,
         // we hope that the polygons aren't going to be spread out all
         // over the level where it makes a mockery of the bounding box.
-        Vector<int32_t> collated_materials;
-
-        int last_tex_id = -1;
-        for (int k=0; k<(int)num_polys; k++)
-        {
-            if (last_tex_id != polytex[k])
-            {
-                last_tex_id = polytex[k];
-
-                if (! collated_materials.Contains(last_tex_id))
-                {
-                    collated_materials.Push(last_tex_id);
-                }
-            }
-        }
+        Vector<int32_t> collated_materials = CollateMaterials( p, (int)num_polys );
 
         // Now we double up any vertices that need to use
         // multiple uvs, and adjust the vertex indices
         // to point to newly added vertices
 
-        int orig_num_vertices = num_vertices;
-
-        for (int k=0; k<(int)num_polys; k++)
-        {
-            for (int j=0; j<3; j++)
-            {
-                float v_texu = uv[ puv[k*3+j] ].u;
-                float v_texv = uv[ puv[k*3+j] ].v;
-
-                vertex_t *v_pt = &(v[ v_indices[k*3+j] ]);
-
-                if ((v_pt->u == -1.0) && (v_pt->v == -1.0))
-                {
-                    // unassigned vertex;
-                    v_pt->u = v_texu;
-                    v_pt->v = v_texv;
-                }
-                else
-                {
-                    bool match = false;
-                    // already taken; see if there is already a duplicate
-                    // made for our new UV
-                    for (int i=orig_num_vertices; i<(int)num_vertices; i++)
-                    {
-                        // floating point numbers don't fare well in equality tests, so look for small diffs
-                        if ((fabsf(v[i].x  - v_pt->x ) < kEpsilon) &&
-                            (fabsf(v[i].y  - v_pt->y ) < kEpsilon) &&
-                            (fabsf(v[i].z  - v_pt->z ) < kEpsilon) &&
-                            (fabsf(v[i].nx - v_pt->nx) < kEpsilon) &&
-                            (fabsf(v[i].ny - v_pt->ny) < kEpsilon) &&
-                            (fabsf(v[i].nz - v_pt->nz) < kEpsilon) &&
-                            (fabsf(v[i].u  - v_texu) < kEpsilon) &&
-                            (fabsf(v[i].v  - v_texv) < kEpsilon))
-                        {
-                            // match - use it
-                            match = true;
-                            v_indices[k*3+j] = i;
-                            break;
-                        }
-                    }
-                    if (!match)
-                    {
-                        num_vertices++;
-                        v = (vertex_t *)realloc( v, sizeof(vertex_t)*num_vertices );
-
-                        // Reset v_pt since v has changed
-                        v_pt = &(v[ v_indices[k*3+j] ]);
-
-                        v[num_vertices-1].x  = v_pt->x;
-                        v[num_vertices-1].y  = v_pt->y;
-                        v[num_vertices-1].z  = v_pt->z;
-                        v[num_vertices-1].nx = v_pt->nx;
-                        v[num_vertices-1].ny = v_pt->ny;
-                        v[num_vertices-1].nz = v_pt->nz;
-                        v[num_vertices-1].u  = v_texu;
-                        v[num_vertices-1].v  = v_texv;
-
-                        v_indices[k*3+j] = num_vertices-1;
-                    }
-                }
-            }
-        }
+        duplicateVerticesForUVs( p, (int)num_polys, &v, &num_vertices, 1 );
 
         SharedPtr<VertexBuffer> vb(new VertexBuffer(context_));
 
@@ -884,7 +974,7 @@ void Window3DNavigator::LoadMesh( SLFFile *f )
 
         vertexBuffers.Push(vb);
 
-        // We can't free the v list because vertexBuffers is maintaining a references to it
+        // We can't free the v list because vertexBuffers is maintaining a reference to it
         stuffToFreeLater_.Push( v );
 
         for (int i=0; i<(int)collated_materials.Size(); i++)
@@ -921,13 +1011,13 @@ void Window3DNavigator::LoadMesh( SLFFile *f )
 
             for (int k=0; k<(int)num_polys; k++)
             {
-                if (polytex[k] == collated_materials[i])
+                if (p[k].material_idx == collated_materials[i])
                 {
-                    for (int j=0; j<3; j++)
+                    for (int j=0; j<VERTICES_PER_FACE; j++)
                     {
-                        v_thisgeo[geo_upto++] = v_indices[k*3+j];
+                        v_thisgeo[geo_upto++] = p[k].vert[j].idx;
 
-                        vertex_t *v_pt = &(v[ v_indices[k*3+j] ]);
+                        vertex_t *v_pt = &(v[ p[k].vert[j].idx ]);
 
                         if (meshMin.x_ > v_pt->x)
                             meshMin.x_ = v_pt->x;
@@ -989,16 +1079,21 @@ void Window3DNavigator::LoadMesh( SLFFile *f )
             auto* object = objectNode->CreateComponent<StaticModel>();
             object->SetModel(fromScratchModel);
 
-            object->SetMaterial( materials_[ collated_materials[ i ] ]->material_ );
+            int material_idx = collated_materials[ i ];
 
-            if (materials_[ collated_materials[i] ]->IsCollidable())
+            if (materials_[ material_idx ]->hash_ == "")
+                material_idx = materials_[ material_idx ]->mapsTo_;
+
+            object->SetMaterial( materials_[ material_idx ]->material_ );
+
+            if (materials_[ material_idx ]->IsCollidable())
             {
                 auto* body = objectNode->CreateComponent<RigidBody>();
                 body->SetCollisionLayer(2);
                 auto* shape = objectNode->CreateComponent<CollisionShape>();
                 shape->SetTriangleMesh(object->GetModel(), 0);
             }
-            if (materials_[ collated_materials[i] ]->IsWater())
+            if (materials_[ material_idx ]->IsWater())
             {
                 // We have to duplicate the model, since we can't attach multiple textures
                 // to the one model. The duplicated model will have a reflection surface on
@@ -1116,18 +1211,12 @@ void Window3DNavigator::LoadMesh( SLFFile *f )
         }
         collated_materials.Clear();
 
-        if (polytex)   free(polytex);
-        if (v_indices) free(v_indices);
-        if (puv)       free(puv);
-        if (uv)        free(uv);
+        if (p)         free(p);
     }
     catch (SLFFileException &e)
     {
         fprintf(stderr, "File too short at offset 0x%08x\n",(unsigned int)f->pos());
-        if (polytex)   free(polytex);
-        if (v_indices) free(v_indices);
-        if (puv)       free(puv);
-        if (uv)        free(uv);
+        if (p)         free(p);
         if (v)         free(v);
         throw SLFFileException();
     }
@@ -1147,7 +1236,7 @@ typedef struct
 
 void Window3DNavigator::LoadLights( SLFFile *f )
 {
-    qint16   num_lights = f->readLEShort();
+    int16_t   num_lights = f->readLEShort();
 
     for (int k=0; k<num_lights; k++)
     {
@@ -1190,7 +1279,7 @@ void Window3DNavigator::LoadLights( SLFFile *f )
                 // not included here
                 if (no_idea & 0x10)
                 {
-                    processProperties( f );
+                    processProperties( f, false, NULL );
                 }
             }
         }
@@ -1212,7 +1301,7 @@ void Window3DNavigator::LoadLights( SLFFile *f )
 
 void Window3DNavigator::SkipMonsters( SLFFile *f )
 {
-    qint32 num_monsters = f->readLELong();
+    int32_t num_monsters = f->readLELong();
 
     for (int k=0; k<num_monsters; k++)
     {
@@ -1220,28 +1309,152 @@ void Window3DNavigator::SkipMonsters( SLFFile *f )
 
         f->read( monster_id, sizeof(monster_id) );
 
-        processProperties( f );
+        processProperties( f, false, NULL );
     }
 }
 
-void Window3DNavigator::processProperties( SLFFile *f )
+// This is the same way Wizardry calculates it - with a 3x3 non-homogenous matrix
+static void setupMatrix( float *matrix_33, float theta, float rotvec_x, float rotvec_y, float rotvec_z )
+{
+    matrix_33[0*3+0] = 1.0; // Identity matrix
+    matrix_33[0*3+1] = 0.0;
+    matrix_33[0*3+2] = 0.0;
+    matrix_33[1*3+0] = 0.0;
+    matrix_33[1*3+1] = 1.0;
+    matrix_33[1*3+2] = 0.0;
+    matrix_33[2*3+0] = 0.0;
+    matrix_33[2*3+1] = 0.0;
+    matrix_33[2*3+2] = 1.0;
+
+    // This is setting up the standard 3d matrix for rotation around an arbitrary point
+    if ( theta != 0.0 )
+    {
+        double cos_theta = cos(theta);
+        double sin_theta = sin(theta);
+
+        matrix_33[0*3+0] = (1.0 - rotvec_x * rotvec_x) * cos_theta + rotvec_x * rotvec_x;
+        matrix_33[0*3+1] = rotvec_y * rotvec_x * (1.0 - cos_theta) - rotvec_z * sin_theta;
+        matrix_33[0*3+2] =  rotvec_y * sin_theta + rotvec_z * rotvec_x * (1.0 - cos_theta);
+
+        matrix_33[1*3+0] =  rotvec_z * sin_theta + rotvec_y * rotvec_x * (1.0 - cos_theta);
+        matrix_33[1*3+1] = (1.0 - rotvec_y * rotvec_y) * cos_theta + rotvec_y * rotvec_y;
+        matrix_33[1*3+2] = (1.0 - cos_theta) * rotvec_z * rotvec_y - rotvec_x * sin_theta;
+
+        matrix_33[2*3+0] = rotvec_z * rotvec_x * (1.0 - cos_theta) - rotvec_y * sin_theta;
+        matrix_33[2*3+1] = rotvec_x * sin_theta + (1.0 - cos_theta) * rotvec_z * rotvec_y;
+        matrix_33[2*3+2] = (1.0 - rotvec_z * rotvec_z) * cos_theta + rotvec_z * rotvec_z;
+    }
+}
+
+static void multiplyVector( float *vector_3, float *matrix_33)
+{
+    float result[3];
+
+    // You can't modify vector_3 until all the calculations are complete
+    result[0] = matrix_33[0*3+0] * vector_3[0] + matrix_33[0*3+1] * vector_3[1] + matrix_33[0*3+2] * vector_3[2];
+    result[1] = matrix_33[1*3+0] * vector_3[0] + matrix_33[1*3+1] * vector_3[1] + matrix_33[1*3+2] * vector_3[2];
+    result[2] = matrix_33[2*3+0] * vector_3[0] + matrix_33[2*3+1] * vector_3[1] + matrix_33[2*3+2] * vector_3[2];
+
+    vector_3[0] = result[0];
+    vector_3[1] = result[1];
+    vector_3[2] = result[2];
+}
+
+void Window3DNavigator::processProperties( SLFFile *f, bool expect_matrix, void *v )
 {
     qint8 s = f->readByte();
 
     if (s == 0)
     {
         int8_t  m;
-        int32_t r;
+        int32_t num_frames;
 
         m = f->readByte();
         f->skip( 8 );
-        r = f->readLELong();
+        num_frames = f->readLELong();
 
-        for (int j=0; j<r; j++)
+        if (! expect_matrix || (m != 2))
         {
-            f->skip( 28 );
+            f->skip( 28 * num_frames );
             if (m == 2)
-                f->skip( 12 );
+                f->skip( 12 * num_frames );
+        }
+        else
+        {
+            struct animated_mesh *ani_ptr = (struct animated_mesh *)v;
+
+            // We need to make a copy of the first frame with the
+            // vertices readjusted to remove the scale and the origin offset
+            // because the first frame is about to be overwritten with
+            // the matrix calculated version, and we will need this information
+            // to calculate all the other frames also.
+
+            uint32_t  num_vertices = ani_ptr->num_vertices;
+            float    *vertices = (float *)malloc( sizeof(float)*3 * num_vertices );
+
+            if (vertices)
+            {
+                for (int k=0; k<(int)num_vertices; k++)
+                {
+                    vertices[k*3+0] = ani_ptr->frames[ 0 ][ k ].x / 500.0 / kScale;
+                    vertices[k*3+1] = ani_ptr->frames[ 0 ][ k ].y / 500.0 / kScale;
+                    vertices[k*3+2] = ani_ptr->frames[ 0 ][ k ].z / 500.0 / kScale;
+                }
+            }
+
+            for (int j=0; j<num_frames; j++)
+            {
+                float x = f->readFloat();
+                float y = f->readFloat();
+                float z = f->readFloat();
+
+                float rotation = f->readFloat();
+                float rotvec_x = f->readFloat();
+                float rotvec_y = f->readFloat();
+                float rotvec_z = f->readFloat();
+
+                float u1 = f->readFloat();
+                float u2 = f->readFloat();
+                float u3 = f->readFloat();
+
+                if (ani_ptr->frames && (ani_ptr->num_frames >= num_frames))
+                {
+                    if (!ani_ptr->frames[j])
+                    {
+                        ani_ptr->frames[j] = (vertex_t *)calloc( ani_ptr->num_vertices, sizeof(vertex_t) );
+                    }
+                    if (ani_ptr->frames[j])
+                    {
+                        float matrix[9];
+
+                        setupMatrix( matrix, rotation, rotvec_x, rotvec_y, rotvec_z );
+
+                        for (int k=0; k<(int)ani_ptr->num_vertices; k++)
+                        {
+                            ani_ptr->frames[ j ][ k ].x = vertices[k*3+0] - x;
+                            ani_ptr->frames[ j ][ k ].y = vertices[k*3+1] - y;
+                            ani_ptr->frames[ j ][ k ].z = vertices[k*3+2] - z;
+
+                            multiplyVector( &(ani_ptr->frames[j][k].x), matrix );
+
+                            ani_ptr->frames[ j ][ k ].x += ani_ptr->origin_x;
+                            ani_ptr->frames[ j ][ k ].y += ani_ptr->origin_y;
+                            ani_ptr->frames[ j ][ k ].z += ani_ptr->origin_z;
+
+                            ani_ptr->frames[ j ][ k ].x *= 500.0 * kScale;
+                            ani_ptr->frames[ j ][ k ].y *= 500.0 * kScale;
+                            ani_ptr->frames[ j ][ k ].z *= 500.0 * kScale;
+
+                            // Copy the UVs from the 0th frame
+                            if (j > 0)
+                            {
+                                ani_ptr->frames[ j ][ k ].u = ani_ptr->frames[ 0 ][ k ].u;
+                                ani_ptr->frames[ j ][ k ].v = ani_ptr->frames[ 0 ][ k ].v;
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -1251,25 +1464,35 @@ void Window3DNavigator::SkipPropsOrBitmaps( SLFFile *f )
     int32_t num_things = f->readLELong();
 
     assert(num_things < 100000);
-
     for (int k=0; k < num_things; k++)
     {
-        quint8  sbuf1;
-        quint8  sbuf2;
-        quint8  sbuf3;
+        struct animated_mesh ani;
+
+        uint8_t  sbuf1;
+        uint8_t  sbuf2;
+        uint8_t  sbuf3;
+
+        memset(&ani, 0, sizeof(struct animated_mesh));
 
         sbuf2 = f->readUByte();
         if (sbuf2 > 3)
         {
-            quint8 pao[6];
+            uint8_t pao[6];
 
             f->skip( 1 );
             if (sbuf2 >= 5)
-                f-> skip( 13 );
+            {
+                f->skip( 1 );
+                ani.origin_x = f->readFloat();
+                ani.origin_y = f->readFloat();
+                ani.origin_z = f->readFloat();
+            }
             if (sbuf2 >= 6)
                 f->skip( 4 );
             if (sbuf2 >= 7)
-                f->skip( 64 );
+            {
+                f->read( ani.object_name, 64 );
+            }
             if (sbuf2 >= 8)
             {
                 sbuf1 = f->readUByte();
@@ -1278,7 +1501,10 @@ void Window3DNavigator::SkipPropsOrBitmaps( SLFFile *f )
             sbuf1 = f->readUByte();
 
             f->read( (char *)pao, 6 );
-            if (sbuf1 >= 3)  f->skip( 4 );
+            if (sbuf1 >= 3)
+            {
+                ani.fps = f->readFloat();
+            }
             if (sbuf1 >= 5)  f->skip( 1 );
             if (sbuf1 >= 11) f->skip( 1 );
             if (sbuf1 >= 6)  f->skip( 5 );
@@ -1286,13 +1512,13 @@ void Window3DNavigator::SkipPropsOrBitmaps( SLFFile *f )
             f->skip( pao[0] );
             if (sbuf1 >= 7)
             {
-                quint8 num_frames = f->readUByte();
+                ani.num_frames = f->readUByte();
 
-                f->skip( 24 * num_frames );
+                f->skip( 24 * ani.num_frames); // bounding boxes
             }
             if (sbuf1 >= 8)
             {
-                quint8 s, t;
+                uint8_t s, t;
 
                 s = f->readUByte();
                 for (int j=0; j<s; j++)
@@ -1320,7 +1546,7 @@ void Window3DNavigator::SkipPropsOrBitmaps( SLFFile *f )
                 {
                     if (f->readByte())
                     {
-                        processProperties(f);
+                        processProperties(f, ani.expect_matrix, &ani);
                     }
                 }
             }
@@ -1335,8 +1561,9 @@ void Window3DNavigator::SkipPropsOrBitmaps( SLFFile *f )
                     {
                         f->skip( 1 );
 
-                        bitmapMore(f, false , true );
-                        processProperties(f);
+                        f->skip(2);
+                        bitmapDetails( f, false, &ani );
+                        processProperties(f, ani.expect_matrix, &ani);
                     }
                 }
             }
@@ -1345,7 +1572,8 @@ void Window3DNavigator::SkipPropsOrBitmaps( SLFFile *f )
                 for (int j=0; j< pao[0]; j++)
                 {
                     f->skip( 1 );
-                    bitmapMore(f, false , true );
+                    f->skip( 2 );
+                    bitmapDetails( f, false, &ani );
                 }
             }
         }
@@ -1355,18 +1583,268 @@ void Window3DNavigator::SkipPropsOrBitmaps( SLFFile *f )
             if (sbuf2 > 1)
                 f->skip( 4 );
 
-            bitmapMore(f, true, true );
+            f->skip(2);
+            bitmapDetails( f, true, &ani );
         }
         if (sbuf2 >= 3)
         {
             if (f->readByte())
-                processXRefs(f, NULL, NULL);
+                processXRefs( f, ani.trigger_name, NULL );
         }
         if (sbuf2 >= 9)
         {
             if (f->readByte())
                 f->skip( 2 );
         }
+        if (! ani.trigger_name[0])
+        {
+            // object does NOT have a trigger on it - so should just be an
+            // animated object without requiring any interaction.
+
+            // Load the materials/textures for the mesh and get the index at which they're in the list now
+            // The LoadMaterial() function won't load a completely identical material more than once, and
+            // we have the mapsTo_ field of the materials_ list to backtrack to the actual load every time
+            // a duplicate is encountered
+            int startingMatIdx = -1;
+            for (int k=0; k<(int)ani.num_materials; k++)
+            {
+                int idx = LoadMaterial( pvlFilename_.Substring(0, pvlFilename_.FindLast("/")), ani.material_buf[k] );
+
+                if (startingMatIdx < 0)
+                    startingMatIdx = idx;
+            }
+            if (startingMatIdx < 0)
+                startingMatIdx = 0;
+
+            Vector<int32_t> collated_materials = CollateMaterials( ani.faces, (int)ani.num_faces );
+
+            // Pest: Copy the vertex_t for frame[0] so that the non-populated normals are absent
+            // Have to do this because Urho doesn't give us a way to ignore a field, and Wizardry
+            // decided not to put normals in on dynamic objects, but to include them on static ones.
+
+            float *strippedFrame = (float *)malloc( 5 * sizeof(float) * ani.num_vertices );
+            if (strippedFrame)
+            {
+                for (int k=0; k<(int)ani.num_vertices; k++)
+                {
+                    strippedFrame[5*k+0] = ani.frames[0][k].x;
+                    strippedFrame[5*k+1] = ani.frames[0][k].y;
+                    strippedFrame[5*k+2] = ani.frames[0][k].z;
+                    strippedFrame[5*k+3] = ani.frames[0][k].u;
+                    strippedFrame[5*k+4] = ani.frames[0][k].v;
+                }
+            }
+            SharedPtr<VertexBuffer> vb(new VertexBuffer(context_));
+
+            PODVector<VertexElement> elements;
+            elements.Push(VertexElement(TYPE_VECTOR3, SEM_POSITION));
+            // No normals on these meshes
+            elements.Push(VertexElement(TYPE_VECTOR2, SEM_TEXCOORD));
+
+            // Though not necessary to render, the vertex & index buffers must be listed
+            // in the model so that it can be saved properly
+            Vector<SharedPtr<VertexBuffer> > vertexBuffers;
+
+            // Shadowed buffer needed for raycasts to work, and so that data can be
+            // automatically restored on device loss
+            vb->SetShadowed( true );
+            vb->SetSize( ani.num_vertices, elements );
+            vb->SetData( strippedFrame );
+
+            vertexBuffers.Push(vb);
+
+            // We can't free the v list because vertexBuffers is maintaining a reference to it
+            stuffToFreeLater_.Push( strippedFrame );
+
+            for (int i=0; i<(int)collated_materials.Size(); i++)
+            {
+                // We can only texture at the object level, not the geometry level,
+                // so this forces us to make LOTS and LOTS of models to represent
+                // the scene. Unfortunate because it means a lot more objects to
+                // track with the physics engine too.
+
+                SharedPtr<Model> fromScratchModel(new Model(context_));
+
+                Vector<SharedPtr<IndexBuffer> > indexBuffers;
+
+                fromScratchModel->SetNumGeometries(1);
+
+                SharedPtr<IndexBuffer> ib(new IndexBuffer(context_));
+                SharedPtr<Geometry> geom(new Geometry(context_));
+
+                // Go through all the polygons in the mesh, and if they are
+                // using the current texture, add their vertices into a new
+                // list of indices. Also keep track of the minimum and maximum
+                // cartesian co-ordinates so an appropriate bounding box can be
+                // set.
+
+                // v_indices are 32 bit because that's the way the PVL format stored them
+                // and we can bulk read them that way, but Urrho3D wants uint16
+                uint16_t *v_thisgeo = (uint16_t *)malloc(sizeof(uint16_t)*3*ani.num_faces);
+                int geo_upto = 0;
+
+                // Set these to large values in the wrong direction so the first
+                // point check will correct them
+                Vector3 meshMin( 10000000.0, 10000000.0, 10000000.0) ;
+                Vector3 meshMax(-10000000.0,-10000000.0,-10000000.0) ;
+
+                // We're going to move the vertices around when we animate, so setup
+                // some bounds that capture the scope of all frames combined.
+
+                for (int k=0; k<(int)ani.num_faces; k++)
+                {
+                    if (ani.faces[k].material_idx == collated_materials[i])
+                    {
+                        for (int m=0; m<VERTICES_PER_FACE; m++)
+                        {
+                            v_thisgeo[geo_upto++] = ani.faces[k].vert[m].idx;
+
+                            // Normally it would make more sense for the frames to be the
+                            // outer level of the loop. But not on this occasion.
+                            // We don't want v_thisgeo to skyrocket by recounting the same
+                            // thing for multiple frames, and we've already filtered on
+                            // material idx, making it more efficient to have this as the
+                            // inner loop.
+
+                            for (int j=0; j<(int)ani.num_frames; j++)
+                            {
+                                assert( ani.frames[j] );
+
+                                vertex_t *v_pt = &(ani.frames[j][ ani.faces[k].vert[m].idx ]);
+
+                                if (meshMin.x_ > v_pt->x)
+                                    meshMin.x_ = v_pt->x;
+                                if (meshMin.y_ > v_pt->y)
+                                    meshMin.y_ = v_pt->y;
+                                if (meshMin.z_ > v_pt->z)
+                                    meshMin.z_ = v_pt->z;
+                                if (meshMax.x_ < v_pt->x)
+                                    meshMax.x_ = v_pt->x;
+                                if (meshMax.y_ < v_pt->y)
+                                    meshMax.y_ = v_pt->y;
+                                if (meshMax.z_ < v_pt->z)
+                                    meshMax.z_ = v_pt->z;
+                            }
+                        }
+                    }
+                }
+                v_thisgeo = (uint16_t *) realloc(v_thisgeo, sizeof(uint16_t)*geo_upto);
+
+                // Update the world bounding box
+                if (worldMin_.x_ > meshMin.x_)
+                    worldMin_.x_ = meshMin.x_;
+                if (worldMin_.y_ > meshMin.y_)
+                    worldMin_.y_ = meshMin.y_;
+                if (worldMin_.z_ > meshMin.z_)
+                    worldMin_.z_ = meshMin.z_;
+                if (worldMax_.x_ < meshMax.x_)
+                    worldMax_.x_ = meshMax.x_;
+                if (worldMax_.y_ < meshMax.y_)
+                    worldMax_.y_ = meshMax.y_;
+                if (worldMax_.z_ < meshMax.z_)
+                    worldMax_.z_ = meshMax.z_;
+
+                ib->SetShadowed( true );
+                ib->SetSize( geo_upto, false );
+                ib->SetData( v_thisgeo );
+
+                indexBuffers.Push(ib);
+
+                // We can't free this list, because ib maintains a reference to it now
+                stuffToFreeLater_.Push( v_thisgeo );
+
+                geom->SetVertexBuffer( 0, vb );
+                geom->SetIndexBuffer( ib );
+                geom->SetDrawRange( TRIANGLE_LIST, 0, geo_upto );
+
+                fromScratchModel->SetGeometry( 0, 0, geom );
+
+                fromScratchModel->SetBoundingBox( BoundingBox(meshMin, meshMax) );
+
+                PODVector<unsigned> morphRangeStarts;
+                PODVector<unsigned> morphRangeCounts;
+                morphRangeStarts.Push(0);
+                morphRangeCounts.Push(0);
+                fromScratchModel->SetVertexBuffers(vertexBuffers, morphRangeStarts, morphRangeCounts);
+                fromScratchModel->SetIndexBuffers(indexBuffers);
+
+                Node* objectNode = scene_->CreateChild();
+                objectNode->SetPosition(Vector3(0.0f, 0.0f, 0.0f));
+                auto* object = objectNode->CreateComponent<StaticModel>();
+                object->SetModel(fromScratchModel);
+
+                // The StaticModel just created has no bones, so unless we want to create them on the
+                // fly, an AnimationTrack isn't going to help here. So we've left this as a static
+                // model that we'll need to keep updating manually.
+
+                if (ani.num_frames > 1)
+                {
+                    float *exp_frames = (float *) malloc( ani.num_frames * ani.num_vertices * 5 * sizeof(float) );
+
+                    if (exp_frames)
+                    {
+                        int num_frames = 0;
+
+                        for (int j=0; j<(int)ani.num_frames; j++)
+                        {
+                            if (ani.frames[j])
+                            {
+                                for (int k=0; k<(int)ani.num_vertices; k++)
+                                {
+                                    exp_frames[ (num_frames * ani.num_vertices + k) * 5 + 0 ] = ani.frames[j][k].x;
+                                    exp_frames[ (num_frames * ani.num_vertices + k) * 5 + 1 ] = ani.frames[j][k].y;
+                                    exp_frames[ (num_frames * ani.num_vertices + k) * 5 + 2 ] = ani.frames[j][k].z;
+                                    exp_frames[ (num_frames * ani.num_vertices + k) * 5 + 3 ] = ani.frames[j][k].u;
+                                    exp_frames[ (num_frames * ani.num_vertices + k) * 5 + 4 ] = ani.frames[j][k].v;
+                                }
+                                num_frames++;
+                            }
+                        }
+                        if (num_frames > 1)
+                        {
+                            auto* animator = objectNode->CreateComponent<WizardryAnimatedMesh>();
+
+                            animator->num_frames_    = num_frames;
+                            animator->num_vertices_  = ani.num_vertices;
+                            animator->frames_        = exp_frames;      // will take ownership of memory
+                            animator->next_frame_    = 1;               // 0 already setup here
+                            animator->frame_delay_   = 1.0 / ani.fps;
+                        }
+                    }
+                }
+
+                int material_idx = collated_materials[ i ] + startingMatIdx;
+
+                if (materials_[ material_idx ]->hash_ == "")
+                    material_idx = materials_[ material_idx ]->mapsTo_;
+
+                object->SetMaterial( materials_[ material_idx ]->material_ );
+
+                if (materials_[ material_idx ]->IsCollidable())
+                {
+                    auto* body = objectNode->CreateComponent<RigidBody>();
+                    body->SetCollisionLayer(2);
+                    auto* shape = objectNode->CreateComponent<CollisionShape>();
+                    shape->SetTriangleMesh(object->GetModel(), 0);
+                }
+                object->SetCastShadows(true);
+            }
+            collated_materials.Clear();
+
+            // TODO:
+            // add an animator that can apply the altered vertices over time
+        }
+        for (int k=0; k<(int)ani.num_materials; k++)
+        {
+            free( ani.material_buf[k] );
+        }
+        free( ani.material_buf );
+        for (int k=0; k<(int)ani.num_frames; k++)
+        {
+            free( ani.frames[k] );
+        }
+        free( ani.frames );
+        free( ani.faces );
     }
 }
 
@@ -1388,13 +1866,13 @@ void Window3DNavigator::SkipCameras( SLFFile *f )
         if (v8)
             f->skip( 4 );
 
-        processProperties(f);
+        processProperties(f, false, NULL);
     }
 }
 
 void Window3DNavigator::SkipItems( SLFFile *f )
 {
-    qint32 num_items = f->readLELong();
+    int32_t num_items = f->readLELong();
 
     for (int k=0; k<num_items; k++)
     {
@@ -1480,14 +1958,30 @@ void Window3DNavigator::processXRefs( SLFFile *f, char *trigger_name_OUT, float 
             if (a >= 3)
                 f->skip( 40 );
             if (a >= 4)
+            {
                 f->read(trigger_name, 128);
+                // If xyzh_OUT is null we're not hunting for teleports - we're hunting for
+                // objects with names triggers, and want to know about all of them
+                if ((xyzh_OUT == NULL) && (trigger_name_OUT != NULL))
+                {
+                    strcpy( trigger_name_OUT, trigger_name );
+                }
+            }
             if (a >= 5)
                 f->skip( 1 );
             break;
 
         case 4: // Location
             a = f->readByte();
+
             f->read(trigger_name, 128);
+            // If xyzh_OUT is null we're not hunting for teleports - we're hunting for
+            // objects with names triggers, and want to know about all of them
+            if ((xyzh_OUT == NULL) && (trigger_name_OUT != NULL))
+            {
+                strcpy( trigger_name_OUT, trigger_name );
+            }
+
             c = f->readByte();
             f->skip( 6 );
             location_type = f->readLELong();
@@ -1665,13 +2159,13 @@ void Window3DNavigator::SkipFogOptions( SLFFile *f )
 
 int Window3DNavigator::LoadPVL( int map_id )
 {
-    String filename = ::toUrho(::getLevelFilename( map_id ));
+    pvlFilename_ = ::toUrho(::getLevelFilename( map_id ));
 
     // The last argument to this constructor is supposed to be defaultable, but
     // the compiler is choosing the wrong constructor if we omit it here (due to
     // out usage of C Strings instead of QStrings, it matches the wrong thing).
     // And usage of the wrong constructor fails to load anything at all.
-    SLFFile f( "LEVELS", "LEVELS.SLF", filename.CString(), false );
+    SLFFile f( "LEVELS", "LEVELS.SLF", pvlFilename_.CString(), false );
 
     // The PVL file format may not have been deliberately designed to be obfuscated
     // - it could easily have been a lot worse - but it also wasn't designed to be
@@ -1691,27 +2185,46 @@ int Window3DNavigator::LoadPVL( int map_id )
 
     if (!f.isGood())
     {
-        fprintf(stderr, "no good on %s (map:%d)\n", filename.CString(), map_id);
+        fprintf(stderr, "no good on %s (map:%d)\n", pvlFilename_.CString(), map_id);
         return -1;
     }
     f.open(QFile::ReadOnly);
 
     mapId_ = map_id;
-    Urho3D::Log::Write(Urho3D::LOG_INFO, ::toUrho(::getLevelName( map_id )) + " --> " + filename );
+    Urho3D::Log::Write(Urho3D::LOG_INFO, ::toUrho(::getLevelName( map_id )) + " --> " + pvlFilename_ );
 
     try
     {
-        qint32 num_meshes    = f.readLELong();
-        qint32 v22           = f.readLELong();
-        qint16 num_materials = f.readLEShort();
+        int32_t num_meshes    = f.readLELong();
+        int32_t v22           = f.readLELong();
+        int16_t num_materials = f.readLEShort();
 
         // printf("num_meshes=%d v22=%d num_materials=%d\n", num_meshes, v22, num_materials);
         // printf("0x%08x: %s\n", (unsigned int)f.pos(), "Materials");
 
-        LoadMaterials( filename.Substring(0, filename.FindLast("/")), num_materials, &f );
+        for (int k=0; k<(int)num_materials; k++)
+        {
+            uint8_t  type;
+            uint8_t  material_buf[298];
+
+            type = f.readUByte();
+
+            if (type == 0x04)
+            {
+                if (298 - 1 != f.read((char *)material_buf, 298 - 1))
+                    throw SLFFileException();
+            }
+            else
+            {
+                if (282 - 1 != f.read((char *)material_buf, 282 - 1))
+                    throw SLFFileException();
+            }
+            LoadMaterial( pvlFilename_.Substring(0, pvlFilename_.FindLast("/")), material_buf );
+        }
+
         if ((-1 != f.readLELong()))
         {
-            fprintf(stderr, "Unexpected check byte at offset 0x%08x\n", (unsigned int)f.pos() - (unsigned int)sizeof(quint32));
+            fprintf(stderr, "Unexpected check byte at offset 0x%08x\n", (unsigned int)f.pos() - (unsigned int)sizeof(uint32_t));
             return -2;
         }
 
@@ -1727,13 +2240,13 @@ int Window3DNavigator::LoadPVL( int map_id )
 
             if ((-1 != f.readLELong()))
             {
-                fprintf(stderr, "Unexpected check byte at offset 0x%08x\n", (unsigned int)f.pos() - (unsigned int)sizeof(quint32));
+                fprintf(stderr, "Unexpected check byte at offset 0x%08x\n", (unsigned int)f.pos() - (unsigned int)sizeof(uint32_t));
                 return -2;
             }
         }
         if ((-1 != f.readLELong()))
         {
-            fprintf(stderr, "Unexpected check byte at offset 0x%08x\n", (unsigned int)f.pos() - (unsigned int)sizeof(quint32));
+            fprintf(stderr, "Unexpected check byte at offset 0x%08x\n", (unsigned int)f.pos() - (unsigned int)sizeof(uint32_t));
             return -2;
         }
 
@@ -1742,7 +2255,7 @@ int Window3DNavigator::LoadPVL( int map_id )
 
         if ((-1 != f.readLELong()))
         {
-            fprintf(stderr, "Unexpected check byte at offset 0x%08x\n", (unsigned int)f.pos() - (unsigned int)sizeof(quint32));
+            fprintf(stderr, "Unexpected check byte at offset 0x%08x\n", (unsigned int)f.pos() - (unsigned int)sizeof(uint32_t));
             return -2;
         }
 
@@ -1751,7 +2264,7 @@ int Window3DNavigator::LoadPVL( int map_id )
 
         if ((-1 != f.readLELong()))
         {
-            fprintf(stderr, "Unexpected check byte at offset 0x%08x\n", (unsigned int)f.pos() - (unsigned int)sizeof(quint32));
+            fprintf(stderr, "Unexpected check byte at offset 0x%08x\n", (unsigned int)f.pos() - (unsigned int)sizeof(uint32_t));
             return -2;
         }
 
@@ -1760,7 +2273,7 @@ int Window3DNavigator::LoadPVL( int map_id )
 
         if ((-1 != f.readLELong()))
         {
-            fprintf(stderr, "Unexpected check byte at offset 0x%08x\n", (unsigned int)f.pos() - (unsigned int)sizeof(quint32));
+            fprintf(stderr, "Unexpected check byte at offset 0x%08x\n", (unsigned int)f.pos() - (unsigned int)sizeof(uint32_t));
             return -2;
         }
 
@@ -1772,7 +2285,7 @@ int Window3DNavigator::LoadPVL( int map_id )
 
         if ((-1 != f.readLELong()))
         {
-            fprintf(stderr, "Unexpected check byte at offset 0x%08x\n", (unsigned int)f.pos() - (unsigned int)sizeof(quint32));
+            fprintf(stderr, "Unexpected check byte at offset 0x%08x\n", (unsigned int)f.pos() - (unsigned int)sizeof(uint32_t));
             return -2;
         }
 
@@ -1781,7 +2294,7 @@ int Window3DNavigator::LoadPVL( int map_id )
 
         if ((-1 != f.readLELong()))
         {
-            fprintf(stderr, "Unexpected check byte at offset 0x%08x\n", (unsigned int)f.pos() - (unsigned int)sizeof(quint32));
+            fprintf(stderr, "Unexpected check byte at offset 0x%08x\n", (unsigned int)f.pos() - (unsigned int)sizeof(uint32_t));
             return -2;
         }
 
@@ -1790,7 +2303,7 @@ int Window3DNavigator::LoadPVL( int map_id )
 
         if ((-1 != f.readLELong()))
         {
-            fprintf(stderr, "Unexpected check byte at offset 0x%08x\n", (unsigned int)f.pos() - (unsigned int)sizeof(quint32));
+            fprintf(stderr, "Unexpected check byte at offset 0x%08x\n", (unsigned int)f.pos() - (unsigned int)sizeof(uint32_t));
             return -2;
         }
 
@@ -1799,7 +2312,7 @@ int Window3DNavigator::LoadPVL( int map_id )
 
         if ((-1 != f.readLELong()))
         {
-            fprintf(stderr, "Unexpected check byte at offset 0x%08x\n", (unsigned int)f.pos() - (unsigned int)sizeof(quint32));
+            fprintf(stderr, "Unexpected check byte at offset 0x%08x\n", (unsigned int)f.pos() - (unsigned int)sizeof(uint32_t));
             return -2;
         }
 
@@ -1811,7 +2324,7 @@ int Window3DNavigator::LoadPVL( int map_id )
 
         if ((-1 != f.readLELong()))
         {
-            fprintf(stderr, "Unexpected check byte at offset 0x%08x\n", (unsigned int)f.pos() - (unsigned int)sizeof(quint32));
+            fprintf(stderr, "Unexpected check byte at offset 0x%08x\n", (unsigned int)f.pos() - (unsigned int)sizeof(uint32_t));
             return -2;
         }
 
@@ -1820,7 +2333,7 @@ int Window3DNavigator::LoadPVL( int map_id )
 
         if ((-1 != f.readLELong()))
         {
-            fprintf(stderr, "Unexpected check byte at offset 0x%08x\n", (unsigned int)f.pos() - (unsigned int)sizeof(quint32));
+            fprintf(stderr, "Unexpected check byte at offset 0x%08x\n", (unsigned int)f.pos() - (unsigned int)sizeof(uint32_t));
             return -2;
         }
 
@@ -1843,12 +2356,19 @@ void Window3DNavigator::UpdateAnimatedTextures(float timeStep)
     for (int k=0; k < (int)materials_.Size(); k++)
     {
         WizardryMaterial *m = materials_[k];
+
+        if (m->hash_ == "")
+        {
+            // We only need to do each texture once
+            continue;
+        }
+
         if (m->textureNames_.Size() > 1)
         {
             m->textureUpdateCounter_ += timeStep;
             if (m->textureUpdateCounter_ > m->textureUpdateRate_)
             {
-                m->textureUpdateCounter_ -= m->textureUpdateRate_;
+                m->textureUpdateCounter_ = 0;
                 m->currentTextureIdx_ = (m->currentTextureIdx_+1) % m->textureNames_.Size();
 
                 Texture2D *renderTexture = cache->GetResource<Texture2D>( m->textureNames_[ m->currentTextureIdx_ ] );
@@ -2485,7 +3005,7 @@ void Window3DNavigator::AddWaterMaterialPlaneAt(float y, SharedPtr<Material> m)
 {
     // This isn't entirely suitable for a QMap because we have a floating point
     // index as a key, that needs to be treated with a range of tolerance.
-    WizardryMaterial  *wm = new WizardryMaterial();
+    WizardryMaterial  *wm = new WizardryMaterial("ignore_hash");
 
     wm->isWater_  = true;
     wm->y_        = y;
@@ -3142,7 +3662,7 @@ void Window3DNavigator::TogglePositionInfo(bool toggle)
     }
 }
 
-static void bitmapDetails(SLFFile *f, bool bBitmapDirSet)
+static void bitmapDetails(SLFFile *f, bool bBitmapDirSet, struct animated_mesh *ani_ptr)
 {
     if (bBitmapDirSet)
     {
@@ -3155,7 +3675,7 @@ static void bitmapDetails(SLFFile *f, bool bBitmapDirSet)
         if ((v16 > 0) && (v18 > 0))
         {
             int8_t   v12 = 0;
-            quint16  v15;
+            uint16_t  v15;
 
             if (Buffer >= 3)
             {
@@ -3173,17 +3693,17 @@ static void bitmapDetails(SLFFile *f, bool bBitmapDirSet)
     }
     else
     {
-        quint32 Buffer, v85, v84;
+        uint32_t Buffer;
 
         Buffer = f->readLEULong();
-        v85 = f->readLEULong();
-        v84 = f->readLEULong();
+        ani_ptr->num_vertices = f->readLEULong();
+        ani_ptr->num_faces = f->readLEULong();
 
-        if ((v85 > 0) && (v84 > 0))
+        if ((ani_ptr->num_vertices > 0) && (ani_ptr->num_faces > 0))
         {
-            int8_t   v80 = 0;
-            quint8   v81 = 0;
-            quint16  v86;
+            int8_t    v80 = 0;
+            uint8_t   v81 = 0;
+            uint16_t  v86;
 
             if (Buffer >= 3)
             {
@@ -3202,67 +3722,217 @@ static void bitmapDetails(SLFFile *f, bool bBitmapDirSet)
             if (v80 & 1)
             {
                 v81 = f->readUByte();
-                v86 = f->readLEUShort();
+                // overwrite the earlier value for the number of frames - this is the
+                // one we want here
+                ani_ptr->num_frames = f->readLEUShort();
+
+                float offset = 0.0;
 
                 if (v81 == 2)
                 {
-                    f->skip( 4 );
+                    offset = f->readFloat();
                 }
 
                 if (v80 & 2)
                 {
-                    f->skip( v86 * 6 * v85 );
+                    ani_ptr->frames = (vertex_t **) calloc( ani_ptr->num_frames, sizeof(vertex_t *) );
+
+                    for (int j=0; j< ani_ptr->num_frames; j++)
+                    {
+                        if (ani_ptr->frames)
+                        {
+                            ani_ptr->frames[j] = (vertex_t *)calloc( ani_ptr->num_vertices, sizeof(vertex_t) );
+                        }
+
+                        for (int k=0; k<(int)ani_ptr->num_vertices; k++)
+                        {
+                            int16_t x, y, z;
+
+                            x = f->readLEShort();
+                            y = f->readLEShort();
+                            z = f->readLEShort();
+
+                            if (ani_ptr->frames && ani_ptr->frames[j])
+                            {
+                                ani_ptr->frames[ j ][ k ].x = ((double)x / (double)offset + ani_ptr->origin_x)  * 500.0 * kScale;
+                                ani_ptr->frames[ j ][ k ].y = ((double)y / (double)offset + ani_ptr->origin_y)  * 500.0 * kScale;
+                                ani_ptr->frames[ j ][ k ].z = ((double)z / (double)offset + ani_ptr->origin_z)  * 500.0 * kScale;
+                                // no normals
+                                // no uvs (yet)
+                            }
+                        }
+                    }
                 }
             }
             else
             {
+                ani_ptr->frames = (vertex_t **) calloc( ani_ptr->num_frames, sizeof(vertex_t *) );
+
+                // Only the first frame has vertices stored here - all the others have to be calculated
+                // based on a matrix transformation
+
+                if (ani_ptr->frames)
+                {
+                    ani_ptr->frames[0] = (vertex_t *)calloc( ani_ptr->num_vertices, sizeof(vertex_t) );
+                }
+
+                for (int k=0; k<(int)ani_ptr->num_vertices; k++)
+                {
+                    float x, y, z;
+
+                    x = f->readFloat();
+                    y = f->readFloat();
+                    z = f->readFloat();
+
+                    if (ani_ptr->frames && ani_ptr->frames[0])
+                    {
+                        ani_ptr->expect_matrix = true;
+                        ani_ptr->frames[ 0 ][ k ].x = ((double)x + ani_ptr->origin_x) * 500.0 * kScale;
+                        ani_ptr->frames[ 0 ][ k ].y = ((double)y + ani_ptr->origin_y) * 500.0 * kScale;
+                        ani_ptr->frames[ 0 ][ k ].z = ((double)z + ani_ptr->origin_z) * 500.0 * kScale;
+                    }
+                }
                 // This is xyz coords. All multiplied by 500.0 again. (Plus it looks like x coords get mucked up with [n].x = [n+1].x all way through)
-                f->skip( 12 * v85 );
             }
+            // We have the same problem here that we have with the still mesh. UVs need to be assigned per vertex, when
+            // they are really only meaningful for faces. So we potentially have to double vertices again - but this time
+            // we have them allocated into a horrible memory array with other frames as well.
+            // Fortunately with the face list at least staying constant it is at least solvable.
+            ani_ptr->faces = (face_t *) malloc( ani_ptr->num_faces * sizeof(face_t) );
             if (v80 & 4)
             {
-                f->skip( 33 * v84 );
-            }
-            else
-            {
-                f->skip( 41 * v84 );
-            }
-
-            quint16 num_materials = f->readLEUShort(); // read 2 into Buffer (int16)
-
-            if (num_materials > 0)
-            {
-                quint8  b = f->readUByte();
-
-                // Materials - 298 or 282 byte records, same as what LoadMaterials() deals with
-                if (b >= 4)
+                if (ani_ptr->faces)
                 {
-                    f->skip( 298 * num_materials -1 );
+                    for (int k=0; k<(int)ani_ptr->num_faces; k++)
+                    {
+                        ani_ptr->faces[k].vert[0].idx  = f->readLEUShort();
+                        ani_ptr->faces[k].vert[1].idx  = f->readLEUShort();
+                        ani_ptr->faces[k].vert[2].idx  = f->readLEUShort();
+                        ani_ptr->faces[k].vert[0].u    = f->readFloat();
+                        ani_ptr->faces[k].vert[0].v    = f->readFloat();
+                        ani_ptr->faces[k].vert[1].u    = f->readFloat();
+                        ani_ptr->faces[k].vert[1].v    = f->readFloat();
+                        ani_ptr->faces[k].vert[2].u    = f->readFloat();
+                        ani_ptr->faces[k].vert[2].v    = f->readFloat();
+                        ani_ptr->faces[k].material_idx = f->readLEUShort();
+
+                        f->skip(1);
+                    }
                 }
                 else
                 {
-                    f->skip( 282 * num_materials -1 );
+                    f->skip( ani_ptr->num_faces * 33 );
+                }
+
+                duplicateVerticesForUVs( ani_ptr->faces, ani_ptr->num_faces, ani_ptr->frames, &(ani_ptr->num_vertices), ani_ptr->num_frames );
+            }
+            else
+            {
+                if (ani_ptr->faces)
+                {
+                    for (int k=0; k<(int)ani_ptr->num_faces; k++)
+                    {
+                        ani_ptr->faces[k].vert[0].idx  = f->readLEULong();
+                        ani_ptr->faces[k].vert[1].idx  = f->readLEULong();
+                        ani_ptr->faces[k].vert[2].idx  = f->readLEULong();
+                        ani_ptr->faces[k].vert[0].u    = f->readFloat();
+                        ani_ptr->faces[k].vert[0].v    = f->readFloat();
+                        ani_ptr->faces[k].vert[1].u    = f->readFloat();
+                        ani_ptr->faces[k].vert[1].v    = f->readFloat();
+                        ani_ptr->faces[k].vert[2].u    = f->readFloat();
+                        ani_ptr->faces[k].vert[2].v    = f->readFloat();
+                        ani_ptr->faces[k].material_idx = f->readLEULong();
+
+                        f->skip(1);
+                    }
+                }
+                else
+                {
+                    f->skip( ani_ptr->num_faces * 41 );
+                }
+
+                duplicateVerticesForUVs( ani_ptr->faces, ani_ptr->num_faces, ani_ptr->frames, &(ani_ptr->num_vertices), 1 );
+            }
+
+            ani_ptr->num_materials = f->readLEUShort();
+
+            ani_ptr->material_buf = (uint8_t **) malloc( sizeof(uint8_t *) * ani_ptr->num_materials );
+            for (int k=0; k<(int)ani_ptr->num_materials; k++)
+            {
+                uint8_t  type;
+
+                type = f->readUByte();
+
+                if (type == 0x04)
+                {
+                    ani_ptr->material_buf[k] = (uint8_t *)malloc(298);
+                    if (298 - 1 != f->read((char *)ani_ptr->material_buf[k], 298 - 1))
+                        throw SLFFileException();
+                }
+                else
+                {
+                    ani_ptr->material_buf[k] = (uint8_t *)malloc(282);
+                    if (282 - 1 != f->read((char *)ani_ptr->material_buf[k], 282 - 1))
+                        throw SLFFileException();
                 }
             }
         }
     }
 }
 
-static void bitmapMore(SLFFile *f, bool bBitmapDirSet, bool a3)
+WizardryAnimatedMesh::WizardryAnimatedMesh(Context* context) :
+    LogicComponent(context),
+    num_frames_(0),
+    num_vertices_(0),
+    frames_(NULL),
+    next_frame_(0),
+    frame_delay_(1.0),
+    time_counter_(0)
 {
-    if ( a3 )
-    {
-        f->skip(2);
+    // Only the scene update event is needed: unsubscribe from the rest for optimization
+    SetUpdateEventMask(USE_UPDATE);
+}
 
-        bitmapDetails(f, bBitmapDirSet );
+WizardryAnimatedMesh::~WizardryAnimatedMesh()
+{
+    if (frames_)
+    {
+        free( frames_ );
     }
-    else
-    {
-        quint8 Buffer = f->readUByte();
+}
 
-        if (Buffer != 0)
+void WizardryAnimatedMesh::Update(float timeStep)
+{
+    time_counter_ += timeStep;
+
+    if (time_counter_ > frame_delay_)
+    {
+        time_counter_ = 0;
+
+        auto *object = node_->GetComponent<StaticModel>();
+        if (object)
         {
-            f->skip( Buffer );
+            auto *model  = object->GetModel();
+
+            if (model)
+            {
+                Geometry *geom = model->GetGeometry(0, 0);
+
+                if (geom)
+                {
+                    VertexBuffer *vb = geom->GetVertexBuffer(0);
+
+                    if (num_vertices_ == (int)vb->GetVertexCount())
+                    {
+                        vb->SetData( &(frames_[ next_frame_ * num_vertices_ * 5 ]) );
+                    }
+
+                    next_frame_++;
+                    if (next_frame_ == num_frames_)
+                        next_frame_ = 0;
+                }
+            }
         }
     }
 }
+

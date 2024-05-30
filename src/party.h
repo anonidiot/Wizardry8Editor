@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 Anonymous Idiot
+ * Copyright (C) 2022-2024 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,8 +27,10 @@
 #define PARTY_H__
 
 #include <QList>
+#include <QMap>
 #include <QMetaEnum>
 #include <QObject>
+#include <QString>
 #include <QVector>
 
 #include "item.h"
@@ -102,6 +104,12 @@ public:
     int        getDroppedItemCount() const;
     void       removeDroppedItem(int idx);
 
+    void                 setKnownRPCs(QMap<int, QString>  &rpcMap)  { m_rpcMap = rpcMap; }
+    QMap<int, QString>   getKnownRPCs()                             { return m_rpcMap;   }
+
+
+    QVector<qint32>      addedRPCs;
+
 signals:
     void       itemDropped(item i);
 
@@ -117,6 +125,8 @@ private:
     quint32           m_gold;
 
     QVector<qint32>   m_maps;
+
+    QMap<int, QString>   m_rpcMap;
 
     qint32            m_mapId;
     float             m_position[3];
