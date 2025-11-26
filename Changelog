@@ -1,3 +1,12 @@
+0.2.2
+- Get the Win32 executable functional again by heavily patching Urho (OpenGL only)
+- Docker container build scripts and methods for compiling the targets added to the tree
+- Simple preferences dialog added with some minimal options for those who didn't know about the command line options for reseting the wizardry path, mainly.
+- Switch on Fractional scaling in HighDPI, which might improve the visuals for some users
+- Add an id column to the fact editor, since the numbers get used a lot.
+- BUGFIX: Original games under Wizardry 28 have their own headaches, because certain elements like spells are still in the original format, but everything else changes - no clean way to detect this situation so relying on the module name if ParallelWorlds active, but no solution yet if it isn't.
+- BUGFIX: Try to resolve some of the problems surrounding dead characters in a party being edited.
+
 0.2.1
 BUGFIX: Correctly recognise the different storage technique used for character spells in Wizardry 1.2.8, and support the increased number of spells
 BUGFIX: Try to stop some of the settings going negative when controlling attributes are lowered.

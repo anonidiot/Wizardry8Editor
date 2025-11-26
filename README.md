@@ -10,6 +10,7 @@ Latest Release 0.2.2
 - Add an id column to the fact editor, since the numbers get used a lot.
 - BUGFIX: Original games under Wizardry 28 have their own headaches, because certain elements like spells are still in the original format, but everything else changes - no clean way to detect this situation so relying on the module name if ParallelWorlds active, but no solution yet if it isn't.
 - BUGFIX: Try to resolve some of the problems surrounding dead characters in a party being edited.
+
 **Win32 version** - should run on Windows XP even with old hardware but not the smoothest performance in the 3d navigator
 (OpenGL only, because DirectX has DLL requirements not supported by Windows XP). No HiDPI support:
 
