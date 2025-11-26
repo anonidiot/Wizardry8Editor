@@ -24,6 +24,8 @@
  */
 
 #include <QResizeEvent>
+#include <QWindow>
+#include <QScreen>
 
 #include "Screen.h"
 #include "main.h"
@@ -74,7 +76,32 @@ void Screen::setScale(double scale)
 
 QSize Screen::minimumSizeHint() const
 {
-    return QSize( ORIGINAL_DIM_X, ORIGINAL_DIM_Y );
+    // This function has limited usefulness. It is only called once
+    // before the layout is shown on screen, ie. not whenever it moves
+    // to a new screen, so any dpi logic in here potentially becomes
+    // stale.
+
+    float dpr = 0.0;
+    float dpi = 0.0;
+    float pdpi = 0.0;
+
+    Q_UNUSED(dpi);
+    Q_UNUSED(pdpi);
+
+    if (this->window())
+    {
+        this->window()->winId();
+        QWindow *myWindow = this->window()->windowHandle();
+
+        if (myWindow)
+        {
+            dpr = myWindow->devicePixelRatio();
+            dpi = myWindow->screen()->logicalDotsPerInch();
+            pdpi = myWindow->screen()->physicalDotsPerInch();
+        }
+    }
+
+    return QSize( ORIGINAL_DIM_X / dpr, ORIGINAL_DIM_Y / dpr );
 }
 
 // Many QT components cache the initial response to this call, so

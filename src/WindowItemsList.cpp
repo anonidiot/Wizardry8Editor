@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2024 Anonymous Idiot
+ * Copyright (C) 2022-2025 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -422,7 +422,9 @@ void WindowItemsList::populateDDLProfessions(WDDL *ddl)
 
         if (ic.open(QFile::ReadOnly))
         {
-            QByteArray array = ic.readAll();
+            QByteArray array;
+
+            ic.readAll( array );
             STI c( array );
 
             for (int k=0; k<metaProf.keyCount(); k++)
@@ -473,7 +475,9 @@ void WindowItemsList::populateDDLRaces(WDDL *ddl)
 
         if (ic.open(QFile::ReadOnly))
         {
-            QByteArray array = ic.readAll();
+            QByteArray array;
+
+            ic.readAll( array );
             STI c( array );
 
             for (int k=0; k<metaRace.keyCount(); k++)
@@ -525,7 +529,9 @@ void WindowItemsList::populateDDLGenders(WDDL *ddl)
 
         if (ic.open(QFile::ReadOnly))
         {
-            QByteArray array = ic.readAll();
+            QByteArray array;
+
+            ic.readAll( array );
             STI c( array );
 
             for (int k=0; k<metaGender.keyCount(); k++)

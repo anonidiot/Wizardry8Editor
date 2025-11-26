@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2025 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -94,7 +94,9 @@ void WStatBar::loadPixmaps()
     SLFFile imgs( "REVIEW/REVIEWSLIDERBAR.STI" );
     if (imgs.open(QFile::ReadOnly))
     {
-        QByteArray  stiData  = imgs.readAll();
+        QByteArray  stiData;
+
+        imgs.readAll( stiData );
         STI stiImages( stiData );
 
         s_blueBar = new QPixmap( QPixmap::fromImage( stiImages.getImage( 0 )) );

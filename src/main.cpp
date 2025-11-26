@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2024 Anonymous Idiot
+ * Copyright (C) 2022-2025 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,6 +32,7 @@
 #include <QFileDialog>
 #include <QFontDatabase>
 #include <QMessageBox>
+#include <QProcess>
 #include <QSettings>
 #include <QStringList>
 #include <QStyleFactory>
@@ -121,7 +122,9 @@ int makeFont(QString bitmapFont, QString otfFont, QString patchfile)
 
     if (font.open(QFile::ReadOnly))
     {
-        QByteArray bmp_ba = font.readAll();
+        QByteArray bmp_ba;
+
+        font.readAll( bmp_ba );
         font.close();
 
         QFile patch( patchfile );
@@ -391,6 +394,7 @@ bool identifyWizardryVersion( bool techIdentify, QString customExe )
                     if (iniFile->open(QIODevice::ReadOnly))
                     {
                         QTextStream in( iniFile );
+                        bool found = false;
 
                         while (!in.atEnd())
                         {
@@ -411,11 +415,15 @@ bool identifyWizardryVersion( bool techIdentify, QString customExe )
                                     parallel_worlds = true;
                                 }
                             }
-                            else if (utfLine.startsWith( "ParallelWorld" ))
+                            else if (utfLine.startsWith( "ParallelWorld" ) && !found)
                             {
                                 int equals = utfLine.indexOf( '=' );
 
                                 s_parallel_world = utfLine.mid( equals+1 ).trimmed();
+                                // The 1.28 patched exe leaves multiple ParallelWorld= lines
+                                // in the file. We need to treat the first one as the one
+                                // selected.
+                                found = true;
                             }
                         }
                         iniFile->close();
@@ -524,10 +532,15 @@ int main(int argc, char *argv[])
 // Windows is the only OS I can test HiDPI on at the moment, not sure if this is
 // wanted on the others yet or not.
 #ifdef WIN64
-  #if QT_VERSION >= QT_VERSION_CHECK(5,6,0) && QT_VERSION < QT_VERSION_CHECK(6,0,0)
+ #if QT_VERSION >= QT_VERSION_CHECK(5,6,0) && QT_VERSION < QT_VERSION_CHECK(6,0,0)
     // QT6 defaults to the right behaviour
     QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
+
+  #if QT_VERSION >= QT_VERSION_CHECK(5,14,0)
+    QGuiApplication::setHighDpiScaleFactorRoundingPolicy( Qt::HighDpiScaleFactorRoundingPolicy::PassThrough );
   #endif
+
+ #endif
 #endif
 
     QCoreApplication::setOrganizationName("Misc");
@@ -548,7 +561,7 @@ int main(int argc, char *argv[])
             QMessageBox m( QMessageBox::NoIcon, QCoreApplication::applicationName(), QString(), QMessageBox::Ok );
 
             m.setText( QString("Edits Wizardry 8 Save game files.\n\n"
-                           "%1 [--resetWizardryPath] [<save game file>]\n\n"
+                           "%1 [options] [<save game file>]\n\n"
                            "--resetWizardryPath\n"
                            "     Forget existing stored Wizardry folder location and prompt again.\n"
                            "--identifyExeVersion\n"
@@ -702,7 +715,9 @@ int main(int argc, char *argv[])
     SLFFile cursors( "CURSORS/2D-CURSORS.STI" );
     if (cursors.open(QFile::ReadOnly))
     {
-        QByteArray array = cursors.readAll();
+        QByteArray array;
+
+        cursors.readAll( array );
         STI c( array );
 
         arrowCursor      = new QPixmap( QPixmap::fromImage( c.getImage(  0 ) ) );
@@ -772,7 +787,14 @@ int main(int argc, char *argv[])
     {
         MainWindow w( fileToOpen );
 
-        a.exec();
+        if (a.exec() == EXIT_RESTART)
+        {
+            // Note that this method of app restart will crash the app at the first usage of "qDebug() <<"
+            // or "qWarning() <<" because their QIODevice is broken/NULL due to the terminal no longer being
+            // attached
+            QProcess* proc = new QProcess();
+            proc->start(QCoreApplication::applicationFilePath(), QStringList());
+        }
     }
 
 #ifndef USE_STANDARD_CURSORS

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2024 Anonymous Idiot
+ * Copyright (C) 2025 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,35 +23,35 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <QPixmap>
-#include <QWidget>
+#ifndef DLGPREFS_H
+#define DLGPREFS_H
 
-#include "StringList.h"
+#include "Dialog.h"
+#include "Wizardry8Scalable.h"
 
-class facts;
+class DialogPreferences : public Dialog
+{
+    Q_OBJECT
 
-#define EXIT_RESTART    1200
+public:
+    DialogPreferences(QWidget *parent = nullptr);
+    ~DialogPreferences();
 
-#define ORIGINAL_DIM_X   640
-#define ORIGINAL_DIM_Y   480
+    bool    needRestart() { return m_wizardryPathChanged; }
 
-const StringList     *getStringTable();
-const StringList     *getBaseStringTable();
+public slots:
+    void setCb(int cb);
+    void chooseDir(bool);
+    void save();
 
-bool                  getIgnoreModStrings();
-void                  setIgnoreModStrings(bool value);
+protected:
+    void init();
 
-void                  setFacts(facts f);
-bool                  testFact(int fact_id);
-bool                  testFact(QString fact_name);
+private:
+    QPixmap    makeDialogForm();
+    QPixmap    makeWider( QImage im, int width );
 
-void                  setAppScale(double scale);
-double                getAppScale();
+    bool       m_wizardryPathChanged;
+};
 
-QPixmap               getCursor(int id);
-
-bool                  isWizardry128();
-bool                  isParallelWorlds();
-
-QString getOpenFileName(QWidget *parent, const QString &caption, const QString &directory, const QString &filter);
-QString getSaveFileName(QWidget *parent, const QString &caption, const QString &directory, const QString &filter);
+#endif /* DLGPREFS_H */

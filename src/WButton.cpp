@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2025 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -65,7 +65,8 @@ WButton::WButton(QString sti_file, int image_idx, bool bNoFifthState, double ext
     SLFFile buttons( sti_file );
     if (buttons.open(QFile::ReadOnly))
     {
-        QByteArray array = buttons.readAll();
+        QByteArray array;
+        buttons.readAll( array );
         STI sti_buttons( array );
 
         // expect 5 state button; those that only have 4 need to

@@ -85,6 +85,11 @@ public:
         SelectParallelWorld    =  5072,
         IgnoreModStrings       =  5073,
 
+        Wiz8Path               =  5080,
+        PreferredLang          =  5081,
+        PreferredCodepage      =  5082,
+        SuppressWarnings       =  5083,
+
         AddItem                =  5100,
         EditItem               =  5101,
         Identify               =  5102,

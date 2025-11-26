@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2024 Anonymous Idiot
+ * Copyright (C) 2022-2025 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -200,7 +200,7 @@ void WImage::setStiFile(QString sti_file, int image_idx, bool keep)
         if (m_stiImages)
             delete m_stiImages;
 
-        m_stiData   = imgs.readAll();
+        imgs.readAll( m_stiData );
         m_stiImages = new STI( m_stiData );
         m_frameIdx  = image_idx;
 

@@ -98,6 +98,7 @@ private slots:
     void cut();
     void copy();
     void paste();
+    void editPrefs();
     void ignoreModStrings();
     void enableLocalisation();
     void changeLocalisation();
@@ -147,6 +148,7 @@ private:
     QAction *cutAct;
     QAction *copyAct;
     QAction *pasteAct;
+    QAction *editPrefsAct;
     QAction *ignoreStringsAct;
     QAction *localisationAct;
     QAction *droppedItemsAct;

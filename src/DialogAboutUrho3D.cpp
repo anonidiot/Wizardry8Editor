@@ -909,7 +909,7 @@ void DialogAboutUrho3D::ColouriseLetters( int x, int y)
             float distance = sqrtf((pos.x_ - mouseLoc.x_) * (pos.x_ - mouseLoc.x_) +
                                    (pos.y_ - mouseLoc.y_) * (pos.y_ - mouseLoc.y_));
 
-            for (oldcol=0; oldcol < sizeof(flame) / sizeof(Color); oldcol++)
+            for (oldcol=0; oldcol < (int)(sizeof(flame) / sizeof(Color)); oldcol++)
             {
                 if ((fabs(col.r_ - flame[oldcol].r_) < EPSILON) &&
                     (fabs(col.g_ - flame[oldcol].g_) < EPSILON) &&

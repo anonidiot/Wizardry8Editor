@@ -220,6 +220,19 @@ const QString StringList::getUnlocalisedString( int idx ) const
                 s = QObject::tr("Ignore (most) world specific strings.");
                 break;
 
+            case Wiz8Path:
+                s = QObject::tr("Path to Wizardry Folder:");
+                break;
+            case PreferredLang:
+                s = QObject::tr("Preferred Language (ISO):");
+                break;
+            case PreferredCodepage:
+                s = QObject::tr("Preferred Codepage:");
+                break;
+            case SuppressWarnings:
+                s = QObject::tr("Suppress Warning Messages");
+                break;
+
             case AddItem:
                 s = QObject::tr("Add Item");
                 break;

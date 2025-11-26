@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2024 Anonymous Idiot
+ * Copyright (C) 2022-2025 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -81,21 +81,24 @@ Wizardry8Style::Wizardry8Style() :
     SLFFile up_arrow( "DIALOGS/DIALOGUPARROW.STI" );
     if (up_arrow.open(QFile::ReadOnly))
     {
-        QByteArray array = up_arrow.readAll();
+        QByteArray array;
+        up_arrow.readAll( array );
         m_up_arrow = new STI( array );
         up_arrow.close();
     }
     SLFFile down_arrow( "DIALOGS/DIALOGDOWNARROW.STI" );
     if (down_arrow.open(QFile::ReadOnly))
     {
-        QByteArray array = down_arrow.readAll();
+        QByteArray array;
+        down_arrow.readAll( array );
         m_down_arrow = new STI( array );
         down_arrow.close();
     }
     SLFFile sbslider( "DIALOGS/DIALOGSLIDEBAR.STI" );
     if (sbslider.open(QFile::ReadOnly))
     {
-        QByteArray array = sbslider.readAll();
+        QByteArray array;
+        sbslider.readAll( array );
         m_sbslider = new STI( array );
         sbslider.close();
     }
@@ -103,7 +106,8 @@ Wizardry8Style::Wizardry8Style() :
     SLFFile slider( "OPTIONS/OPTIONS_SLIDER.STI" );
     if (slider.open(QFile::ReadOnly))
     {
-        QByteArray array = slider.readAll();
+        QByteArray array;
+        slider.readAll( array );
         m_slider = new STI( array );
         slider.close();
     }
@@ -112,7 +116,8 @@ Wizardry8Style::Wizardry8Style() :
     SLFFile cb( "CHAR GENERATION/CG_PERSONALITY.STI" );
     if (cb.open(QFile::ReadOnly))
     {
-        QByteArray array = cb.readAll();
+        QByteArray array;
+        cb.readAll( array );
         m_cb = new STI( array );
         cb.close();
     }
@@ -121,7 +126,8 @@ Wizardry8Style::Wizardry8Style() :
     SLFFile spinner( "CHAR GENERATION/CG_BUTTONS.STI" );
     if (spinner.open(QFile::ReadOnly))
     {
-        QByteArray array = spinner.readAll();
+        QByteArray array;
+        spinner.readAll( array );
         m_spinner = new STI( array );
         spinner.close();
     }
@@ -793,16 +799,29 @@ void Wizardry8Style::drawPrimitive(PrimitiveElement element,
             QPixmap  pix;
             int state = 0; // normal
 
-            if      (!(option->state & State_Enabled))   state = 0; // don't have a disabled icon
-            else if   (option->state & State_MouseOver)
+            if        (!(option->state & State_Enabled)) state = 0; // don't have a disabled icon
+            else if     (option->state & State_MouseOver)
             {
-                if    (option->state & State_Off)        state = 1; // mouseover
+                if      (option->state & State_NoChange) state = 1; // partially checked and mouseover (& see below)
+                else if (option->state & State_Off)      state = 1; // mouseover
                 else                                     state = 3; // clicked and mouseover
             }
-            else if (!(option->state & State_Off))       state = 2; // clicked
+            else if     (option->state & State_NoChange) state = 0; // partially checked (& see below)
+            else if   (!(option->state & State_Off))     state = 2; // clicked
 
             pix = QPixmap::fromImage( m_cb->getImage( CB_OFFSET + state ) );
             painter->drawPixmap(option->rect, pix);
+
+            // We don't have a partially checked checkbox in the game assets,
+            // so make one by drawing a small rect in the centre of the
+            // blank checkbox, if we are paritally checked.
+            if (option->state & State_NoChange)
+            {
+                double scale = getParentScale(widget);
+
+                painter->setPen( QColor(0xa0, 0x9a, 0x80));
+                painter->drawRect(option->rect.adjusted( scale * 3.0, scale * 3.0, -scale * 3.0, -scale * 3.0 ) );
+            }
             break;
         }
 
@@ -1262,7 +1281,7 @@ int Wizardry8Style::styleHint(StyleHint hint, const QStyleOption *option,
         // QSlider
         case SH_Slider_AbsoluteSetButtons:
             // make the slider jump to the position clicked instead of stepping
-            return (Qt::LeftButton | Qt::MidButton | Qt::RightButton);
+            return (Qt::LeftButton | Qt::MiddleButton | Qt::RightButton);
 
         default:
             return QProxyStyle::styleHint(hint, option, widget, returnData);

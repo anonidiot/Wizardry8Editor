@@ -1,0 +1,81 @@
+# Cannot use anything newer than 10 in debian because require python-mako (Python 2)
+# to compile mesa and it stops being packaged in 11
+FROM debian:10-slim
+
+RUN sed -i 's/deb.debian.org/archive.debian.org/' /etc/apt/sources.list
+RUN sed -i '/archive.debian.org/s/deb /deb \[trusted=yes\] /' /etc/apt/sources.list
+RUN apt update && apt-get -y install --no-install-recommends \
+    autoconf \
+    automake \
+    autopoint \
+    bash \
+    bison \
+    bzip2 \
+    cmake \
+    flex \
+    g++ \
+    gettext \
+    git \
+    gperf \
+    intltool \
+    libgdk-pixbuf2.0-dev \
+    libltdl-dev \
+    libssl-dev \
+    libtool-bin \
+    libxml-parser-perl \
+    libxext-dev \
+    lzip \
+    make \
+    openssl \
+    p7zip-full \
+    patch \
+    perl \
+    pkg-config \
+    python-mako \
+    ruby \
+    sed \
+    unzip \
+    wget \
+    xxd \
+    xz-utils \
+    zip
+
+WORKDIR /
+
+ENV MXE_TARGETS="i686-w64-mingw32.static"
+ENV MXE_PLUGIN_DIRS=plugins/qt5-xp
+
+RUN git clone https://github.com/mxe/mxe.git /opt/mxe && \
+    cd /opt/mxe && \
+    git checkout build-2021-04-22-79-g193d801
+
+ADD .deps/qt5-xp.tar.bz2 /opt/mxe/plugins/
+
+WORKDIR /opt/mxe
+
+RUN make download-gcc && \
+    make MXE_USE_CCACHE= MXE_PLUGIN_DIRS="$MXE_PLUGIN_DIRS" MXE_TARGETS="$MXE_TARGETS" qtbase_CONFIGURE_OPTS='-no-sql-mysql' qt5 ffmpeg && \
+    rm -rf log/* pkg/* .ccache usr/$MXE_TARGETS/bin/gmp-tests && \
+    sed -e '/__cdecl asctime_s/s/^/\/\//g' \
+        -e '/__cdecl _ctime32_s/s/^/\/\//g' \
+        -e '/__cdecl _gmtime32_s/s/^/\/\//g' \
+        -e '/__cdecl _localtime32_s/s/^/\/\//g' \
+        -e '/__cdecl _strdate_s/s/^/\/\//g' \
+        -e '/__cdecl _strtime_s/s/^/\/\//g' \
+        -e '/__cdecl _ctime64_s/s/^/\/\//g' \
+        -e '/__cdecl _gmtime64_s/s/^/\/\//g' \
+        -e '/__cdecl _localtime64_s/s/^/\/\//g' \
+        -e '/__cdecl _wasctime_s/s/^/\/\//g' \
+        -e '/__cdecl _wctime32_s/s/^/\/\//g' \
+        -e '/__cdecl _wstrdate_s/s/^/\/\//g' \
+        -e '/__cdecl _wstrtime_s/s/^/\/\//g' \
+        -e '/__cdecl _wctime64_s/s/^/\/\//g' \
+        -e '/__cdecl _wctime_s/s/^/\/\//g' \
+        -e '/__CRTDECL localtime_s/s/^/\/\//g' \
+        -e '/__CRTDECL gmtime_s/s/^/\/\//g' \
+        -e '/__CRTDECL ctime_s/s/^/\/\//g' \
+        -e 's/#ifdef _POSIX_THREAD_SAFE_FUNCTIONS/#if 0/g' -i /opt/mxe/usr/$MXE_TARGETS/include/time.h
+
+# Docker doesn't use the /etc/profile or internal files to set environment - does it directly
+ENV PATH="/opt/mxe/usr/bin:/opt/mxe/usr/i686-w64-mingw32.static/qt5/bin:$PATH"
+WORKDIR /mnt

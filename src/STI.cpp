@@ -366,7 +366,12 @@ QByteArray STI::make16BitSTI( QImage image )
     sti.append( (char)(((height*width*2) >> 16) & 0xff) );
     sti.append( (char)(((height*width*2) >> 24) & 0xff) );
 
+#if QT_VERSION < QT_VERSION_CHECK(5, 7, 0)
+    for (int z=0; z<4; z++)
+        sti.append( (char)0x00 );
+#else
     sti.append( 4, '\0' );
+#endif
 
     sti.append( (char)0x04 );                       // flags - set for 16 bit no compression
     sti.append( (char)0x00 );
@@ -390,7 +395,12 @@ QByteArray STI::make16BitSTI( QImage image )
     sti.append( (char)((0x001f >>  8) & 0xff) );
     sti.append( (char)((0x001f >> 16) & 0xff) );
     sti.append( (char)((0x001f >> 24) & 0xff) );
+#if QT_VERSION < QT_VERSION_CHECK(5, 7, 0)
+    for (int z=0; z<4; z++)
+        sti.append( (char)0x00 );             // Alpha mask
+#else
     sti.append( 4, '\0' );                 // Alpha mask
+#endif
     sti.append( (char)0x05 );              // Red depth
     sti.append( (char)0x06 );              // Grn depth
     sti.append( (char)0x05 );              // Blu depth
@@ -401,7 +411,12 @@ QByteArray STI::make16BitSTI( QImage image )
     sti.append( (char)((16 >>  8) & 0xff) );
     sti.append( (char)((16 >> 16) & 0xff) );
     sti.append( (char)((16 >> 24) & 0xff) );
+#if QT_VERSION < QT_VERSION_CHECK(5, 7, 0)
+    for (int z=0; z<15; z++)
+        sti.append( (char)0x00 );
+#else
     sti.append( 15, '\0' );
+#endif
 
     if (image.width() % 2 == 0)
     {
@@ -444,7 +459,12 @@ QByteArray STI::make8BitSTI( QImage image, int num_images, bool true256 )
     sti.append( 'C' );
     sti.append( 'I' );
 
+#if QT_VERSION < QT_VERSION_CHECK(5, 7, 0)
+    for (int z=0; z<12; z++)
+        sti.append( (char)0x00 );
+#else
     sti.append( 12, '\0' );
+#endif
 
     sti.append( (char)0x28 );                       // flags - set for 8 bit ETRLE compression
     sti.append( (char)0x00 );
@@ -462,11 +482,26 @@ QByteArray STI::make8BitSTI( QImage image, int num_images, bool true256 )
     sti.append( (char)((256 >> 24) & 0xff) );
     sti.append( (char)((num_images >>  0) & 0xff) ); // images in file
     sti.append( (char)((num_images >>  8) & 0xff) );
+#if QT_VERSION < QT_VERSION_CHECK(5, 7, 0)
+    for (int z=0; z<3; z++)
+        sti.append( (char)0x08 );
+#else
     sti.append( 3, (char)0x08 );
+#endif
 
+#if QT_VERSION < QT_VERSION_CHECK(5, 7, 0)
+    for (int z=0; z<11; z++)
+        sti.append( (char)0x00 );
+#else
     sti.append( 11, '\0' );
+#endif
     sti.append( (char)8 );                           // 8 bit image
+#if QT_VERSION < QT_VERSION_CHECK(5, 7, 0)
+    for (int z=0; z<19; z++)
+        sti.append( (char)0x00 );
+#else
     sti.append( 19, '\0' );
+#endif
 
     // install the palette into the buffer - 0x300 bytes
 
@@ -495,7 +530,12 @@ QByteArray STI::make8BitSTI( QImage image, int num_images, bool true256 )
                 (qGreen( palette[k] ) == 0) &&
                 (qBlue(  palette[k] ) == 0))
             {
+#if QT_VERSION < QT_VERSION_CHECK(5, 7, 0)
+                for (int z=0; z<3; z++)
+                    sti.append( (char)0x01 );
+#else
                 sti.append( 3, '\1' );
+#endif
             }
             else
             {
@@ -514,7 +554,12 @@ QByteArray STI::make8BitSTI( QImage image, int num_images, bool true256 )
 
     // image headers - 16 * num_images bytes
 
+#if QT_VERSION < QT_VERSION_CHECK(5, 7, 0)
+    for (int z=0; z<16*num_images; z++)
+        sti.append( (char)0x00 );
+#else
     sti.append( 16 * num_images, '\0' );
+#endif
 
     // actual image - img_size bytes
     int sz_before = sti.size();

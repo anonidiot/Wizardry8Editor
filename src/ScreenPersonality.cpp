@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2024 Anonymous Idiot
+ * Copyright (C) 2022-2025 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -189,7 +189,9 @@ ScreenPersonality::ScreenPersonality(character *c, QWidget *parent) :
     SLFFile imgs( "CHAR GENERATION/CG_PERSONALITY.STI" );
     if (imgs.open(QFile::ReadOnly))
     {
-        QByteArray array = imgs.readAll();
+        QByteArray array;
+
+        imgs.readAll( array );
         STI sti_imgs( array );
 
         m_audioLevels[0] = QPixmap::fromImage( sti_imgs.getImage( 1 ));

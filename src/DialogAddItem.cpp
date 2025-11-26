@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2024 Anonymous Idiot
+ * Copyright (C) 2022-2025 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -549,7 +549,9 @@ void DialogAddItem::makeTypePixmaps()
 
         if (ic.open(QFile::ReadOnly))
         {
-            QByteArray array = ic.readAll();
+            QByteArray array;
+
+            ic.readAll( array );
             STI c( array );
 
             QImage  im = c.getImage( 0 );
@@ -584,7 +586,9 @@ void DialogAddItem::makeTypePixmaps()
     SLFFile imgs( "CHAR GENERATION/CG_PROFESSION.STI" );
     if (imgs.open(QFile::ReadOnly))
     {
-        QByteArray array = imgs.readAll();
+        QByteArray array;
+
+        imgs.readAll( array );
         STI sti_imgs( array );
 
         m_ddlInactive = makeWider( sti_imgs.getImage( 1 ), sti_imgs.getWidth( 1 ) + 30 );

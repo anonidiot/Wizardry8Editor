@@ -1,0 +1,60 @@
+# Cannot use anything newer than 10 in debian because require python-mako (Python 2)
+# to compile mesa and it stops being packaged in 11
+FROM debian:10-slim
+
+RUN sed -i 's/deb.debian.org/archive.debian.org/' /etc/apt/sources.list
+RUN sed -i '/archive.debian.org/s/deb /deb \[trusted=yes\] /' /etc/apt/sources.list
+RUN apt update && apt-get -y install --no-install-recommends \
+    autoconf \
+    automake \
+    autopoint \
+    bash \
+    bison \
+    bzip2 \
+    cmake \
+    flex \
+    g++ \
+    gettext \
+    git \
+    gperf \
+    intltool \
+    libgdk-pixbuf2.0-dev \
+    libltdl-dev \
+    libssl-dev \
+    libtool-bin \
+    libxml-parser-perl \
+    libxext-dev \
+    lzip \
+    make \
+    openssl \
+    p7zip-full \
+    patch \
+    perl \
+    pkg-config \
+    python-mako \
+    ruby \
+    sed \
+    unzip \
+    wget \
+    xxd \
+    xz-utils \
+    zip
+
+WORKDIR /
+
+ENV MXE_TARGETS="x86_64-w64-mingw32.static"
+ENV MXE_PLUGIN_DIRS=plugins/gcc10
+
+RUN git clone https://github.com/mxe/mxe.git /opt/mxe && \
+    cd /opt/mxe && \
+    git checkout build-2021-04-22-79-g193d801
+
+WORKDIR /opt/mxe
+
+RUN make download-gcc && \
+    make MXE_USE_CCACHE= MXE_PLUGIN_DIRS="$MXE_PLUGIN_DIRS" MXE_TARGETS="$MXE_TARGETS" qt5 ffmpeg && \
+    rm -rf log/* pkg/* .ccache usr/$MXE_TARGETS/bin/gmp-tests
+
+# Docker doesn't use the /etc/profile or internal files to set environment - does it directly
+ENV PATH="/opt/mxe/usr/bin:/opt/mxe/usr/x86_64-w64-mingw32.static/qt5/bin:$PATH"
+WORKDIR /mnt

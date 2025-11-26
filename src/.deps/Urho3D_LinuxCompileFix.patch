@@ -1,0 +1,10 @@
+--- Urho3D-1.8/Source/ThirdParty/Assimp/contrib/zlib/gzguts.h	2025-11-23 19:43:12.735964593 +1100
++++ Urho3D-1.8/Source/ThirdParty/Assimp/contrib/zlib/gzguts.h	2025-11-23 19:43:12.735964593 +1100
+@@ -3,6 +3,7 @@
+  * For conditions of distribution and use, see copyright notice in zlib.h
+  */
+ 
++#include <unistd.h>
+ #ifdef _LARGEFILE64_SOURCE
+ #  ifndef _LARGEFILE_SOURCE
+ #    define _LARGEFILE_SOURCE 1

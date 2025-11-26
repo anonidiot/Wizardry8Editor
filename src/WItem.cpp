@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2024 Anonymous Idiot
+ * Copyright (C) 2022-2025 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -144,7 +144,9 @@ void WItem::resetPixmaps()
 
         if (imgs.open(QFile::ReadOnly))
         {
-            QByteArray array = imgs.readAll();
+            QByteArray array;
+
+            imgs.readAll( array );
             STI sti_imgs( array );
 
             if (m_rect.height() <= kBackpackItemMaxHeight)
@@ -176,8 +178,9 @@ void WItem::resetPixmaps()
             }
             else
             {
-                QByteArray array = sti_file.readAll();
+                QByteArray array;
 
+                sti_file.readAll( array );
                 STI s( array);
 
                 m_usablePixmap = QPixmap::fromImage( s.getImage( 0 ));

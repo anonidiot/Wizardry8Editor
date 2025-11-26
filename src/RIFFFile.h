@@ -51,7 +51,12 @@ public:
 
     bool       isGood() { if (m_numSegs != 0) return true; else return false; }
     bool       isWizardry128File() { return m_WIZ8variant; }
+    bool       isWizardry128NewFormatSpells() { return !m_origFormatSpells; }
     QString    getError();
+
+#if QT_VERSION < QT_VERSION_CHECK(5, 10, 0)
+    qint64       skip(qint64 maxSize) { QByteArray missingFunc = read(maxSize); return missingFunc.size(); }
+#endif
 
     int        getNumSegments();
     QString    getSegmentCode(int segment);
@@ -96,7 +101,8 @@ private:
     qint64              m_filesize;
     int                 m_numSegs;
     QList<riff_entry>   m_segments;
-    bool                m_WIZ8variant; // file uses alternative WIZ8 header used by Wizardry 1.2.8 insted of RIFF
+    bool                m_WIZ8variant;      // file uses alternative WIZ8 header used by Wizardry 1.2.8 insted of RIFF
+    bool                m_origFormatSpells; // file uses alternative WIZ8 header used by Wizardry 1.2.8 insted of RIFF but still writes spells in the original format
 };
 
 #endif /* RIFFFILE_H__ */

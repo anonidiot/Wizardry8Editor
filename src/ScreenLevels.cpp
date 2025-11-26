@@ -652,9 +652,40 @@ void ScreenLevels::setCb(int state)
                 // be revived in game.
                 if (WSpinBox *q = qobject_cast<WSpinBox *>(m_widgets[ VAL_HP ]))
                 {
-                    int hp = ((state == Qt::Checked) ? 0 : 1);
+                    // if the character has a non-zero health and isn't dead use that
+                    // (this happens if we are on levels screen and we switch to
+                    //  a non-dead character), if they were dead and have been made
+                    //  alive, set health to 1, and if they were living but have
+                    //  been made dead, set health to 0.
+
+                    int hp = m_char->getHp( character::atIdx::Current );
+
+                    if (state == Qt::Checked)
+                    {
+                        hp = 0;
+                    }
+                    else if (hp == 0)
+                    {
+                        hp = 1;
+                    }
 
                     q->setValue( hp );
+                    q->setEnabled( ((state == Qt::Checked) ? false : true) );
+                }
+                if (WSpinBox *q = qobject_cast<WSpinBox *>(m_widgets[ VAL_STAMINA ]))
+                {
+                    int stamina = m_char->getStamina( character::atIdx::Current );
+
+                    if (state == Qt::Checked)
+                    {
+                        stamina = 0;
+                    }
+                    else if (stamina == 0)
+                    {
+                        stamina = 1;
+                    }
+
+                    q->setValue( stamina );
                     q->setEnabled( ((state == Qt::Checked) ? false : true) );
                 }
             }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2024 Anonymous Idiot
+ * Copyright (C) 2022-2025 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,6 +31,7 @@
 #include "DialogCurrentPosition.h"
 #include "DialogPatchExe.h"
 #include "DialogNewFile.h"
+#include "DialogPreferences.h"
 #include "WindowDroppedItems.h"
 #include "WindowItemsList.h"
 #include "WindowFactEditor.h"
@@ -114,9 +115,32 @@ MainWindow::MainWindow(QString loadFile) :
 
             m_party = new party( m_loadedGame->readParty() );
 
+            // Because Wizardry 28 can still have a new file header but write
+            // spells in the old format if it is an Original game.
+            // The other areas, like NPCT, are in the new format, so we can't
+            // just write an old format save file and expect it to work.
+
+            // The biggest nuisance about the 1.28 devs doing this is that
+            // there isn't a good way to determine that we ARE running an
+            // original game - no configuration byte anywhere I can see.
+            // We're forced to use the unreliable mechanism of searching for
+            // "Original" in the mod path. The instructions for setting up
+            // ParallelWorld say to call it this. And that's all we have. In
+            // particular we have no way of identifying an Original game being
+            // played in a non-ParallelWorld configuration under 1.28.
+
+            // It also stops the exported CHR files being portable between the
+            // Original game and the mods.
+
+            // 1.28 devs please just fix this and put the spells in the new
+            // format for Original games too!
+
+            bool new_spell_format = m_loadedGame->isWizardry128File() &&
+                                    m_loadedGame->isWizardry128NewFormatSpells();
+
             for (unsigned int k=0; k<NUM_CHARS; k++)
             {
-                m_party->m_chars.append( new character( m_loadedGame->readCharacter(k), m_loadedGame->readCharacterExtra(k), m_loadedGame->isWizardry128File() ));
+                m_party->m_chars.append( new character( m_loadedGame->readCharacter(k), m_loadedGame->readCharacterExtra(k), new_spell_format ));
             }
             m_party->setKnownRPCs( m_rpcMap );
             m_party->setVisitedMaps( m_loadedGame->getVisitedMapsList() );
@@ -183,6 +207,7 @@ MainWindow::MainWindow(QString loadFile) :
 #endif
 
     show();
+    adjustSize();
 
     // No existing saved game loaded
     if (!m_loadedGame)
@@ -247,6 +272,18 @@ bool windowsEvents::nativeEventFilter(const QByteArray &eventType, void *message
                         r->left = r->right - w;
                         break;
                 }
+                // keep it on aspect ratio
+                #define ASPECT_RATIO_TOLERANCE   10
+                if (w / ORIGINAL_DIM_X * ORIGINAL_DIM_Y - ASPECT_RATIO_TOLERANCE > h)
+                {
+                    w = (h - g_windowPadding.height()) * ORIGINAL_DIM_X / ORIGINAL_DIM_Y + g_windowPadding.width();
+                    r->left = r->right - w;
+                }
+                else if (w / ORIGINAL_DIM_X * ORIGINAL_DIM_Y < h - ASPECT_RATIO_TOLERANCE)
+                {
+                    h = (w - g_windowPadding.width()) * ORIGINAL_DIM_Y / ORIGINAL_DIM_X + g_windowPadding.height();
+                    r->bottom = r->top + h;
+                }
 
                 *res = 0;
                 break;
@@ -280,6 +317,7 @@ MainWindow::~MainWindow()
 
     ignoreStringsAct->deleteLater();
     localisationAct->deleteLater();
+    editPrefsAct->deleteLater();
 
     QList<QAction *> actions = m_loc_langs->actions();
     for (int k=0; k<actions.size(); k++)
@@ -453,7 +491,13 @@ void MainWindow::loadRPCfromNPCT( int npc_idx, int slot_idx )
     ASSIGN_LE32( charx_data+0x00fa,  npc_idx );
 
     delete m_party->m_chars[ slot_idx ];
-    m_party->m_chars[ slot_idx ] = new character( rpc, rpcCharX,  m_loadedGame->isWizardry128File() );
+
+    // Because Wizardry 28 can still have a new file header but write
+    // spells in the old format if it is an Original game.
+    bool new_spell_format = m_loadedGame->isWizardry128File() &&
+                            m_loadedGame->isWizardry128NewFormatSpells();
+
+    m_party->m_chars[ slot_idx ] = new character( rpc, rpcCharX,  new_spell_format );
 
     m_party->addedRPCs << npc_idx;
 
@@ -723,9 +767,14 @@ void MainWindow::open()
 
     m_party = new party( m_loadedGame->readParty() );
 
+    // Because Wizardry 28 can still have a new file header but write
+    // spells in the old format if it is an Original game.
+    bool new_spell_format = m_loadedGame->isWizardry128File() &&
+                            m_loadedGame->isWizardry128NewFormatSpells();
+
     for (unsigned int k=0; k<NUM_CHARS; k++)
     {
-        m_party->m_chars.append( new character( m_loadedGame->readCharacter(k), m_loadedGame->readCharacterExtra(k),  m_loadedGame->isWizardry128File() ));
+        m_party->m_chars.append( new character( m_loadedGame->readCharacter(k), m_loadedGame->readCharacterExtra(k),  new_spell_format ));
     }
     m_party->divvyUpPartyWeight();
     m_party->setKnownRPCs( m_rpcMap );
@@ -778,9 +827,14 @@ void MainWindow::save()
 
         m_loadedGame->writeParty( m_party->serialize() );
 
+        // Because Wizardry 28 can still have a new file header but write
+        // spells in the old format if it is an Original game.
+        bool new_spell_format = m_loadedGame->isWizardry128File() &&
+                                m_loadedGame->isWizardry128NewFormatSpells();
+
         for (unsigned int k=0; k<NUM_CHARS; k++)
         {
-            m_loadedGame->writeCharacter( k, m_party->m_chars[k]->serialize( m_loadedGame->isWizardry128File() ) );
+            m_loadedGame->writeCharacter( k, m_party->m_chars[k]->serialize( new_spell_format ) );
             m_loadedGame->writeCharacterExtra( k, m_party->m_chars[k]->getCharExtra() );
         }
 
@@ -1082,7 +1136,9 @@ QByteArray MainWindow::makeSnapshot( wiz7_end clip )
         {
             if (slf.open(QFile::ReadOnly))
             {
-                QByteArray array = slf.readAll();
+                QByteArray array;
+
+                slf.readAll( array );
                 STI c( array );
 
                 src = c.getImage( 0 );
@@ -1135,6 +1191,20 @@ void MainWindow::copy()
 void MainWindow::paste()
 {
     statusBar()->showMessage(tr("Invoked <b>Edit|Paste</b>"));
+}
+
+void MainWindow::editPrefs()
+{
+    DialogPreferences d(this);
+
+    if (d.exec() == QDialog::Accepted)
+    {
+        if (d.needRestart())
+        {
+            qWarning() << "Restarting";
+            qApp->exit( EXIT_RESTART );
+        }
+    }
 }
 
 void MainWindow::ignoreModStrings()
@@ -1367,6 +1437,10 @@ void MainWindow::createActions()
     pasteAct->setDisabled( true );
     //connect(pasteAct, &QAction::triggered, this, &MainWindow::paste);
 
+    editPrefsAct = new QAction(tr("Edit Preferences..."), this);
+    editPrefsAct->setStatusTip(tr("Change program configuration settings"));
+    connect(editPrefsAct, &QAction::triggered, this, &MainWindow::editPrefs);
+
     ignoreStringsAct = new QAction( ::getBaseStringTable()->getString( StringList::IgnoreModStringsShort ), this);
     ignoreStringsAct->setStatusTip( ::getBaseStringTable()->getString( StringList::IgnoreModStrings ) );
     ignoreStringsAct->setCheckable( true );
@@ -1467,6 +1541,8 @@ void MainWindow::createMenus()
             editMenu->addAction(actions[k]);
         }
     }
+    editMenu->addSeparator();
+    editMenu->addAction(editPrefsAct);
 
     specialMenu = menuBar()->addMenu(tr("&Special"));
     specialMenu->addAction(droppedItemsAct);
@@ -1670,9 +1746,13 @@ void MainWindow::removeNpcFromLVLS(int npc_idx)
 
                                         qint64 record_end   = m_loadedGame->pos();
                                         qint64 data_size    = subsegs[j].size - (record_end - subsegs[j].offset);
-
+#if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)
+                                        qDebug() << "Clipping" << ((section==0)?"IDX":"DATA") << "record between"
+                                                 << hex << showbase << record_start << "and" << record_end;
+#else
                                         qDebug() << "Clipping" << ((section==0)?"IDX":"DATA") << "record between"
                                                  << Qt::hex << Qt::showbase << record_start << "and" << record_end;
+#endif
 
                                         // This moves the segment data down by one record to clip out the record
                                         QByteArray allInOneGo = m_loadedGame->read( data_size );

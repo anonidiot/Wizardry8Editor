@@ -99,6 +99,10 @@
 typedef UINT (WINAPI *farprocGetDpiForWindow)(HWND hwnd);
 #endif
 
+#if (__cpluscplus < 201103L)
+ #define isnan   std::isnan
+#endif
+
 static const float kAvatarOffset          =  960.0f;   /** vertical dist differential between Avatar y-coord and Wizardry y-coord */
 static const float kScale                 =  0.0013f;
 static const float kLightIntensityScale   =  0.2f;
@@ -470,6 +474,8 @@ int Window3DNavigator::LoadMaterial( String pvlFolderName, uint8_t *material_buf
     float fps       = *(float *)(material_buf+0x111);
 
     float  actualColor[4];
+
+    Q_UNUSED(has_alpha);
 
     // If diffusion color not set but transmit color is
     if ((fabsf(diffuse[0]) < kEpsilon) &&
@@ -1417,6 +1423,9 @@ void Window3DNavigator::processProperties( SLFFile *f, bool expect_matrix, void 
                 float u2 = f->readFloat();
                 float u3 = f->readFloat();
 
+                Q_UNUSED(u1);
+                Q_UNUSED(u2);
+                Q_UNUSED(u3);
                 if (ani_ptr->frames && (ani_ptr->num_frames >= num_frames))
                 {
                     if (!ani_ptr->frames[j])
@@ -2199,6 +2208,7 @@ int Window3DNavigator::LoadPVL( int map_id )
         int32_t v22           = f.readLELong();
         int16_t num_materials = f.readLEShort();
 
+        Q_UNUSED(v22);
         // printf("num_meshes=%d v22=%d num_materials=%d\n", num_meshes, v22, num_materials);
         // printf("0x%08x: %s\n", (unsigned int)f.pos(), "Materials");
 
@@ -3703,7 +3713,6 @@ static void bitmapDetails(SLFFile *f, bool bBitmapDirSet, struct animated_mesh *
         {
             int8_t    v80 = 0;
             uint8_t   v81 = 0;
-            uint16_t  v86;
 
             if (Buffer >= 3)
             {

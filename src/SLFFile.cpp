@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2024 Anonymous Idiot
+ * Copyright (C) 2022-2025 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -187,12 +187,17 @@ QPixmap SLFFile::getPixmapFromSlf( QString slfFile, int idx )
     {
         if (slf.open(QFile::ReadOnly))
         {
-            QByteArray array = slf.readAll();
-            STI c( array );
+            if (slf.size() != -1)
+            {
+                QByteArray array;
 
-            img = QPixmap::fromImage( c.getImage( idx ) );
+                slf.readAll( array );
+                STI c( array );
+
+                img = QPixmap::fromImage( c.getImage( idx ) );
 
             slf.close();
+            }
         }
     }
     return img;
@@ -236,7 +241,13 @@ void SLFFile::setFileName(const QString &name, bool force_base)
         }
         else
         {
+            // = operator is apparently deprecated, and setPath() preferred, but = invokes
+            // swap() which is very fast, never fails and avoids repeating a lot of operations
+            // we're managing ourselves. Stick with it; it's better. But shutup the compile warning.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
             cwd = s_worldPath;
+#pragma GCC diagnostic pop
         }
     }
 
@@ -279,7 +290,10 @@ void SLFFile::setFileName(const QString &name, bool force_base)
 
     if (! s_parallelWorlds)
     {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
         cwd = s_wizardryPath;
+#pragma GCC diagnostic pop
         // Find the PATCHES subfolder - which we don't know the casing of yet
 
         filter.clear();
@@ -455,13 +469,25 @@ qint64 SLFFile::skip(qint64 bytes)
 #endif
 }
 
-QByteArray SLFFile::readAll()
+void SLFFile::readAll( QByteArray &buffer )
 {
-    QByteArray qb = m_storage->read( m_dataLen - (m_storage->pos() - m_dataOffset) );
-    if (qb.size() == 0)
+    qint64 to_read = (m_dataLen - (m_storage->pos() - m_dataOffset));
+
+    // Preallocate the bytearray and read into it directly, rather than
+    // copy a returned bytearray, which uses twice the memory.
+    buffer.resize( to_read );
+    if (buffer.size() < to_read)
     {
         throw SLFFileException();
     }
+
+    m_storage->read( buffer.data(), to_read );
+}
+
+QByteArray SLFFile::readAll()
+{
+    QByteArray qb;
+    readAll( qb );
 
     return qb;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2024 Anonymous Idiot
+ * Copyright (C) 2022-2025 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -677,7 +677,9 @@ void ScreenCommon::resetCharacterSelectButtons(void)
     SLFFile buttons( "REVIEW/COMMONCORNER.STI" );
     if (buttons.open(QFile::ReadOnly))
     {
-        QByteArray array = buttons.readAll();
+        QByteArray array;
+
+        buttons.readAll( array );
         STI sti_buttons( array );
 
         for (int k=0; k<NUM_CHARS; k++)

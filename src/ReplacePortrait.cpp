@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 Anonymous Idiot
+ * Copyright (C) 2024-2025 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -167,12 +167,27 @@ void rebuildPatchFile( int portraitId, const QImage &largeImage )
 
         // Populate the header bytes
         slf_output.append( PATCH_FILE, sizeof(PATCH_FILE) );
+#if QT_VERSION < QT_VERSION_CHECK(5, 7, 0)
+        for (int z=0; z<256 - sizeof(PATCH_FILE); z++)
+            slf_output.append( '\0' );
+#else
         slf_output.append( 256 - sizeof(PATCH_FILE), '\0' );
+#endif
         slf_output.append( "Data\\", 5 );
+#if QT_VERSION < QT_VERSION_CHECK(5, 7, 0)
+        for (int z=0; z<256 - 5; z++)
+            slf_output.append( '\0' );
+#else
         slf_output.append( 256 - 5, '\0' );
+#endif
 
         // These need updating after the archive is built
+#if QT_VERSION < QT_VERSION_CHECK(5, 7, 0)
+        for (int z=0; z<20; z++)
+            slf_output.append( '\0' );
+#else
         slf_output.append( 20, '\0' );
+#endif
 
         // Step through all the files in the pre-existing patch (if any)
         // and copy them into the output - so long as they don't match
@@ -319,7 +334,12 @@ void rebuildPatchFile( int portraitId, const QImage &largeImage )
 
             qDebug() << "File" << s.filename << s.file_size;
             slf_output.append( s.filename.toLatin1(), s.filename.size() );
+#if QT_VERSION < QT_VERSION_CHECK(5, 7, 0)
+            for (int z=0; z<256 - s.filename.size(); z++)
+                slf_output.append( '\0' );
+#else
             slf_output.append( 256 - s.filename.size(), '\0' );
+#endif
             slf_output.append( (char)(s.file_offset >>  0) & 0xff );
             slf_output.append( (char)(s.file_offset >>  8) & 0xff );
             slf_output.append( (char)(s.file_offset >> 16) & 0xff );
@@ -328,7 +348,12 @@ void rebuildPatchFile( int portraitId, const QImage &largeImage )
             slf_output.append( (char)(s.file_size   >>  8) & 0xff );
             slf_output.append( (char)(s.file_size   >> 16) & 0xff );
             slf_output.append( (char)(s.file_size   >> 24) & 0xff );
+#if QT_VERSION < QT_VERSION_CHECK(5, 7, 0)
+            for (int z=0; z<16; z++)
+                slf_output.append( '\0' );
+#else
             slf_output.append( 16, '\0' );
+#endif
         }
 
         // Write the buffer into the file
@@ -467,7 +492,7 @@ static oct_node node_new(oct_node *pool, int *len, unsigned char idx, unsigned c
 {
     if (*len <= 1)
     {
-        oct_node p = (oct_node) calloc(sizeof(oct_node_t), 2048);
+        oct_node p = (oct_node) calloc(2048, sizeof(oct_node_t));
         p->parent = *pool;
         *pool = p;
         *len = 2047;

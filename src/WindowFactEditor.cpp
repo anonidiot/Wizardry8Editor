@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Anonymous Idiot
+ * Copyright (C) 2022-2025 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,14 +30,15 @@
 #include "SLFFile.h"
 #include "main.h"
 
-#include <QListWidgetItem>
+#include <QHeaderView>
 #include <QPainter>
 #include <QPixmap>
+#include <QTableWidget>
+#include <QTableWidgetItem>
 
 #include "WButton.h"
 #include "WImage.h"
 #include "WLabel.h"
-#include "WListWidget.h"
 #include "WScrollBar.h"
 
 #include <QDebug>
@@ -72,7 +73,7 @@ WindowFactEditor::WindowFactEditor(facts &f)
         { NO_ID,              QRect(  10,  32,  70,  12 ),    new WLabel( tr("Facts:"), Qt::AlignRight, 10, QFont::Thin,                     this ),  -1,  NULL },
 
         { FACTS_SCROLLBAR,    QRect( 504,  30,  15, 225 ),    new WScrollBar( Qt::Orientation::Vertical,                                     this ),  -1,  NULL },
-        { FACTS_SCROLLLIST,   QRect(  88,  29, 402, 226 ),    new WListWidget(                                                               this ),  -1,  NULL },
+        { FACTS_SCROLLLIST,   QRect(  88,  29, 402, 226 ),    new QTableWidget(                                                    this ),  -1,  NULL },
 
         { NO_ID,              QRect( 462, 268,  -1,  -1 ),    new WButton(   "DIALOGS/DIALOGCONFIRMATION.STI",               0, true, 1.0,   this ),  -1,  SLOT(apply(bool)) },
         { NO_ID,              QRect( 494, 268,  -1,  -1 ),    new WButton(   "DIALOGS/DIALOGCONFIRMATION.STI",               4, true, 1.0,   this ),  -1,  SLOT(close()) },
@@ -84,8 +85,23 @@ WindowFactEditor::WindowFactEditor(facts &f)
 
 
     // The fact list
-    if (WListWidget *factlist = qobject_cast<WListWidget *>(m_widgets[ FACTS_SCROLLLIST ] ))
+    if (QTableWidget *factlist = qobject_cast<QTableWidget *>(m_widgets[ FACTS_SCROLLLIST ] ))
     {
+        QStringList cols;
+
+        Q_ASSERT( factlist->horizontalHeader() );
+        factlist->horizontalHeader()->setSectionsMovable( true );
+        factlist->setSelectionMode( QAbstractItemView::NoSelection );        
+        factlist->verticalHeader()->setVisible( false );
+        factlist->setDragEnabled( false );
+
+        cols << "Enabled";
+        cols << "ID";
+        cols << "Name";
+        factlist->setColumnCount( cols.size() );
+        factlist->setHorizontalHeaderLabels( cols );
+        factlist->setColumnWidth( 2, 400 );
+
         if (WScrollBar *sb = qobject_cast<WScrollBar *>(m_widgets[ FACTS_SCROLLBAR ] ))
         {
             // QScrollAreas include their own scrollbar when necessary, but we need to
@@ -113,6 +129,9 @@ WindowFactEditor::WindowFactEditor(facts &f)
     // bigger than minimum dialog. We have to make an additional call to force
     // it back to the right size after adding the OK button.
     this->resize( m_bgImgSize * m_scale );
+
+    this->setMaximumSize( QWIDGETSIZE_MAX, QWIDGETSIZE_MAX );
+
     show();
 }
 
@@ -164,6 +183,12 @@ void WindowFactEditor::resizeEvent(QResizeEvent *event)
         if (Wizardry8Scalable *w = dynamic_cast<Wizardry8Scalable *>(widgets[k]))
         {
             w->setScale( m_scale );
+        }
+        else if (QTableWidget *q = qobject_cast<QTableWidget *>(widgets[k]))
+        {
+            // (  88,  29, 402, 226 )
+            q->move( 88 * m_scale, 29 * m_scale );
+            q->resize( 402 * m_scale, 226 * m_scale );
         }
     }
 
@@ -217,40 +242,69 @@ QPixmap WindowFactEditor::makeDialogForm()
 void WindowFactEditor::updateList()
 {
     // Repopulate the fact list
-    if (WListWidget *factlist = qobject_cast<WListWidget *>(m_widgets[ FACTS_SCROLLLIST ] ))
+    if (QTableWidget *factlist = qobject_cast<QTableWidget *>(m_widgets[ FACTS_SCROLLLIST ] ))
     {
-        factlist->clear();
+        factlist->clearContents();
 
         int num_items = m_facts.size();
+
+        factlist->setRowCount( num_items );
+        factlist->setSortingEnabled( false );
+
         for (int k=0; k < num_items; k++)
         {
-            QListWidgetItem *newFact = new QListWidgetItem( m_facts.getKey( k ) );
-            newFact->setData( Qt::UserRole, k );
-            newFact->setFlags(newFact->flags() | Qt::ItemIsUserCheckable); // set checkable flag
+            QTableWidgetItem *w_set  = new QTableWidgetItem( " " );
+
+            w_set->setData( Qt::UserRole, k );
 
             if (m_facts.getValue( k ))
             {
-                newFact->setCheckState( Qt::Checked );
+                w_set->setCheckState( Qt::Checked );
             }
             else
             {
-                newFact->setCheckState( Qt::Unchecked );
+                w_set->setCheckState( Qt::Unchecked );
             }
 
-            factlist->addItem( newFact );
+            QTableWidgetItem *w_id   = new QTableWidgetItem();
+            w_id->setData( Qt::DisplayRole, k ); // setting the contents of w_id this way, keeps it numeric (for sorting)
+
+            QTableWidgetItem *w_name = new QTableWidgetItem( m_facts.getKey( k ) );
+
+            Qt::ItemFlags flags = Qt::ItemIsEnabled; // non editable, draggable, dropable, selectable etc.
+
+            w_id->setFlags( flags );
+            w_name->setFlags( flags );
+            w_set->setFlags( flags | Qt::ItemIsUserCheckable );
+
+            w_id->setTextAlignment(   Qt::AlignRight | Qt::AlignVCenter ); // numeric field right aligned
+            w_name->setTextAlignment(  Qt::AlignLeft | Qt::AlignVCenter ); // text field left aligned
+            w_set->setTextAlignment( Qt::AlignCenter | Qt::AlignVCenter ); // checkbox field centre aligned
+
+            factlist->setItem( k, 0, w_set  );
+            factlist->setItem( k, 1, w_id   );
+            factlist->setItem( k, 2, w_name );
         }
-        factlist->setCurrentRow( 0 );
+        factlist->setSortingEnabled( true );
     }
 }
 
 void WindowFactEditor::apply(bool)
 {
-    if (WListWidget *factlist = qobject_cast<WListWidget *>(m_widgets[ FACTS_SCROLLLIST ] ))
+    if (QTableWidget *factlist = qobject_cast<QTableWidget *>(m_widgets[ FACTS_SCROLLLIST ] ))
     {
         int num_items = m_facts.size();
         for (int k=0; k < num_items; k++)
         {
-            m_facts.setValue( k, (factlist->item(k)->checkState() == Qt::Checked) );
+            const QTableWidgetItem *w = factlist->item( k, 0 );
+
+            Q_ASSERT(w);
+            QVariant v_id = w->data( Qt::UserRole );
+
+            if (v_id.isValid() && ! v_id.isNull())
+            {
+                m_facts.setValue( v_id.toInt(), (w->checkState() == Qt::Checked) );
+            }
         }
     }
     close();

@@ -42,7 +42,7 @@ public:
     static const int EMPTY_FLAG = 256;
 
     WButton(QWidget* parent = Q_NULLPTR, Qt::WindowFlags f = Qt::WindowFlags());
-    WButton(QString sti_file, int image_idx, bool bNoFifthStatet = false, double extraScale = 1.0, QWidget* parent = Q_NULLPTR, Qt::WindowFlags f = Qt::WindowFlags());
+    WButton(QString sti_file, int image_idx, bool bNoFifthState = false, double extraScale = 1.0, QWidget* parent = Q_NULLPTR, Qt::WindowFlags f = Qt::WindowFlags());
     WButton(QPixmap *pixmap, bool bNoFifthState = false, double extraScale = 1.0, QWidget* parent = Q_NULLPTR, Qt::WindowFlags f = Qt::WindowFlags());
 
     ~WButton();

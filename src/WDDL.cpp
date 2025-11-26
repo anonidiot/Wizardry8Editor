@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2023 Anonymous Idiot
+ * Copyright (C) 2022-2025 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -169,7 +169,8 @@ void WDDL::loadDDLPixmaps()
     SLFFile imgs( "CHAR GENERATION/CG_PROFESSION.STI" );
     if (imgs.open(QFile::ReadOnly))
     {
-        QByteArray array = imgs.readAll();
+        QByteArray array;
+        imgs.readAll( array );
         STI sti_imgs( array );
 
         m_ddlInactive = QPixmap::fromImage( sti_imgs.getImage( 1 ) );

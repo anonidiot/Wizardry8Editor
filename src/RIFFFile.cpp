@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022-2024 Anonymous Idiot
+ * Copyright (C) 2022-2025 Anonymous Idiot
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,6 +26,7 @@
 #include <QDirIterator>
 #include "RIFFFile.h"
 #include "common.h"
+#include "SLFFile.h"
 
 #include <QDebug>
 
@@ -38,7 +39,8 @@ RIFFFile::RIFFFile(const QString &name) :
     m_error(),
     m_filesize(-1),
     m_numSegs(0),
-    m_WIZ8variant(false)
+    m_WIZ8variant(false),
+    m_origFormatSpells(false) // only relevant if m_WIZ8variant == true
 {
     if (open(QFile::ReadOnly))
     {
@@ -119,6 +121,32 @@ void RIFFFile::readDirectory()
              (buf[3] == '8'))
     {
         okHeader = true;
+
+        // Wizardry 1.2.8 does NOT change the file format for the
+        // 'Original' game, but still (bug?) changes the header
+        // signature. This means that we can't use the header alone to
+        // determine what format the spells are in, and because I don't
+        // know of anything else we have to make the decision based
+        // entirely on whether or not "Original" is the active parallel
+        // world. This is a complete hack. And I hate it.
+        // Worse - it only fixes it for Parallelworld, not for 1.2.28
+        // builds not using that layout. So 1.2.28 devs if you are reading
+        // this - PLEASE FIX IT!!!
+        // FIXME:
+        // Unfortunately we can't just fall back to writing a RIFF file
+        // header - there's other stuff they've shoved in there as well, and
+        // if we go back to the old header it crashes the game on load.
+
+        #warning Complete HACK code here
+        if (! SLFFile::getParallelWorldPath() .contains("/Original/", Qt::CaseInsensitive))
+        {
+            m_origFormatSpells = true;
+        }
+        else
+        {
+            m_origFormatSpells = false;
+        }
+
         m_WIZ8variant = true;
     }
 

@@ -34,8 +34,6 @@
 #include "Localisation.h"
 
 #include <QDebug>
-#include <QSettings>
-#include <QTextCodec>
 
 spell::spell(quint32 id) :
     m_id(id)

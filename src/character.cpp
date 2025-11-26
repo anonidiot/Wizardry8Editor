@@ -531,12 +531,21 @@ QByteArray character::serialize( bool isWizardry128File ) const
     // There are graphics for a Possessed condition in the game, but no support here for it.
 
     quint32 conditions[ condition::CONDITION_SIZE ];
-    for (int k=0; k < condition::CONDITION_SIZE; k++)
+    if (m_conditions_active[ Dead ])
     {
-        if (m_conditions_active[k] == false)
-            conditions[k] = 0;
-        else
-            conditions[k] = m_conditions[ k ];
+        // Death masks out all other conditions
+        memset( &conditions, 0, condition::CONDITION_SIZE * sizeof(quint32));
+        conditions[ Dead] = m_conditions[  Dead ];
+    }
+    else
+    {
+        for (int k=0; k < condition::CONDITION_SIZE; k++)
+        {
+            if (m_conditions_active[k] == false)
+                conditions[k] = 0;
+            else
+                conditions[k] = m_conditions[ k ];
+        }
     }
 
     ASSIGN_LE32( cdata+0x0a01, conditions[ Normal       ] );
@@ -599,7 +608,10 @@ QByteArray character::serialize( bool isWizardry128File ) const
     // Health and Stamina Points - calculated attributes
     /* [0x0b0d--0x0b24] */
     ASSIGN_LE32( cdata+0x0b0d, m_hp[atIdx::Base]         );
-    ASSIGN_LE32( cdata+0x0b11, m_hp[atIdx::Current]      );
+    // if character is dead MUST be 0 or they won't be revivable
+    // (this should have already been done by ScreenLevels but somehow
+    //  some cases aren't setting it.)
+    ASSIGN_LE32( cdata+0x0b11, ((m_conditions_active[ Dead ]) ? 0 : m_hp[atIdx::Current])  );
     ASSIGN_LE32( cdata+0x0b15, m_hp_drain                );
     ASSIGN_LE32( cdata+0x0b19, m_stamina[atIdx::Base]    );
     ASSIGN_LE32( cdata+0x0b1d, m_stamina[atIdx::Current] );
@@ -1003,7 +1015,7 @@ void character::unpackCharacter(const QByteArray &c, const QByteArray &cx, bool 
 
     // Health and Stamina Points - calculated attributes
     /* [0x0b0d--0x0b10] */ m_hp[atIdx::Base]         = FORMAT_LE32( cdata+0xb0d ); // HP at full health
-    /* [0x0b11--0x0b14] */ m_hp[atIdx::Current]      = FORMAT_LE32( cdata+0xb11 ); // current HP (if character is dead MUST be 0 or they won't be revivable)
+    /* [0x0b11--0x0b14] */ m_hp[atIdx::Current]      = FORMAT_LE32( cdata+0xb11 ); // current HP
                            m_hp[atIdx::Initial]      = m_hp[atIdx::Current];
     /* [0x0b15--0x0b18] */ m_hp_drain                = FORMAT_LE32( cdata+0xb15 ); // negative value when active - DISEASE _can_ switch it on
     /* [0x0b19--0x0b1c] */ m_stamina[atIdx::Base]    = FORMAT_LE32( cdata+0xb19 ); // Stamina at full health

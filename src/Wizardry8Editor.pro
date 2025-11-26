@@ -1,4 +1,4 @@
-VERSION=0.2.1
+VERSION=0.2.2
 
 # "These comments are in quotes because the apostrophes mix up the"
 # "syntax highlighting otherwise."
@@ -124,6 +124,7 @@ SOURCES += main.cpp \
            DialogSpellInfo.cpp \
            DialogParallelWorlds.cpp \
            DialogPatchExe.cpp \
+           DialogPreferences.cpp \
            DialogNewFile.cpp \
            DialogRUSure.cpp \
            ReplacePortrait.cpp \
@@ -187,6 +188,7 @@ HEADERS += Wizardry8Style.h \
            DialogSpellInfo.h \
            DialogParallelWorlds.h \
            DialogPatchExe.h \
+           DialogPreferences.h \
            DialogNewFile.h \
            DialogRUSure.h \
            ReplacePortrait.h \
@@ -220,6 +222,9 @@ HEADERS += Wizardry8Style.h \
 
 # Referenced in the qrc resource file
 unix {
+    URHO_PATCHES = $$escape_expand(\n\t)(cd .$${CC_ARCH}/$${URHO3D_TYPE} ; patch -p0 < ../../.deps/Urho3D_QFile.patch) \
+                   $$escape_expand(\n\t)(cd .$${CC_ARCH}/$${URHO3D_TYPE} ; patch -p0 < ../../.deps/Urho3D_LinuxCompileFix.patch)
+
     RESOURCES += blobs.qrc
 
     BLOBS =  WizFontOtfReg.bspatch \
@@ -230,6 +235,8 @@ unix {
 
 win32 {
     contains(QT_ARCH, x86_64) {
+        URHO_PATCHES = $$escape_expand(\n\t)(cd .$${CC_ARCH}/$${URHO3D_TYPE} ; patch -p0 < ../../.deps/Urho3D_QFile.patch)
+
         RESOURCES += blobs.qrc
 
         RC_ICONS = Win64.ico
@@ -240,6 +247,9 @@ win32 {
                  death.v4
     }
     else {
+        URHO_PATCHES = $$escape_expand(\n\t)(cd .$${CC_ARCH}/$${URHO3D_TYPE} ; patch -p0 < ../../.deps/Urho3D_QFile.patch) \
+                       $$escape_expand(\n\t)(cd .$${CC_ARCH}/$${URHO3D_TYPE} ; patch -p0 < ../../.deps/Urho3D_WinXP.patch)
+
         RESOURCES += win32_blobs.qrc
 
         RC_ICONS = WinXP.ico
@@ -260,6 +270,13 @@ QMAKE_EXTRA_TARGETS += .deps/$${URHO3D}.tar.gz \
                        $${URHO3D_DirectX_RESOURCES} \
                        urho3d_license.xxd \
                        urho3d_authors.xxd \
+                       docker_win32 \
+                       win32_opengl \
+                       win32_shell \
+                       docker_win64 \
+                       win64_directx \
+                       win64_opengl \
+                       win64_shell \
                        CoreData.pak \
                        .$${CC_ARCH}/$${URHO3D_DIR}/bin/tool/PackageTool \
                        $${TARGET}.zip
@@ -347,7 +364,7 @@ URHO3D_OpenGL_RESOURCES =  $${URHO3D_COMMON_RESOURCES} \
 
 $${TARGET}.zip.commands = zip $@ $+
 $${TARGET}.zip.depends  = $${SOURCES} $${HEADERS} $${RESOURCES} $${TARGET}.pro $${URHO3D_LOCAL_RESOURCES} \
-                          $${BLOBS} $${RC_ICONS} .deps/Urho3D_QFile.patch
+                          $${BLOBS} $${RC_ICONS} .deps/Urho3D_QFile.patch .deps/Urho3D_WinXP.patch
 QMAKE_CLEAN += $${TARGET}.zip
 
 $${OBJECTS_DIR}/qrc_blobs.cpp.depends += $${TARGET}.zip CoreData.pak
@@ -364,7 +381,7 @@ $${OBJECTS_DIR}/qrc_blobs.cpp.depends += $${TARGET}.zip CoreData.pak
 .$${CC_ARCH}/$${URHO3D_DIR}/CMakeLists.txt.commands = mkdir -p .$${CC_ARCH}/$${URHO3D_TYPE} \
                                                       $$escape_expand(\n\t)tar xf .deps/$${URHO3D}.tar.gz -C .$${CC_ARCH}/$${URHO3D_TYPE} \
                                                       $$escape_expand(\n\t)@-/bin/echo \"9aa2190b7bdf89fa4a7a581ad3163c78 $$escape_expand( ).deps/$${URHO3D}.tar.gz\" | md5sum -c - && ([ \$\$? -eq 0 ] && mv .$${CC_ARCH}/$${URHO3D_TYPE}/urho3d-1.8 .$${CC_ARCH}/$${URHO3D_DIR}) \
-                                                      $$escape_expand(\n\t)(cd .$${CC_ARCH}/$${URHO3D_TYPE} ; patch -p0 < ../../.deps/Urho3D_QFile.patch)
+                                                      $${URHO_PATCHES}
 # The pipe symbol prevents the datestamp on the archive being compared to the datestamp on the CMakeLists.txt
 # extracted from it (which is always going to be older) and would force this extraction to happen every time otherwise
 .$${CC_ARCH}/$${URHO3D_DIR}/CMakeLists.txt.depends  = | .deps/$${URHO3D}.tar.gz
@@ -374,13 +391,20 @@ $${OBJECTS_DIR}/qrc_blobs.cpp.depends += $${TARGET}.zip CoreData.pak
 # ALSO: On Windows platform Direct3D11 can be optionally chosen: -DURHO3D_D3D11=TRUE
 # Using Direct3D11 on non-MSVC compiler may require copying and renaming Microsoft official libraries (.lib to .a), else link failures or non-functioning graphics may result
 
-.$${CC_ARCH}/$${URHO3D_DIR}/Makefile.commands = (cd .$${CC_ARCH}/$${URHO3D_DIR} ; $${CMAKE} -DURHO3D_ANGELSCRIPT=FALSE -DURHO3D_LUA=FALSE -DURHO3D_LUAJIT=FALSE -DURHO3D_PLAYER=FALSE -DURHO3D_SAMPLES=FALSE $${URHO3D_ADDITIONAL_CONFIGS} .)
+.$${CC_ARCH}/$${URHO3D_DIR}/Makefile.commands = (cd .$${CC_ARCH}/$${URHO3D_DIR} ; $${CMAKE} -DURHO3D_ANGELSCRIPT=FALSE -DURHO3D_LUA=FALSE -DURHO3D_LUAJIT=FALSE -DURHO3D_PLAYER=FALSE -DURHO3D_SAMPLES=FALSE -DURHO3D_NETWORK=FALSE -DURHO3D_PACKAGING=TRUE $${URHO3D_ADDITIONAL_CONFIGS} .)
 .$${CC_ARCH}/$${URHO3D_DIR}/Makefile.depends  = .$${CC_ARCH}/$${URHO3D_DIR}/CMakeLists.txt
 
+unix {
 .$${CC_ARCH}/$${URHO3D_DIR}/lib/libUrho3D.a.commands = (cd .$${CC_ARCH}/$${URHO3D_DIR} ; make)
+}
+win32 {
+.$${CC_ARCH}/$${URHO3D_DIR}/lib/libUrho3D.a.commands = (cd .$${CC_ARCH}/$${URHO3D_DIR} ; make) \
+                                                       $$escape_expand(\n\t)(cd .$${CC_ARCH}/$${URHO3D_DIR}/lib ; ar d libUrho3D.a ftbase.c.obj ftbbox.c.obj ftbitmap.c.obj ftbzip2.c.obj ftcache.c.obj ftfntfmt.c.obj ftfstype.c.obj ftgasp.c.obj ftglyph.c.obj ftgxval.c.obj ftgzip.c.obj ftinit.c.obj ftlcdfil.c.obj ftlzw.c.obj ftmm.c.obj ftotval.c.obj ftpatent.c.obj ftpfr.c.obj ftstroke.c.obj ftsynth.c.obj ftsystem.c.obj fttype1.c.obj ftwinfnt.c.obj)
+}
+
 .$${CC_ARCH}/$${URHO3D_DIR}/lib/libUrho3D.a.depends  = .$${CC_ARCH}/$${URHO3D_DIR}/Makefile
 
-urho3d_authors.xxd.commands = gawk \'/$${LITERAL_HASH}$${LITERAL_HASH}/ { cap=0; } /$${LITERAL_HASH}$${LITERAL_HASH} Credits/ { cap=1; } { if (cap==1) print $0 }\' $< | xxd -i > $@
+urho3d_authors.xxd.commands = awk \'/$${LITERAL_HASH}$${LITERAL_HASH}/ { cap=0; } /$${LITERAL_HASH}$${LITERAL_HASH} Credits/ { cap=1; } { if (cap==1) print $0 }\' $< | xxd -i > $@
 urho3d_authors.xxd.depends  = .$${CC_ARCH}/$${URHO3D_DIR}/README.md
 QMAKE_CLEAN += urho3d_authors.xxd
 
@@ -390,6 +414,56 @@ QMAKE_CLEAN += urho3d_license.xxd
 
 .$${CC_ARCH}/$${URHO3D_DIR}/LICENSE.depends = .$${CC_ARCH}/$${URHO3D_DIR}/CMakeLists.txt
 
+DOLLAR = $
+
+docker_win32.commands  = docker build -t mxe_i686 -f Dockerfile.i686.win32 . && touch docker_win32
+# win32_directx depends on D3DCOMPILER_47.dll which isn't supported on Windows XP
+win32_directx.commands = @-rm -f Wizardry8Editor_resource.rc Wizardry8Editor_resource.rc wizardry8editor_plugin_import.cpp \
+                         $$escape_expand(\n\t)touch Wizardry8Editor.zip CoreData.pak \
+                         $$escape_expand(\n\t)docker run --rm -it --mount type=bind,src=$${OUT_PWD},target=/mnt \
+                           -u $${DOLLAR}$${DOLLAR}(id -u):$${DOLLAR}$${DOLLAR}(id -g) mxe_i686 \
+                           qmake Wizardry8Editor.pro CONFIG+=DIRECTX -o Makefile.win32_directx \
+                         $$escape_expand(\n\t)rm Wizardry8Editor.zip CoreData.pak \
+                         $$escape_expand(\n\t)docker run --rm -it --mount type=bind,src=$${OUT_PWD},target=/mnt \
+                           -u $${DOLLAR}$${DOLLAR}(id -u):$${DOLLAR}$${DOLLAR}(id -g) mxe_i686 \
+                           make -f Makefile.win32_directx
+win32_directx.depends = docker_win32
+win32_opengl.commands  = @-rm -f Wizardry8Editor_resource.rc Wizardry8Editor_resource.rc wizardry8editor_plugin_import.cpp \
+                         $$escape_expand(\n\t)touch Wizardry8Editor.zip CoreData.pak \
+                         $$escape_expand(\n\t)docker run --rm -it --mount type=bind,src=$${OUT_PWD},target=/mnt \
+                           -u $${DOLLAR}$${DOLLAR}(id -u):$${DOLLAR}$${DOLLAR}(id -g) mxe_i686 \
+                           qmake Wizardry8Editor.pro -o Makefile.win32_opengl \
+                         $$escape_expand(\n\t)rm Wizardry8Editor.zip CoreData.pak \
+                         $$escape_expand(\n\t)docker run --rm -it --mount type=bind,src=$${OUT_PWD},target=/mnt \
+                           -u $${DOLLAR}$${DOLLAR}(id -u):$${DOLLAR}$${DOLLAR}(id -g) mxe_i686 \
+                           make -f Makefile.win32_opengl
+win32_opengl.depends = docker_win32
+
+win32_shell.commands = docker run --rm -it --mount type=bind,src=$${OUT_PWD},target=/mnt \
+                           -u $${DOLLAR}$${DOLLAR}(id -u):$${DOLLAR}$${DOLLAR}(id -g) --entrypoint bash mxe_i686
+win32_shell.depends = docker_win32
+
+docker_win64.commands  = docker build -t mxe_x86_64 -f Dockerfile.x86_64.win64 . && touch docker_win64
+win64_directx.commands = @-rm -f Wizardry8Editor_resource.rc Wizardry8Editor_resource.rc wizardry8editor_plugin_import.cpp \
+                         $$escape_expand(\n\t)docker run --rm -it --mount type=bind,src=$${OUT_PWD},target=/mnt \
+                           -u $${DOLLAR}$${DOLLAR}(id -u):$${DOLLAR}$${DOLLAR}(id -g) mxe_x86_64 \
+                           qmake Wizardry8Editor.pro CONFIG+=DIRECTX -o Makefile.win64_directx \
+                           $$escape_expand(\n\t)docker run --rm -it --mount type=bind,src=$${OUT_PWD},target=/mnt \
+                           -u $${DOLLAR}$${DOLLAR}(id -u):$${DOLLAR}$${DOLLAR}(id -g) mxe_x86_64 \
+                           make -f Makefile.win64_directx
+win64_directx.depends = docker_win64
+win64_opengl.commands  = @-rm -f wizardry8editor_plugin_import.cpp Wizardry8Editor_resource.rc wizardry8editor_plugin_import.cpp \
+                         $$escape_expand(\n\t)docker run --rm -it --mount type=bind,src=$${OUT_PWD},target=/mnt \
+                           -u $${DOLLAR}$${DOLLAR}(id -u):$${DOLLAR}$${DOLLAR}(id -g) mxe_x86_64 \
+                           qmake Wizardry8Editor.pro -o Makefile.win64_opengl \
+                           $$escape_expand(\n\t)docker run --rm -it --mount type=bind,src=$${OUT_PWD},target=/mnt \
+                           -u $${DOLLAR}$${DOLLAR}(id -u):$${DOLLAR}$${DOLLAR}(id -g) mxe_x86_64 \
+                           make -f Makefile.win64_opengl
+win64_opengl.depends = docker_win64
+
+win64_shell.commands = docker run --rm -it --mount type=bind,src=$${OUT_PWD},target=/mnt \
+                           -u $${DOLLAR}$${DOLLAR}(id -u):$${DOLLAR}$${DOLLAR}(id -g) --entrypoint bash mxe_x86_64
+win64_shell.depends = docker_win64
 
 equals(URHO3D_TYPE,"OpenGL") {
     CoreData_FILES = $${URHO3D_OpenGL_RESOURCES}
@@ -409,7 +483,7 @@ equals(URHO3D_TYPE,"OpenGL") {
 # OS yourself and copy the PackageTool command into the tree at
 # .x86_64-w64-mingw32.static/( OpenGL | DirectX )/Urho3D-1.8/bin/tool/PackageTool
 # if you are cross-compiling
-CoreData.pak.depends  = .$${CC_ARCH}/$${URHO3D_DIR}/lib/libUrho3D.a $${TARGET}.pro .$${CC_ARCH}/$${URHO3D_DIR}/bin/tool/PackageTool
+CoreData.pak.depends  = .$${CC_ARCH}/$${URHO3D_DIR}/lib/libUrho3D.a $${TARGET}.pro .$${CC_ARCH}/$${URHO3D_DIR}/bin/tool/PackageTool FORCE
 CoreData.pak.commands = mkdir -p .$${CC_ARCH}/CoreData && \
                        echo "Building PAK for $${URHO3D_TYPE}" && \
                        tar c -C .$${CC_ARCH}/$${URHO3D_DIR}/bin/Data $${CoreData_FILES} 2>/dev/null| tar x -C .$${CC_ARCH}/CoreData  && \
