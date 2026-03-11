@@ -138,7 +138,7 @@ void RIFFFile::readDirectory()
         // if we go back to the old header it crashes the game on load.
 
         #warning Complete HACK code here
-        if (! SLFFile::getParallelWorldPath() .contains("/Original/", Qt::CaseInsensitive))
+        if (SLFFile::getParallelWorldPath().contains("/Original/", Qt::CaseInsensitive))
         {
             m_origFormatSpells = true;
         }

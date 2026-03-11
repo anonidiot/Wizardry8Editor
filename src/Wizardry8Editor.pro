@@ -1,4 +1,4 @@
-VERSION=0.2.2
+VERSION=0.2.3
 
 # "These comments are in quotes because the apostrophes mix up the"
 # "syntax highlighting otherwise."
@@ -30,6 +30,12 @@ URHO3D=Urho3D-1.8
 unix {
     URHO3D_TYPE=OpenGL
 }
+
+# This will be used as the target architecture for the -march= gcc switch, and also
+# fed into the Urho3D cmake run as URHO3D_DEPLOYMENT_TARGET.
+# It assumes 64 bit. This variable is overridden if compiling for win32
+# (BTW: The MXE gcc version in the docker images doesn't recognise the x86-64-v2 arch)
+TARGET_ARCH=x86-64
 
 win32 {
 # FIXME: What does this look like for Windows? esp. compiling for DirectX. Also saw a warning on forum:
@@ -73,7 +79,17 @@ win32 {
         QMAKE_LIBS += -lopengl32
     }
     QMAKE_LIBS += -lversion -lwinmm -lws2_32 -lgdi32 -limm32 -lsetupapi
+
+    contains(QT_ARCH, i386) {
+        # Urho's cmake script doesn't actually apply the deployment target unless URHO3D_SSE is set;
+        # so you can't put i686 or a target that doesn't include sse in here and expect it to work
+        # right - you'd have to make additional changes. I decided to just peg the lowest version
+        # supported to the prescott architecture
+        TARGET_ARCH=prescott
+    }
 }
+
+QMAKE_CXXFLAGS_RELEASE  += -march=$${TARGET_ARCH}
 
 QT       += core
 QT       += xml
@@ -391,7 +407,7 @@ $${OBJECTS_DIR}/qrc_blobs.cpp.depends += $${TARGET}.zip CoreData.pak
 # ALSO: On Windows platform Direct3D11 can be optionally chosen: -DURHO3D_D3D11=TRUE
 # Using Direct3D11 on non-MSVC compiler may require copying and renaming Microsoft official libraries (.lib to .a), else link failures or non-functioning graphics may result
 
-.$${CC_ARCH}/$${URHO3D_DIR}/Makefile.commands = (cd .$${CC_ARCH}/$${URHO3D_DIR} ; $${CMAKE} -DURHO3D_ANGELSCRIPT=FALSE -DURHO3D_LUA=FALSE -DURHO3D_LUAJIT=FALSE -DURHO3D_PLAYER=FALSE -DURHO3D_SAMPLES=FALSE -DURHO3D_NETWORK=FALSE -DURHO3D_PACKAGING=TRUE $${URHO3D_ADDITIONAL_CONFIGS} .)
+.$${CC_ARCH}/$${URHO3D_DIR}/Makefile.commands = (cd .$${CC_ARCH}/$${URHO3D_DIR} ; $${CMAKE} -DURHO3D_DEPLOYMENT_TARGET=$${TARGET_ARCH} -DURHO3D_ANGELSCRIPT=FALSE -DURHO3D_LUA=FALSE -DURHO3D_LUAJIT=FALSE -DURHO3D_PLAYER=FALSE -DURHO3D_SAMPLES=FALSE -DURHO3D_NETWORK=FALSE -DURHO3D_PACKAGING=TRUE $${URHO3D_ADDITIONAL_CONFIGS} .)
 .$${CC_ARCH}/$${URHO3D_DIR}/Makefile.depends  = .$${CC_ARCH}/$${URHO3D_DIR}/CMakeLists.txt
 
 unix {
